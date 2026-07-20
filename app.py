@@ -281,60 +281,85 @@ def create_app(config_name="development"):
 
     @app.route("/superadmin/api/organizations/<org_id>/suspend", methods=["POST"])
     def sa_suspend_org(org_id):
-        db.session.execute(db.text("UPDATE iam.tenants SET is_active = false WHERE id = :id"), {"id": org_id})
-        log_audit('SUSPEND', 'IAM', 'Organization', org_id, org_id)
-        db.session.commit()
-        return {"success": True, "message": "Organization suspended"}
+        try:
+            db.session.execute(db.text("UPDATE iam.tenants SET is_active = false WHERE id = :id OR code = :code"), {"id": org_id, "code": org_id})
+            log_audit('SUSPEND', 'IAM', 'Organization', org_id, org_id)
+            db.session.commit()
+            return {"success": True, "message": "Organization suspended"}
+        except Exception as e:
+            db.session.rollback()
+            return {"success": False, "message": str(e)}, 500
 
     @app.route("/superadmin/api/organizations/<org_id>/activate", methods=["POST"])
     def sa_activate_org(org_id):
-        db.session.execute(db.text("UPDATE iam.tenants SET is_active = true WHERE id = :id"), {"id": org_id})
-        log_audit('ACTIVATE', 'IAM', 'Organization', org_id, org_id)
-        db.session.commit()
-        return {"success": True, "message": "Organization activated"}
+        try:
+            db.session.execute(db.text("UPDATE iam.tenants SET is_active = true WHERE id = :id OR code = :code"), {"id": org_id, "code": org_id})
+            log_audit('ACTIVATE', 'IAM', 'Organization', org_id, org_id)
+            db.session.commit()
+            return {"success": True, "message": "Organization activated"}
+        except Exception as e:
+            db.session.rollback()
+            return {"success": False, "message": str(e)}, 500
 
     @app.route("/superadmin/api/organizations/<org_id>", methods=["GET"])
     def sa_get_org(org_id):
-        r = db.session.execute(db.text(
-            "SELECT id, name, code, domain, is_active, email, phone, city, state, pan, gst, cin, "
-            "industry, employee_count, address_line1, address_line2, pincode, country, "
-            "contact_person, contact_designation, contact_phone, contact_email "
-            "FROM iam.tenants WHERE id = :id"
-        ), {"id": org_id}).first()
-        if not r:
-            return {"success": False, "message": "Not found"}, 404
-        return {"success": True, "data": {
-            "id": r[0], "name": r[1], "code": r[2], "domain": r[3], "is_active": r[4],
-            "email": r[5], "phone": r[6], "city": r[7], "state": r[8], "pan": r[9],
-            "gst": r[10], "cin": r[11], "industry": r[12], "employee_count": r[13],
-            "address_line1": r[14], "address_line2": r[15], "pincode": r[16], "country": r[17],
-            "contact_person": r[18], "contact_designation": r[19], "contact_phone": r[20], "contact_email": r[21]
-        }}
+        try:
+            r = db.session.execute(db.text(
+                "SELECT id, name, code, domain, is_active, email, phone, city, state, pan, gst, cin, "
+                "industry, employee_count, address_line1, address_line2, pincode, country, "
+                "contact_person, contact_designation, contact_phone, contact_email "
+                "FROM iam.tenants WHERE id = :id OR code = :code LIMIT 1"
+            ), {"id": org_id, "code": org_id}).first()
+            if not r:
+                return {"success": False, "message": "Not found"}, 404
+            return {"success": True, "data": {
+                "id": r[0], "name": r[1], "code": r[2], "domain": r[3] or "", "is_active": r[4],
+                "email": r[5] or "", "phone": r[6] or "", "city": r[7] or "", "state": r[8] or "",
+                "pan": r[9] or "", "gst": r[10] or "", "cin": r[11] or "", "industry": r[12] or "",
+                "employee_count": r[13] or "", "address_line1": r[14] or "", "address_line2": r[15] or "",
+                "pincode": r[16] or "", "country": r[17] or "India",
+                "contact_person": r[18] or "", "contact_designation": r[19] or "",
+                "contact_phone": r[20] or "", "contact_email": r[21] or ""
+            }}
+        except Exception as e:
+            db.session.rollback()
+            return {"success": False, "message": str(e)}, 500
 
-    @app.route("/superadmin/api/organizations/<org_id>/update", methods=["POST"])
+    @app.route("/superadmin/api/organizations/<org_id>/update", methods=["POST", "PUT"])
     def sa_update_org(org_id):
-        data = request.get_json()
-        db.session.execute(db.text(
-            "UPDATE iam.tenants SET name=:name, code=:code, domain=:domain, pan=:pan, gst=:gst, cin=:cin, "
-            "email=:email, phone=:phone, address_line1=:addr1, address_line2=:addr2, city=:city, "
-            "state=:state, pincode=:pincode, country=:country, industry=:industry, employee_count=:emp_count, "
-            "contact_person=:cp_name, contact_designation=:cp_designation, contact_phone=:cp_phone, "
-            "contact_email=:cp_email, updated_at=NOW() WHERE id=:id"
-        ), {
-            "id": org_id, "name": data.get("name", ""), "code": data.get("code", ""),
-            "domain": data.get("domain", ""), "pan": data.get("pan", ""),
-            "gst": data.get("gst", ""), "cin": data.get("cin", ""),
-            "email": data.get("email", ""), "phone": data.get("phone", ""),
-            "addr1": data.get("address_line1", ""), "addr2": data.get("address_line2", ""),
-            "city": data.get("city", ""), "state": data.get("state", ""),
-            "pincode": data.get("pincode", ""), "country": data.get("country", "India"),
-            "industry": data.get("industry", ""), "emp_count": data.get("employee_count", ""),
-            "cp_name": data.get("contact_person", ""), "cp_designation": data.get("contact_designation", ""),
-            "cp_phone": data.get("contact_phone", ""), "cp_email": data.get("contact_email", "")
-        })
-        log_audit('UPDATE', 'IAM', 'Organization', org_id, data.get('code', org_id))
-        db.session.commit()
-        return {"success": True, "message": "Organization updated"}
+        try:
+            data = request.get_json() or {}
+            # Support lookup by UUID id or by code
+            row = db.session.execute(db.text(
+                "SELECT id FROM iam.tenants WHERE id = :id OR code = :code LIMIT 1"
+            ), {"id": org_id, "code": org_id}).first()
+            if not row:
+                return {"success": False, "message": "Organization not found"}, 404
+            real_id = row[0]
+            db.session.execute(db.text(
+                "UPDATE iam.tenants SET name=:name, domain=:domain, pan=:pan, gst=:gst, cin=:cin, "
+                "email=:email, phone=:phone, address_line1=:addr1, address_line2=:addr2, city=:city, "
+                "state=:state, pincode=:pincode, country=:country, industry=:industry, employee_count=:emp_count, "
+                "contact_person=:cp_name, contact_designation=:cp_designation, contact_phone=:cp_phone, "
+                "contact_email=:cp_email, updated_at=NOW() WHERE id=:id"
+            ), {
+                "id": real_id, "name": data.get("name", ""),
+                "domain": data.get("domain", ""), "pan": data.get("pan", ""),
+                "gst": data.get("gst", ""), "cin": data.get("cin", ""),
+                "email": data.get("email", ""), "phone": data.get("phone", ""),
+                "addr1": data.get("address_line1", ""), "addr2": data.get("address_line2", ""),
+                "city": data.get("city", ""), "state": data.get("state", ""),
+                "pincode": data.get("pincode", ""), "country": data.get("country", "India"),
+                "industry": data.get("industry", ""), "emp_count": data.get("employee_count", ""),
+                "cp_name": data.get("contact_person", ""), "cp_designation": data.get("contact_designation", ""),
+                "cp_phone": data.get("contact_phone", ""), "cp_email": data.get("contact_email", "")
+            })
+            log_audit('UPDATE', 'IAM', 'Organization', str(real_id), data.get('code', org_id))
+            db.session.commit()
+            return {"success": True, "message": "Organization updated"}
+        except Exception as e:
+            db.session.rollback()
+            return {"success": False, "message": str(e)}, 500
 
     @app.route("/superadmin/api/overview", methods=["GET"])
     def sa_overview():
