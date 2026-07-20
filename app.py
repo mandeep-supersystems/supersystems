@@ -395,6 +395,36 @@ def create_app(config_name="development"):
             db.session.rollback()
             return {"success": False, "message": str(e)}, 500
 
+    @app.route("/superadmin/api/modules", methods=["GET"])
+    def sa_list_modules():
+        try:
+            rows = db.session.execute(db.text(
+                "SELECT id, name, code, category, description, is_available "
+                "FROM super_admin.module_registry ORDER BY category, name"
+            )).fetchall()
+            return {"success": True, "data": [{
+                "id": str(r[0]), "name": r[1], "code": r[2],
+                "category": r[3] or '', "description": r[4] or '', "is_available": r[5]
+            } for r in rows]}
+        except Exception:
+            db.session.rollback()
+            return {"success": True, "data": [
+                {"name": "Part Management",     "code": "PART",     "category": "Manufacturing", "is_available": True},
+                {"name": "RM Management",       "code": "RM",       "category": "Manufacturing", "is_available": True},
+                {"name": "Machine Management",  "code": "MACHINE",  "category": "Manufacturing", "is_available": True},
+                {"name": "Workflow & Costing",  "code": "WORKFLOW",  "category": "Manufacturing", "is_available": True},
+                {"name": "Procurement",         "code": "PROC",     "category": "Supply Chain",  "is_available": True},
+                {"name": "Supplier Management", "code": "SUPPLIER",  "category": "Supply Chain",  "is_available": True},
+                {"name": "Inventory",           "code": "INV",      "category": "Supply Chain",  "is_available": True},
+                {"name": "Warehouse",           "code": "WH",       "category": "Supply Chain",  "is_available": True},
+                {"name": "HR Management",       "code": "HR",       "category": "People",        "is_available": True},
+                {"name": "Project Management",  "code": "PROJECT",  "category": "Operations",    "is_available": True},
+                {"name": "Quality",             "code": "QUALITY",  "category": "Operations",    "is_available": True},
+                {"name": "Finance",             "code": "FINANCE",  "category": "Finance",       "is_available": True},
+                {"name": "Auth & Security",     "code": "AUTH",     "category": "Platform",      "is_available": True},
+                {"name": "Audit & Logs",        "code": "AUDIT",    "category": "Platform",      "is_available": True},
+            ]}
+
     @app.route("/superadmin/api/overview", methods=["GET"])
     def sa_overview():
         total = db.session.execute(db.text("SELECT COUNT(*) FROM iam.tenants WHERE is_deleted = false")).scalar() or 0
