@@ -446,9 +446,12 @@ def create_app(config_name="development"):
         try:
             rows = db.session.execute(db.text(
                 "SELECT t.id, t.name, t.code, t.is_active, t.created_at, "
-                "COUNT(u.id) as user_count "
+                "COUNT(DISTINCT u.id) as user_count, "
+                "COUNT(DISTINCT CASE WHEN u.is_active THEN u.id END) as active_users, "
+                "COUNT(DISTINCT ma.module) as module_count "
                 "FROM iam.tenants t "
                 "LEFT JOIN iam.users u ON u.tenant_id = t.id AND u.is_deleted = false "
+                "LEFT JOIN iam.module_access ma ON ma.tenant_id = t.id "
                 "WHERE t.is_deleted = false "
                 "GROUP BY t.id, t.name, t.code, t.is_active, t.created_at "
                 "ORDER BY t.created_at DESC"
@@ -456,12 +459,70 @@ def create_app(config_name="development"):
             data = [{
                 "id": str(r[0]), "name": r[1], "code": r[2],
                 "is_active": r[3], "created_at": str(r[4]) if r[4] else None,
-                "user_count": r[5] or 0
+                "user_count": r[5] or 0, "active_users": r[6] or 0, "module_count": r[7] or 0
             } for r in rows]
             return {"success": True, "data": data}
         except Exception as e:
             db.session.rollback()
             return {"success": True, "data": []}
+
+    @app.route("/superadmin/api/monitoring/<org_id>", methods=["GET"])
+    def sa_monitoring_detail(org_id):
+        try:
+            # Org stats
+            row = db.session.execute(db.text(
+                "SELECT t.id, t.name, t.code, t.is_active, t.created_at, "
+                "COUNT(DISTINCT u.id) as user_count, "
+                "COUNT(DISTINCT CASE WHEN u.is_active THEN u.id END) as active_users "
+                "FROM iam.tenants t "
+                "LEFT JOIN iam.users u ON u.tenant_id = t.id AND u.is_deleted = false "
+                "WHERE t.id = :id AND t.is_deleted = false GROUP BY t.id, t.name, t.code, t.is_active, t.created_at"
+            ), {"id": org_id}).first()
+            if not row:
+                return {"success": False, "message": "Not found"}, 404
+
+            # Audit count
+            audit_count = db.session.execute(db.text(
+                "SELECT COUNT(*) FROM audit.logs WHERE tenant_id = :tid"
+            ), {"tid": org_id}).scalar() or 0
+
+            # Recent activity
+            activity_rows = db.session.execute(db.text(
+                "SELECT action, module, entity_type, created_at FROM audit.logs "
+                "WHERE tenant_id = :tid ORDER BY created_at DESC LIMIT 10"
+            ), {"tid": org_id}).fetchall()
+            recent_activity = [{"action": r[0], "module": r[1], "entity_type": r[2],
+                                "created_at": str(r[3]) if r[3] else None} for r in activity_rows]
+
+            # Last login
+            last_login_row = db.session.execute(db.text(
+                "SELECT MAX(login_at) FROM audit.login_history WHERE tenant_id = :tid"
+            ), {"tid": org_id}).scalar()
+
+            # Module access
+            try:
+                mod_rows = db.session.execute(db.text(
+                    "SELECT DISTINCT module as module_code, module as module_name, true as is_enabled "
+                    "FROM iam.module_access WHERE tenant_id = :tid"
+                ), {"tid": org_id}).fetchall()
+                modules = [{"module_code": r[0], "module_name": r[1], "is_enabled": r[2]} for r in mod_rows]
+            except Exception:
+                db.session.rollback()
+                modules = []
+
+            return {"success": True, "data": {
+                "user_count": row[5] or 0,
+                "active_users": row[6] or 0,
+                "module_count": len(modules),
+                "audit_count": audit_count,
+                "db_connected": True,
+                "last_login": str(last_login_row) if last_login_row else None,
+                "recent_activity": recent_activity,
+                "modules": modules
+            }}
+        except Exception as e:
+            db.session.rollback()
+            return {"success": False, "message": str(e)}, 500
 
     # ─── DASHBOARD API ───
     @app.route("/api/v1/dashboard", methods=["GET"])

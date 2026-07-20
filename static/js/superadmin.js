@@ -110,22 +110,21 @@ async function loadOrganizations() {
 function renderOrganizations() {
     const tbody = document.getElementById('orgsTableBody');
     if (!organizations.length) {
-        tbody.innerHTML = '<tr><td colspan="7" class="empty">No organizations yet. Click "Add Organization" to create one.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="empty">No organizations yet. Click "Add Organization" to create one.</td></tr>';
         return;
     }
     tbody.innerHTML = organizations.map(org => `
-        <tr>
+        <tr class="org-row" onclick="editOrg('${org.id}')">
             <td><strong>${org.name}</strong><br><small style="color:var(--text-muted)">${org.email || ''}</small></td>
             <td>${org.code || ''}</td>
             <td>${org.pan || '-'}</td>
             <td>${org.city || '-'}${org.state ? ', ' + org.state : ''}</td>
             <td>${org.industry || '-'}</td>
-            <td><span class="status-${org.is_active !== false ? 'active' : 'suspended'}">${org.is_active !== false ? 'Active' : 'Suspended'}</span></td>
             <td>
-                <button class="btn-edit" onclick="editOrg('${org.id}')">Edit</button>
-                ${org.is_active !== false
-                    ? `<button class="btn-danger" onclick="suspendOrg('${org.id}')">Suspend</button>`
-                    : `<button class="btn-success" onclick="activateOrg('${org.id}')">Activate</button>`}
+                <span class="status-${org.is_active !== false ? 'active' : 'suspended'}">${org.is_active !== false ? 'Active' : 'Suspended'}</span>
+                <button class="icon-btn" title="${org.is_active !== false ? 'Suspend' : 'Activate'}" onclick="event.stopPropagation(); ${org.is_active !== false ? `suspendOrg('${org.id}')` : `activateOrg('${org.id}')`}">
+                    <span class="material-icons-outlined">${org.is_active !== false ? 'pause_circle' : 'play_circle'}</span>
+                </button>
             </td>
         </tr>
     `).join('');
@@ -261,26 +260,130 @@ async function loadModules() {
 async function loadMonitoring() {
     const tbody = document.getElementById('monitoringTableBody');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="5" class="empty">Loading...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">Loading...</td></tr>';
     try {
         const res = await apiGet('/monitoring');
         const data = (res.success && res.data) ? res.data : [];
         if (!data.length) {
-            tbody.innerHTML = '<tr><td colspan="5" class="empty">No organizations found</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" class="empty">No organizations found</td></tr>';
             return;
         }
         tbody.innerHTML = data.map(r => `
-            <tr>
-                <td><strong>${r.name}</strong></td>
-                <td>${r.code}</td>
+            <tr class="mon-row" onclick="openMonitorDetail('${r.id}')">
+                <td><strong>${r.name}</strong><br><small style="color:var(--text-muted)">${r.code}</small></td>
                 <td>${r.user_count}</td>
+                <td>${r.active_users || 0}</td>
+                <td>${r.module_count || 0}</td>
                 <td><span class="status-${r.is_active ? 'active' : 'suspended'}">${r.is_active ? 'Active' : 'Suspended'}</span></td>
                 <td><small>${r.created_at ? new Date(r.created_at).toLocaleDateString() : '-'}</small></td>
             </tr>
         `).join('');
     } catch(e) {
-        tbody.innerHTML = '<tr><td colspan="5" class="empty">Failed to load monitoring data</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="empty">Failed to load monitoring data</td></tr>';
     }
+}
+
+async function openMonitorDetail(orgId) {
+    const panel = document.getElementById('monitorPanel');
+    panel.classList.add('active');
+    document.getElementById('monitorPanelBody').innerHTML = '<div class="monitor-loading"><span class="material-icons-outlined spin">sync</span> Loading...</div>';
+    try {
+        const [orgRes, monRes] = await Promise.all([
+            apiGet('/organizations/' + orgId),
+            apiGet('/monitoring/' + orgId)
+        ]);
+        const org = orgRes.success ? orgRes.data : {};
+        const mon = monRes.success ? monRes.data : {};
+        document.getElementById('monitorPanelTitle').textContent = org.name || 'Organization';
+        document.getElementById('monitorPanelBody').innerHTML = `
+            <div class="mon-detail-grid">
+                <div class="mon-stat-card">
+                    <span class="material-icons-outlined">people</span>
+                    <div><h4>${mon.user_count || 0}</h4><p>Total Users</p></div>
+                </div>
+                <div class="mon-stat-card">
+                    <span class="material-icons-outlined">person_check</span>
+                    <div><h4>${mon.active_users || 0}</h4><p>Active Users</p></div>
+                </div>
+                <div class="mon-stat-card">
+                    <span class="material-icons-outlined">extension</span>
+                    <div><h4>${mon.module_count || 0}</h4><p>Modules</p></div>
+                </div>
+                <div class="mon-stat-card">
+                    <span class="material-icons-outlined">history</span>
+                    <div><h4>${mon.audit_count || 0}</h4><p>Audit Events</p></div>
+                </div>
+            </div>
+
+            <div class="mon-section">
+                <h5><span class="material-icons-outlined">business</span> Organization Info</h5>
+                <div class="mon-info-grid">
+                    <div><label>Code</label><span>${org.code || '-'}</span></div>
+                    <div><label>Industry</label><span>${org.industry || '-'}</span></div>
+                    <div><label>Email</label><span>${org.email || '-'}</span></div>
+                    <div><label>Phone</label><span>${org.phone || '-'}</span></div>
+                    <div><label>City</label><span>${org.city || '-'}${org.state ? ', ' + org.state : ''}</span></div>
+                    <div><label>PAN</label><span>${org.pan || '-'}</span></div>
+                    <div><label>GST</label><span>${org.gst || '-'}</span></div>
+                    <div><label>Status</label><span class="status-${org.is_active ? 'active' : 'suspended'}">${org.is_active ? 'Active' : 'Suspended'}</span></div>
+                </div>
+            </div>
+
+            <div class="mon-section">
+                <h5><span class="material-icons-outlined">wifi</span> Connectivity</h5>
+                <div class="mon-conn-grid">
+                    <div class="mon-conn-item conn-ok">
+                        <span class="material-icons-outlined">check_circle</span>
+                        <div><strong>API</strong><small>Connected</small></div>
+                    </div>
+                    <div class="mon-conn-item ${mon.db_connected !== false ? 'conn-ok' : 'conn-err'}">
+                        <span class="material-icons-outlined">${mon.db_connected !== false ? 'check_circle' : 'error'}</span>
+                        <div><strong>Database</strong><small>${mon.db_connected !== false ? 'Connected' : 'Error'}</small></div>
+                    </div>
+                    <div class="mon-conn-item conn-ok">
+                        <span class="material-icons-outlined">check_circle</span>
+                        <div><strong>Auth</strong><small>Operational</small></div>
+                    </div>
+                    <div class="mon-conn-item ${mon.last_login ? 'conn-ok' : 'conn-warn'}">
+                        <span class="material-icons-outlined">${mon.last_login ? 'check_circle' : 'warning'}</span>
+                        <div><strong>Last Login</strong><small>${mon.last_login ? new Date(mon.last_login).toLocaleString() : 'Never'}</small></div>
+                    </div>
+                </div>
+            </div>
+
+            ${mon.recent_activity && mon.recent_activity.length ? `
+            <div class="mon-section">
+                <h5><span class="material-icons-outlined">timeline</span> Recent Activity</h5>
+                <div class="mon-activity-list">
+                    ${mon.recent_activity.map(a => `
+                        <div class="mon-activity-item">
+                            <span class="action-badge action-${(a.action||'').toLowerCase()}">${a.action}</span>
+                            <span>${a.module || '-'} &mdash; ${a.entity_type || ''}</span>
+                            <small>${a.created_at ? new Date(a.created_at).toLocaleString() : ''}</small>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>` : ''}
+
+            ${mon.modules && mon.modules.length ? `
+            <div class="mon-section">
+                <h5><span class="material-icons-outlined">extension</span> Module Access</h5>
+                <div class="mon-modules-grid">
+                    ${mon.modules.map(m => `
+                        <div class="mon-module-chip ${m.is_enabled ? 'chip-on' : 'chip-off'}">
+                            <span class="material-icons-outlined">${m.is_enabled ? 'check' : 'close'}</span>${m.module_name || m.module_code}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>` : ''}
+        `;
+    } catch(e) {
+        document.getElementById('monitorPanelBody').innerHTML = '<div class="monitor-loading">Failed to load details</div>';
+    }
+}
+
+function closeMonitorPanel() {
+    document.getElementById('monitorPanel').classList.remove('active');
 }
 
 // ── AUDIT LOGS ─────────────────────────────────────────────────

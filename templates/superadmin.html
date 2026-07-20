@@ -123,7 +123,6 @@
                         <th>City</th>
                         <th>Industry</th>
                         <th>Status</th>
-                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="orgsTableBody">
@@ -162,14 +161,27 @@
         <div class="table-wrap">
             <table class="data-table">
                 <thead>
-                    <tr><th>Organization</th><th>Code</th><th>Users</th><th>Status</th><th>Created</th></tr>
+                    <tr><th>Organization</th><th>Total Users</th><th>Active Users</th><th>Modules</th><th>Status</th><th>Created</th></tr>
                 </thead>
                 <tbody id="monitoringTableBody">
-                    <tr><td colspan="5" class="empty">Loading...</td></tr>
+                    <tr><td colspan="6" class="empty">Loading...</td></tr>
                 </tbody>
             </table>
         </div>
     </section>
+
+    <!-- MONITOR DETAIL PANEL -->
+    <div class="monitor-panel-overlay" id="monitorPanel" onclick="closeMonitorPanel()">
+        <div class="monitor-panel" onclick="event.stopPropagation()">
+            <div class="monitor-panel-header">
+                <h3 id="monitorPanelTitle">Organization Details</h3>
+                <button class="close-btn" onclick="closeMonitorPanel()">
+                    <span class="material-icons-outlined">close</span>
+                </button>
+            </div>
+            <div class="monitor-panel-body" id="monitorPanelBody"></div>
+        </div>
+    </div>
 
     <!-- AUDIT SECTION -->
     <section class="section" id="sec-audit">
