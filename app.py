@@ -210,7 +210,8 @@ def create_app(config_name="development"):
         return render_template("workflow/routing_detail.html", routing_id=rid)
 
     @app.route("/superadmin")
-    def superadmin_portal():
+    @app.route("/superadmin/<section>")
+    def superadmin_portal(section=None):
         return render_template("superadmin.html")
 
     # Audit log helper
@@ -406,27 +407,61 @@ def create_app(config_name="development"):
 
     @app.route("/superadmin/api/audit-logs", methods=["GET"])
     def sa_audit_logs():
-        page = request.args.get('page', 1, type=int)
-        limit = request.args.get('limit', 50, type=int)
-        module = request.args.get('module', '')
-        action = request.args.get('action', '')
-        offset = (page - 1) * limit
-        where = "WHERE 1=1"
-        params = {"limit": limit, "offset": offset}
-        if module:
-            where += " AND l.module = :module"
-            params["module"] = module
-        if action:
-            where += " AND l.action = :action"
-            params["action"] = action
-        count = db.session.execute(db.text(f"SELECT COUNT(*) FROM audit.logs l {where}"), params).scalar() or 0
-        rows = db.session.execute(db.text(
-            f"SELECT l.id, l.user_id, l.action, l.module, l.entity_type, l.entity_id, "
-            f"l.ip_address, l.tenant_id, l.created_at "
-            f"FROM audit.logs l {where} ORDER BY l.created_at DESC LIMIT :limit OFFSET :offset"
-        ), params)
-        logs = [{"id": r[0], "user_id": r[1], "action": r[2], "module": r[3], "entity_type": r[4], "entity_id": r[5], "ip_address": r[6], "tenant_id": r[7], "created_at": str(r[8]) if r[8] else None} for r in rows]
-        return {"success": True, "data": {"items": logs, "total": count, "page": page, "limit": limit}}
+        try:
+            page = request.args.get('page', 1, type=int)
+            limit = request.args.get('limit', 50, type=int)
+            module = request.args.get('module', '')
+            action = request.args.get('action', '')
+            offset = (page - 1) * limit
+            where = "WHERE 1=1"
+            params = {"limit": limit, "offset": offset}
+            if module:
+                where += " AND module = :module"
+                params["module"] = module
+            if action:
+                where += " AND action = :action"
+                params["action"] = action
+            count = db.session.execute(db.text(f"SELECT COUNT(*) FROM audit.logs {where}"), params).scalar() or 0
+            rows = db.session.execute(db.text(
+                f"SELECT id, user_email, action, module, entity_type, entity_id, "
+                f"ip_address, tenant_id, created_at, user_name "
+                f"FROM audit.logs {where} ORDER BY created_at DESC LIMIT :limit OFFSET :offset"
+            ), params).fetchall()
+            logs = [{
+                "id": str(r[0]) if r[0] else None,
+                "user_email": r[1] or '', "action": r[2] or '',
+                "module": r[3] or '', "entity_type": r[4] or '',
+                "entity_id": str(r[5]) if r[5] else '',
+                "ip_address": r[6] or '', "tenant_id": r[7] or '',
+                "created_at": str(r[8]) if r[8] else None,
+                "user_name": r[9] or ''
+            } for r in rows]
+            return {"success": True, "data": {"items": logs, "total": count, "page": page, "limit": limit}}
+        except Exception as e:
+            db.session.rollback()
+            return {"success": True, "data": {"items": [], "total": 0, "page": 1, "limit": 50}}
+
+    @app.route("/superadmin/api/monitoring", methods=["GET"])
+    def sa_monitoring():
+        try:
+            rows = db.session.execute(db.text(
+                "SELECT t.id, t.name, t.code, t.is_active, t.created_at, "
+                "COUNT(u.id) as user_count "
+                "FROM iam.tenants t "
+                "LEFT JOIN iam.users u ON u.tenant_id = t.id AND u.is_deleted = false "
+                "WHERE t.is_deleted = false "
+                "GROUP BY t.id, t.name, t.code, t.is_active, t.created_at "
+                "ORDER BY t.created_at DESC"
+            )).fetchall()
+            data = [{
+                "id": str(r[0]), "name": r[1], "code": r[2],
+                "is_active": r[3], "created_at": str(r[4]) if r[4] else None,
+                "user_count": r[5] or 0
+            } for r in rows]
+            return {"success": True, "data": data}
+        except Exception as e:
+            db.session.rollback()
+            return {"success": True, "data": []}
 
     # ─── DASHBOARD API ───
     @app.route("/api/v1/dashboard", methods=["GET"])

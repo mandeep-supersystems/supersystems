@@ -17,25 +17,25 @@
         <span>Super Admin</span>
     </div>
     <nav class="sidebar-nav">
-        <a href="#" class="nav-link active" data-section="overview">
+        <a href="/superadmin/overview" class="nav-link" data-section="overview">
             <span class="material-icons-outlined">dashboard</span>Overview
         </a>
-        <a href="#" class="nav-link" data-section="organizations">
+        <a href="/superadmin/organizations" class="nav-link" data-section="organizations">
             <span class="material-icons-outlined">business</span>Organizations
         </a>
-        <a href="#" class="nav-link" data-section="modules">
+        <a href="/superadmin/modules" class="nav-link" data-section="modules">
             <span class="material-icons-outlined">extension</span>Modules
         </a>
-        <a href="#" class="nav-link" data-section="licenses">
+        <a href="/superadmin/licenses" class="nav-link" data-section="licenses">
             <span class="material-icons-outlined">verified</span>Licenses
         </a>
-        <a href="#" class="nav-link" data-section="monitoring">
+        <a href="/superadmin/monitoring" class="nav-link" data-section="monitoring">
             <span class="material-icons-outlined">monitor_heart</span>Monitoring
         </a>
-        <a href="#" class="nav-link" data-section="audit">
+        <a href="/superadmin/audit" class="nav-link" data-section="audit">
             <span class="material-icons-outlined">history</span>Audit Log
         </a>
-        <a href="#" class="nav-link" data-section="settings">
+        <a href="/superadmin/settings" class="nav-link" data-section="settings">
             <span class="material-icons-outlined">settings</span>Settings
         </a>
     </nav>
@@ -159,7 +159,16 @@
     <!-- MONITORING SECTION -->
     <section class="section" id="sec-monitoring">
         <div class="section-header"><h3>Tenant Monitoring</h3></div>
-        <p class="placeholder-text">Monitoring dashboard coming soon.</p>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr><th>Organization</th><th>Code</th><th>Users</th><th>Status</th><th>Created</th></tr>
+                </thead>
+                <tbody id="monitoringTableBody">
+                    <tr><td colspan="5" class="empty">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
     </section>
 
     <!-- AUDIT SECTION -->
