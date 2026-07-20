@@ -1,5 +1,8 @@
+-- SCHEMAS INITIALIZATION
+CREATE SCHEMA IF NOT EXISTS part;
+
 -- Part Code Scheme (category, sub_category, series, sub_cat_series)
-CREATE TABLE part.code_schemes (
+CREATE TABLE IF NOT EXISTS part.code_schemes (
     id VARCHAR(36) PRIMARY KEY,
     name VARCHAR(200) NOT NULL,
     code VARCHAR(50) NOT NULL UNIQUE,
@@ -24,7 +27,7 @@ CREATE TABLE part.code_schemes (
 );
 
 -- Part Master
-CREATE TABLE part.masters (
+CREATE TABLE IF NOT EXISTS part.masters (
     id VARCHAR(36) PRIMARY KEY,
     part_number VARCHAR(100) NOT NULL,
     name VARCHAR(300) NOT NULL,

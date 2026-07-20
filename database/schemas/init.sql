@@ -7,6 +7,14 @@
 -- ============================================
 -- SCHEMAS
 -- ============================================
+CREATE SCHEMA IF NOT EXISTS iam;
+CREATE SCHEMA IF NOT EXISTS workflow;
+CREATE SCHEMA IF NOT EXISTS master;
+CREATE SCHEMA IF NOT EXISTS project;
+CREATE SCHEMA IF NOT EXISTS part;
+CREATE SCHEMA IF NOT EXISTS rawmaterial;
+CREATE SCHEMA IF NOT EXISTS machine;
+CREATE SCHEMA IF NOT EXISTS supplier;
 CREATE SCHEMA IF NOT EXISTS core;
 CREATE SCHEMA IF NOT EXISTS master_data;
 CREATE SCHEMA IF NOT EXISTS inventory;
