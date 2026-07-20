@@ -228,11 +228,19 @@ def create_app(config_name="development"):
     # Super Admin Portal API (no JWT for GUI portal)
     @app.route("/superadmin/api/organizations", methods=["GET"])
     def sa_list_orgs():
-        result = db.session.execute(db.text(
-            "SELECT id, name, code, domain, is_active, created_at, email, phone, city, state, pan, industry FROM iam.tenants WHERE is_deleted = false ORDER BY created_at DESC"
-        ))
-        orgs = [{"id": r[0], "name": r[1], "code": r[2], "domain": r[3], "is_active": r[4], "created_at": str(r[5]) if r[5] else None, "email": r[6], "phone": r[7], "city": r[8], "state": r[9], "pan": r[10], "industry": r[11]} for r in result]
-        return {"success": True, "data": orgs}
+        try:
+            result = db.session.execute(db.text(
+                "SELECT id, name, code, domain, is_active, created_at, email, phone, city, state, pan, industry FROM iam.tenants WHERE is_deleted = false ORDER BY created_at DESC"
+            ))
+            orgs = [{"id": r[0], "name": r[1], "code": r[2], "domain": r[3], "is_active": r[4], "created_at": str(r[5]) if r[5] else None, "email": r[6], "phone": r[7], "city": r[8], "state": r[9], "pan": r[10], "industry": r[11]} for r in result]
+            return {"success": True, "data": orgs}
+        except Exception as err:
+            db.session.rollback()
+            result = db.session.execute(db.text(
+                "SELECT id, name, code, domain, is_active, created_at FROM iam.tenants WHERE is_deleted = false ORDER BY created_at DESC"
+            ))
+            orgs = [{"id": r[0], "name": r[1], "code": r[2], "domain": r[3], "is_active": r[4], "created_at": str(r[5]) if r[5] else None, "email": "", "phone": "", "city": "", "state": "", "pan": "", "industry": ""} for r in result]
+            return {"success": True, "data": orgs}
 
     @app.route("/superadmin/api/organizations", methods=["POST"])
     def sa_create_org():

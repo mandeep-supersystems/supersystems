@@ -18,7 +18,54 @@ CREATE SCHEMA IF NOT EXISTS hr;
 CREATE SCHEMA IF NOT EXISTS analytics;
 
 -- IAM
-CREATE TABLE IF NOT EXISTS iam.tenants (id VARCHAR(36) PRIMARY KEY, name VARCHAR(200) NOT NULL, code VARCHAR(50) UNIQUE NOT NULL, domain VARCHAR(200), is_active BOOLEAN DEFAULT true, is_deleted BOOLEAN DEFAULT false, version INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW());
+CREATE TABLE IF NOT EXISTS iam.tenants (
+    id VARCHAR(36) PRIMARY KEY,
+    name VARCHAR(200) NOT NULL,
+    code VARCHAR(50) UNIQUE NOT NULL,
+    domain VARCHAR(200),
+    email VARCHAR(200),
+    phone VARCHAR(20),
+    pan VARCHAR(50),
+    gst VARCHAR(50),
+    cin VARCHAR(50),
+    address_line1 TEXT,
+    address_line2 TEXT,
+    city VARCHAR(100),
+    state VARCHAR(100),
+    pincode VARCHAR(20),
+    country VARCHAR(100) DEFAULT 'India',
+    industry VARCHAR(100),
+    employee_count VARCHAR(50),
+    contact_person VARCHAR(100),
+    contact_designation VARCHAR(100),
+    contact_phone VARCHAR(20),
+    contact_email VARCHAR(200),
+    tenant_id VARCHAR(50),
+    settings JSONB DEFAULT '{}',
+    is_active BOOLEAN DEFAULT true,
+    is_deleted BOOLEAN DEFAULT false,
+    version INTEGER DEFAULT 1,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+ALTER TABLE iam.tenants ADD COLUMN IF NOT EXISTS email VARCHAR(200);
+ALTER TABLE iam.tenants ADD COLUMN IF NOT EXISTS phone VARCHAR(20);
+ALTER TABLE iam.tenants ADD COLUMN IF NOT EXISTS pan VARCHAR(50);
+ALTER TABLE iam.tenants ADD COLUMN IF NOT EXISTS gst VARCHAR(50);
+ALTER TABLE iam.tenants ADD COLUMN IF NOT EXISTS cin VARCHAR(50);
+ALTER TABLE iam.tenants ADD COLUMN IF NOT EXISTS address_line1 TEXT;
+ALTER TABLE iam.tenants ADD COLUMN IF NOT EXISTS address_line2 TEXT;
+ALTER TABLE iam.tenants ADD COLUMN IF NOT EXISTS city VARCHAR(100);
+ALTER TABLE iam.tenants ADD COLUMN IF NOT EXISTS state VARCHAR(100);
+ALTER TABLE iam.tenants ADD COLUMN IF NOT EXISTS pincode VARCHAR(20);
+ALTER TABLE iam.tenants ADD COLUMN IF NOT EXISTS country VARCHAR(100);
+ALTER TABLE iam.tenants ADD COLUMN IF NOT EXISTS industry VARCHAR(100);
+ALTER TABLE iam.tenants ADD COLUMN IF NOT EXISTS employee_count VARCHAR(50);
+ALTER TABLE iam.tenants ADD COLUMN IF NOT EXISTS contact_person VARCHAR(100);
+ALTER TABLE iam.tenants ADD COLUMN IF NOT EXISTS contact_designation VARCHAR(100);
+ALTER TABLE iam.tenants ADD COLUMN IF NOT EXISTS contact_phone VARCHAR(20);
+ALTER TABLE iam.tenants ADD COLUMN IF NOT EXISTS contact_email VARCHAR(200);
+ALTER TABLE iam.tenants ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(50);
 CREATE TABLE IF NOT EXISTS iam.users (id VARCHAR(36) PRIMARY KEY, tenant_id VARCHAR(36) NOT NULL, email VARCHAR(200) UNIQUE NOT NULL, password_hash VARCHAR(256) NOT NULL, first_name VARCHAR(100), last_name VARCHAR(100), phone VARCHAR(20), is_active BOOLEAN DEFAULT true, is_locked BOOLEAN DEFAULT false, last_login TIMESTAMP, failed_attempts INTEGER DEFAULT 0, attributes JSONB DEFAULT '{}', is_deleted BOOLEAN DEFAULT false, version INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW());
 CREATE TABLE IF NOT EXISTS iam.roles (id VARCHAR(36) PRIMARY KEY, name VARCHAR(100) NOT NULL, code VARCHAR(50) NOT NULL, description TEXT, is_system BOOLEAN DEFAULT false, tenant_id VARCHAR(36) NOT NULL, is_deleted BOOLEAN DEFAULT false, version INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW(), created_by VARCHAR(36), updated_by VARCHAR(36));
 CREATE TABLE IF NOT EXISTS iam.permissions (id VARCHAR(36) PRIMARY KEY, name VARCHAR(100) NOT NULL, code VARCHAR(100) UNIQUE NOT NULL, module VARCHAR(50), action VARCHAR(50), resource VARCHAR(100), tenant_id VARCHAR(36) NOT NULL, is_deleted BOOLEAN DEFAULT false, version INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW());
