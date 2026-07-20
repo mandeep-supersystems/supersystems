@@ -290,8 +290,8 @@ def create_app(config_name="development"):
     @app.route("/superadmin/api/organizations/<org_id>/suspend", methods=["POST"])
     def sa_suspend_org(org_id):
         try:
-            db.session.execute(db.text("UPDATE iam.tenants SET is_active = false WHERE id = :id OR code = :code"), {"id": org_id, "code": org_id})
-            log_audit('SUSPEND', 'IAM', 'Organization', org_id, org_id)
+            db.session.execute(db.text("UPDATE iam.tenants SET is_active = false WHERE code = :code OR id::text = :id"), {"id": org_id, "code": org_id})
+            log_audit('SUSPEND', 'IAM', 'Organization', None, org_id)
             db.session.commit()
             return {"success": True, "message": "Organization suspended"}
         except Exception as e:
@@ -301,8 +301,8 @@ def create_app(config_name="development"):
     @app.route("/superadmin/api/organizations/<org_id>/activate", methods=["POST"])
     def sa_activate_org(org_id):
         try:
-            db.session.execute(db.text("UPDATE iam.tenants SET is_active = true WHERE id = :id OR code = :code"), {"id": org_id, "code": org_id})
-            log_audit('ACTIVATE', 'IAM', 'Organization', org_id, org_id)
+            db.session.execute(db.text("UPDATE iam.tenants SET is_active = true WHERE code = :code OR id::text = :id"), {"id": org_id, "code": org_id})
+            log_audit('ACTIVATE', 'IAM', 'Organization', None, org_id)
             db.session.commit()
             return {"success": True, "message": "Organization activated"}
         except Exception as e:
@@ -336,24 +336,11 @@ def create_app(config_name="development"):
     @app.route("/superadmin/api/organizations/<org_id>/update", methods=["POST", "PUT"])
     def sa_update_org(org_id):
         try:
+            import uuid as _uuid
             data = request.get_json() or {}
-            # Support lookup by UUID id or by code
-            row = db.session.execute(db.text(
-                "SELECT id FROM iam.tenants WHERE id = :id OR code = :code LIMIT 1"
-            ), {"id": org_id, "code": org_id}).first()
-            if not row:
-                return {"success": False, "message": "Organization not found"}, 404
-            real_id = row[0]
-            db.session.execute(db.text(
-                "UPDATE iam.tenants SET name=:name, domain=:domain, pan=:pan, gst=:gst, cin=:cin, "
-                "email=:email, phone=:phone, address_line1=:addr1, address_line2=:addr2, city=:city, "
-                "state=:state, pincode=:pincode, country=:country, industry=:industry, employee_count=:emp_count, "
-                "contact_person=:cp_name, contact_designation=:cp_designation, contact_phone=:cp_phone, "
-                "contact_email=:cp_email, updated_at=NOW() WHERE id=:id"
-            ), {
-                "id": real_id, "name": data.get("name", ""),
-                "domain": data.get("domain", ""), "pan": data.get("pan", ""),
-                "gst": data.get("gst", ""), "cin": data.get("cin", ""),
+            params = {
+                "name": data.get("name", ""), "domain": data.get("domain", ""),
+                "pan": data.get("pan", ""), "gst": data.get("gst", ""), "cin": data.get("cin", ""),
                 "email": data.get("email", ""), "phone": data.get("phone", ""),
                 "addr1": data.get("address_line1", ""), "addr2": data.get("address_line2", ""),
                 "city": data.get("city", ""), "state": data.get("state", ""),
@@ -361,10 +348,48 @@ def create_app(config_name="development"):
                 "industry": data.get("industry", ""), "emp_count": data.get("employee_count", ""),
                 "cp_name": data.get("contact_person", ""), "cp_designation": data.get("contact_designation", ""),
                 "cp_phone": data.get("contact_phone", ""), "cp_email": data.get("contact_email", "")
-            })
-            log_audit('UPDATE', 'IAM', 'Organization', str(real_id), data.get('code', org_id))
+            }
+            # Try to find existing org by UUID id first, then by code
+            row = None
+            try:
+                row = db.session.execute(db.text(
+                    "SELECT id FROM iam.tenants WHERE id = :id LIMIT 1"
+                ), {"id": org_id}).first()
+            except Exception:
+                db.session.rollback()
+            if not row:
+                row = db.session.execute(db.text(
+                    "SELECT id FROM iam.tenants WHERE code = :code LIMIT 1"
+                ), {"code": org_id}).first()
+            if row:
+                # UPDATE existing
+                real_id = row[0]
+                params["id"] = real_id
+                db.session.execute(db.text(
+                    "UPDATE iam.tenants SET name=:name, domain=:domain, pan=:pan, gst=:gst, cin=:cin, "
+                    "email=:email, phone=:phone, address_line1=:addr1, address_line2=:addr2, city=:city, "
+                    "state=:state, pincode=:pincode, country=:country, industry=:industry, employee_count=:emp_count, "
+                    "contact_person=:cp_name, contact_designation=:cp_designation, contact_phone=:cp_phone, "
+                    "contact_email=:cp_email, updated_at=NOW() WHERE id=:id"
+                ), params)
+                log_audit('UPDATE', 'IAM', 'Organization', str(real_id), org_id)
+            else:
+                # INSERT new org (org_id was a code like 'tenant-ss-001')
+                new_id = str(_uuid.uuid4())
+                code = data.get("code") or org_id
+                db.session.execute(db.text(
+                    "INSERT INTO iam.tenants (id, name, code, domain, pan, gst, cin, email, phone, "
+                    "address_line1, address_line2, city, state, pincode, country, industry, employee_count, "
+                    "contact_person, contact_designation, contact_phone, contact_email, "
+                    "is_active, is_deleted, tenant_id, version, created_at, updated_at) "
+                    "VALUES (:id, :name, :code, :domain, :pan, :gst, :cin, :email, :phone, "
+                    ":addr1, :addr2, :city, :state, :pincode, :country, :industry, :emp_count, "
+                    ":cp_name, :cp_designation, :cp_phone, :cp_email, "
+                    "true, false, :code, 1, NOW(), NOW())"
+                ), {**params, "id": new_id, "code": code})
+                log_audit('CREATE', 'IAM', 'Organization', new_id, code)
             db.session.commit()
-            return {"success": True, "message": "Organization updated"}
+            return {"success": True, "message": "Organization saved"}
         except Exception as e:
             db.session.rollback()
             return {"success": False, "message": str(e)}, 500
