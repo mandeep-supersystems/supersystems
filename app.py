@@ -216,14 +216,23 @@ def create_app(config_name="development"):
     # Audit log helper
     def log_audit(action, module, entity_type, entity_id, tenant_id):
         import uuid
-        db.session.execute(db.text(
-            "INSERT INTO audit.logs (id, action, module, entity_type, entity_id, ip_address, tenant_id, created_at) "
-            "VALUES (:id, :action, :module, :entity_type, :entity_id, :ip, :tenant_id, NOW())"
-        ), {
-            "id": str(uuid.uuid4()), "action": action, "module": module,
-            "entity_type": entity_type, "entity_id": entity_id,
-            "ip": request.remote_addr or '', "tenant_id": tenant_id or ''
-        })
+        try:
+            # Validate entity_id is a UUID, else store NULL
+            try:
+                uuid.UUID(str(entity_id))
+                safe_entity_id = str(entity_id)
+            except (ValueError, AttributeError):
+                safe_entity_id = None
+            db.session.execute(db.text(
+                "INSERT INTO audit.logs (id, action, module, entity_type, entity_id, ip_address, tenant_id, created_at) "
+                "VALUES (:id, :action, :module, :entity_type, :entity_id, :ip, :tenant_id, NOW())"
+            ), {
+                "id": str(uuid.uuid4()), "action": action, "module": module,
+                "entity_type": entity_type, "entity_id": safe_entity_id,
+                "ip": request.remote_addr or '', "tenant_id": tenant_id or ''
+            })
+        except Exception:
+            db.session.rollback()
 
     # Super Admin Portal API (no JWT for GUI portal)
     @app.route("/superadmin/api/organizations", methods=["GET"])
