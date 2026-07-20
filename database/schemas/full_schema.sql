@@ -37,7 +37,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 CREATE EXTENSION IF NOT EXISTS "btree_gin";
 
--- 3. PUBLIC SCHEMA (SUPER ADMINS)
+-- 3. PUBLIC SCHEMA (SUPER ADMINS & PLATFORM REGISTRIES)
 CREATE TABLE IF NOT EXISTS public.super_admins (
     id VARCHAR(36) PRIMARY KEY,
     email VARCHAR(200) UNIQUE NOT NULL,
@@ -47,6 +47,109 @@ CREATE TABLE IF NOT EXISTS public.super_admins (
     is_active BOOLEAN DEFAULT true,
     last_login TIMESTAMP,
     created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.module_registry (
+    id VARCHAR(36) PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    name VARCHAR(100) NOT NULL,
+    code VARCHAR(50) UNIQUE NOT NULL,
+    category VARCHAR(50),
+    description TEXT,
+    is_available BOOLEAN DEFAULT true,
+    requires_license VARCHAR(50),
+    dependencies JSONB DEFAULT '[]'
+);
+
+CREATE TABLE IF NOT EXISTS public.organization_licenses (
+    id VARCHAR(36) PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    tenant_id VARCHAR(36) NOT NULL,
+    license_type VARCHAR(50) NOT NULL,
+    max_users INTEGER NOT NULL,
+    current_users INTEGER DEFAULT 0,
+    modules_enabled JSONB DEFAULT '[]',
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.subscriptions (
+    id VARCHAR(36) PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    tenant_id VARCHAR(36) NOT NULL,
+    plan VARCHAR(50) NOT NULL,
+    billing_cycle VARCHAR(20) DEFAULT 'monthly',
+    amount DECIMAL(18,2),
+    currency VARCHAR(10) DEFAULT 'INR',
+    status VARCHAR(50) DEFAULT 'active',
+    next_billing_date DATE,
+    auto_renew BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.sso_configs (
+    id VARCHAR(36) PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    tenant_id VARCHAR(36) NOT NULL UNIQUE,
+    provider VARCHAR(50) NOT NULL,
+    client_id VARCHAR(500),
+    issuer_url VARCHAR(500),
+    metadata_url VARCHAR(500),
+    certificate TEXT,
+    config JSONB DEFAULT '{}',
+    is_enabled BOOLEAN DEFAULT false,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.tenant_modules (
+    id VARCHAR(36) PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    tenant_id VARCHAR(36) NOT NULL,
+    module_code VARCHAR(50) NOT NULL,
+    is_enabled BOOLEAN DEFAULT true,
+    enabled_at TIMESTAMP DEFAULT NOW(),
+    enabled_by VARCHAR(36),
+    config JSONB DEFAULT '{}'
+);
+
+CREATE TABLE IF NOT EXISTS public.company_modules (
+    id VARCHAR(36) PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    tenant_id VARCHAR(36) NOT NULL,
+    company_id VARCHAR(36) NOT NULL,
+    module_code VARCHAR(50) NOT NULL,
+    is_enabled BOOLEAN DEFAULT true,
+    enabled_at TIMESTAMP DEFAULT NOW(),
+    enabled_by VARCHAR(36),
+    config JSONB DEFAULT '{}'
+);
+
+CREATE TABLE IF NOT EXISTS public.global_settings (
+    id VARCHAR(36) PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    key VARCHAR(100) UNIQUE NOT NULL,
+    value TEXT,
+    category VARCHAR(50),
+    description TEXT,
+    is_editable BOOLEAN DEFAULT true,
+    updated_at TIMESTAMP DEFAULT NOW(),
+    updated_by VARCHAR(36)
+);
+
+CREATE TABLE IF NOT EXISTS public.global_audit_logs (
+    id VARCHAR(36) PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    admin_id VARCHAR(36) NOT NULL,
+    action VARCHAR(100) NOT NULL,
+    target_type VARCHAR(50),
+    target_id VARCHAR(36),
+    details JSONB,
+    ip_address VARCHAR(50),
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.tenant_monitors (
+    id VARCHAR(36) PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    tenant_id VARCHAR(36) NOT NULL,
+    storage_used_mb DECIMAL(18,2) DEFAULT 0,
+    api_calls_count INTEGER DEFAULT 0,
+    active_users_count INTEGER DEFAULT 0,
+    recorded_at TIMESTAMP DEFAULT NOW()
 );
 
 -- 4. IAM SCHEMA

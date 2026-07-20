@@ -42,7 +42,8 @@ def create_app(config_name="development"):
 
     # Level 0: Platform Super Admin Portal (separate portal)
     from core.super_admin.routes import super_admin_bp
-    app.register_blueprint(super_admin_bp, url_prefix="/api/v1/super-admin")
+    app.register_blueprint(super_admin_bp, url_prefix="/superadmin/api")
+    app.register_blueprint(super_admin_bp, url_prefix="/api/v1/super-admin", name="super_admin_v1")
 
     # Core Blueprints
     from core.auth.routes import auth_bp
