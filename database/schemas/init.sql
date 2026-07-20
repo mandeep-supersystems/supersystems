@@ -160,6 +160,18 @@ CREATE TABLE audit.logs_2026 PARTITION OF audit.logs
 CREATE INDEX idx_audit_tenant ON audit.logs(tenant_id, created_at);
 CREATE INDEX idx_audit_entity ON audit.logs(entity_type, entity_id);
 
+CREATE TABLE IF NOT EXISTS audit.login_history (
+    id VARCHAR(36) PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    user_id VARCHAR(36),
+    email VARCHAR(200),
+    tenant_id VARCHAR(36),
+    ip_address VARCHAR(50),
+    user_agent VARCHAR(500),
+    login_type VARCHAR(50),
+    login_at TIMESTAMP DEFAULT NOW(),
+    logout_at TIMESTAMP
+);
+
 -- ============================================
 -- MASTER DATA TABLES
 -- ============================================

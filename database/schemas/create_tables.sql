@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS workflow.approval_matrix (id VARCHAR(36) PRIMARY KEY,
 
 -- AUDIT
 CREATE TABLE IF NOT EXISTS audit.logs (id VARCHAR(36) PRIMARY KEY, user_id VARCHAR(36), action VARCHAR(50) NOT NULL, module VARCHAR(50), entity_type VARCHAR(100), entity_id VARCHAR(36), old_values JSONB, new_values JSONB, ip_address VARCHAR(50), user_agent VARCHAR(500), extra_data JSONB, tenant_id VARCHAR(36) NOT NULL, is_deleted BOOLEAN DEFAULT false, version INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT NOW());
+CREATE TABLE IF NOT EXISTS audit.login_history (id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::text, user_id VARCHAR(36), email VARCHAR(200), tenant_id VARCHAR(36), ip_address VARCHAR(50), user_agent VARCHAR(500), login_type VARCHAR(50), login_at TIMESTAMP DEFAULT NOW(), logout_at TIMESTAMP);
 
 -- MASTER
 CREATE TABLE IF NOT EXISTS master.organizations (id VARCHAR(36) PRIMARY KEY, name VARCHAR(200) NOT NULL, code VARCHAR(50) UNIQUE NOT NULL, type VARCHAR(50), parent_id VARCHAR(36), address JSONB, contact JSONB, settings JSONB DEFAULT '{}', is_active BOOLEAN DEFAULT true, tenant_id VARCHAR(36) NOT NULL, is_deleted BOOLEAN DEFAULT false, version INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW(), created_by VARCHAR(36), updated_by VARCHAR(36));
