@@ -59,7 +59,18 @@ CREATE EXTENSION IF NOT EXISTS "btree_gin";
 -- ============================================
 
 -- Tenants
-CREATE TABLE core.tenants (
+CREATE TABLE IF NOT EXISTS iam.tenants (
+    id VARCHAR(36) PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    name VARCHAR(200) NOT NULL,
+    code VARCHAR(50) UNIQUE NOT NULL,
+    domain VARCHAR(200),
+    is_active BOOLEAN DEFAULT TRUE,
+    settings JSONB DEFAULT '{}',
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    is_deleted BOOLEAN DEFAULT FALSE
+);
+CREATE TABLE IF NOT EXISTS core.tenants (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(200) NOT NULL,
     code VARCHAR(50) UNIQUE NOT NULL,
