@@ -1,0 +1,67 @@
+/* Raw Material Management Layout - inherits from part.css patterns */
+.rm-layout {
+    display: flex;
+    margin-top: var(--header-height);
+    min-height: calc(100vh - var(--header-height));
+}
+
+.rm-sidebar {
+    width: 240px;
+    background: var(--bg-primary);
+    border-right: 1px solid var(--border-color);
+    padding: 16px 0;
+    position: fixed;
+    top: var(--header-height);
+    bottom: 0;
+    overflow-y: auto;
+    z-index: 10;
+}
+
+.rm-content {
+    flex: 1;
+    margin-left: 240px;
+    padding: 24px;
+    background: var(--bg-secondary);
+    min-height: calc(100vh - var(--header-height));
+}
+
+/* Separator selector */
+.separator-options { display: flex; gap: 8px; margin-top: 4px; }
+.sep-option {
+    display: flex; align-items: center; justify-content: center;
+    width: 40px; height: 36px; border: 2px solid var(--border-color);
+    border-radius: 8px; font-size: 18px; font-weight: 700; cursor: pointer;
+    color: var(--text-secondary); background: var(--bg-primary); transition: all 0.15s;
+}
+.sep-option:hover { border-color: var(--accent); color: var(--accent); }
+.sep-option.active { border-color: var(--accent); background: var(--accent-light); color: var(--accent); }
+
+/* RM Code preview */
+.rm-code-preview {
+    padding: 10px 16px; background: var(--bg-secondary); border: 2px dashed var(--border-color);
+    border-radius: 8px; font-size: 16px; font-weight: 700; font-family: 'Courier New', monospace;
+    color: var(--accent); text-align: center; letter-spacing: 1px; margin-top: 8px;
+}
+
+/* Preferred vendor badge */
+.preferred-badge {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 10px; padding: 2px 8px; border-radius: 4px;
+    background: #fff8e1; color: #f57f17; font-weight: 600;
+}
+[data-theme="dark"] .preferred-badge { background: #3d3a1b; color: #ffd54f; }
+
+/* Rating stars */
+.rating-stars { color: #ffc107; font-size: 14px; letter-spacing: 1px; }
+
+/* Effective qty highlight */
+.eff-qty { font-weight: 700; color: var(--accent); }
+
+@media (max-width: 900px) {
+    .rm-sidebar { width: 200px; }
+    .rm-content { margin-left: 200px; }
+}
+@media (max-width: 600px) {
+    .rm-sidebar { display: none; }
+    .rm-content { margin-left: 0; }
+}

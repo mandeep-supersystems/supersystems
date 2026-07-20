@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supplier Detail - SUPERSYSTEMS</title>
+    <link rel="stylesheet" href="/static/css/header.css">
+    <link rel="stylesheet" href="/static/css/supplier/supplier.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+</head>
+<body>
+
+<header class="header">
+    <div class="header-left">
+        <div class="logo">
+            <img class="logo-light" src="/static/img/light_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <span class="logo-text">SUPERSYSTEMS</span>
+        </div>
+        <div class="nav-item services-trigger" onclick="toggleServices()">
+            <span class="material-icons-outlined">apps</span><span>Services</span>
+            <span class="material-icons-outlined arrow">expand_more</span>
+        </div>
+    </div>
+    <div class="header-center">
+        <div class="search-box">
+            <span class="material-icons-outlined">search</span>
+            <input type="text" placeholder="Search..." id="globalSearch" oninput="handleSearch(this.value)">
+            <div class="search-results" id="searchResults"></div>
+        </div>
+    </div>
+    <div class="header-right">
+        <button class="header-icon-btn theme-toggle" onclick="toggleTheme()">
+            <span class="material-icons-outlined icon-light">dark_mode</span>
+            <span class="material-icons-outlined icon-dark">light_mode</span>
+        </button>
+        <div class="user-menu" id="userMenu">
+            <div class="user-avatar" onclick="toggleUserMenu()"><span class="material-icons-outlined">person</span></div>
+            <div class="user-dropdown" id="userDropdown">
+                <a href="#" onclick="logout()"><span class="material-icons-outlined">logout</span>Logout</a>
+            </div>
+        </div>
+    </div>
+</header>
+
+<div class="services-panel" id="servicesPanel">
+    <div class="services-panel-header">
+        <h3>All Services</h3>
+        <div style="display:flex;align-items:center;gap:10px">
+            <button class="btn-outline" id="toggleAllServicesBtn" onclick="toggleAllServices()"><span class="material-icons-outlined">unfold_less</span> Collapse All</button>
+            <button class="close-btn" onclick="toggleServices()"><span class="material-icons-outlined">close</span></button>
+        </div>
+    </div>
+    <div class="services-grid" id="servicesGrid"></div>
+</div>
+<div class="overlay" id="overlay" onclick="toggleServices()"></div>
+
+<div class="sup-detail-layout">
+
+    <!-- LEFT SIDEBAR -->
+    <aside class="sup-detail-sidebar">
+        <div class="sup-profile-block">
+            <div class="sup-avatar"><span class="material-icons-outlined">storefront</span></div>
+            <div class="sup-profile-code" id="sdCode">—</div>
+            <div class="sup-profile-name" id="sdName">Loading...</div>
+            <span id="sdTypeLabel" class="sup-type-badge part">Supplier</span>
+            <div class="sup-profile-type" id="sdType">—</div>
+            <div class="sup-profile-rating" id="sdRating">—</div>
+            <span class="status-badge" id="sdStatus">—</span>
+        </div>
+
+        <nav class="sup-detail-nav">
+            <button class="sup-detail-nav-link active" data-tab="info" onclick="switchTab('info')">
+                <span class="material-icons-outlined">info</span> Supplier Info
+            </button>
+            <button class="sup-detail-nav-link" data-tab="addresses" onclick="switchTab('addresses')">
+                <span class="material-icons-outlined">location_on</span> Addresses
+                <span class="nav-count" id="navCountAddr">0</span>
+            </button>
+            <button class="sup-detail-nav-link" data-tab="contacts" onclick="switchTab('contacts')">
+                <span class="material-icons-outlined">contacts</span> Contacts
+                <span class="nav-count" id="navCountContacts">0</span>
+            </button>
+            <button class="sup-detail-nav-link" data-tab="evaluations" onclick="switchTab('evaluations')">
+                <span class="material-icons-outlined">fact_check</span> Evaluations
+                <span class="nav-count" id="navCountEvaluations">0</span>
+            </button>
+            <button class="sup-detail-nav-link" data-tab="contracts" onclick="switchTab('contracts')">
+                <span class="material-icons-outlined">description</span> Contracts
+                <span class="nav-count" id="navCountContracts">0</span>
+            </button>
+            <button class="sup-detail-nav-link" data-tab="performance" onclick="switchTab('performance')">
+                <span class="material-icons-outlined">analytics</span> Performance
+                <span class="nav-count" id="navCountPerformance">0</span>
+            </button>
+            <button class="sup-detail-nav-link" data-tab="parts" onclick="switchTab('parts')">
+                <span class="material-icons-outlined">precision_manufacturing</span> <span id="navPartsLabel">Items</span>
+                <span class="nav-count" id="navCountParts">0</span>
+            </button>
+            <button class="sup-detail-nav-link" data-tab="history" onclick="switchTab('history')">
+                <span class="material-icons-outlined">history</span> History
+                <span class="nav-count" id="navCountHistory">0</span>
+            </button>
+            <button class="sup-detail-nav-link" data-tab="audit" onclick="switchTab('audit')">
+                <span class="material-icons-outlined">manage_search</span> Audit Logs
+                <span class="nav-count" id="navCountAudit">0</span>
+            </button>
+        </nav>
+
+        <div class="sup-detail-sidebar-bottom">
+            <button class="btn-primary" onclick="openEditSupplierModal()" style="justify-content:center">
+                <span class="material-icons-outlined">edit</span> Edit Supplier
+            </button>
+            <a href="/supplier" id="backToListBtn" class="btn-secondary" style="text-align:center;text-decoration:none;display:block">
+                ← Back to Suppliers
+            </a>
+        </div>
+    </aside>
+
+    <!-- MAIN -->
+    <div class="sup-detail-main">
+
+        <!-- TOPBAR -->
+        <div class="sup-detail-topbar">
+            <a href="/supplier" id="topbarBackBtn" class="sup-back-btn">
+                <span class="material-icons-outlined">arrow_back</span> Back
+            </a>
+            <div class="sup-breadcrumb" id="supBreadcrumb">
+                <a href="/supplier" id="breadcrumbRoot">Suppliers</a>
+                <span class="material-icons-outlined">chevron_right</span>
+                <span id="topbarName">Loading...</span>
+            </div>
+        </div>
+
+        <!-- LOADING -->
+        <div id="sdLoading" class="sup-loading">
+            <span class="material-icons-outlined sup-spin">autorenew</span> Loading supplier...
+        </div>
+
+        <!-- CONTENT -->
+        <div id="sdContent" style="display:none">
+
+            <!-- TAB: INFO -->
+            <div class="sup-detail-section active" id="tab-info">
+                <div class="sup-info-grid">
+                    <div class="sup-card">
+                        <div class="sup-card-header">
+                            <div class="sup-card-title"><span class="material-icons-outlined">storefront</span> Basic Info</div>
+                            <button class="sup-card-edit" onclick="openEditSection('basic')"><span class="material-icons-outlined">edit</span> Edit</button>
+                        </div>
+                        <div id="cardBasic"></div>
+                    </div>
+                    <div class="sup-card">
+                        <div class="sup-card-header">
+                            <div class="sup-card-title"><span class="material-icons-outlined">receipt</span> Business Details</div>
+                            <button class="sup-card-edit" onclick="openEditSection('business')"><span class="material-icons-outlined">edit</span> Edit</button>
+                        </div>
+                        <div id="cardBusiness"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: ADDRESSES -->
+            <div class="sup-detail-section" id="tab-addresses">
+                <div class="sup-section-hdr">
+                    <h3>Addresses</h3>
+                    <button class="btn-primary" onclick="openAddAddressModal()"><span class="material-icons-outlined">add</span> Add Address</button>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Label</th>
+                                <th>Billing Address</th>
+                                <th>Shipping Address</th>
+                                <th>Default</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="addressesBody">
+                            <tr><td colspan="5" class="empty">No addresses added.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB: CONTACTS -->
+            <div class="sup-detail-section" id="tab-contacts">
+                <div class="sup-section-hdr">
+                    <h3>Contacts</h3>
+                    <button class="btn-primary" onclick="openAddContactModal()"><span class="material-icons-outlined">add</span> Add Contact</button>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Designation</th>
+                                <th>Name</th>
+                                <th>Mobile 1</th>
+                                <th>Mobile 2</th>
+                                <th>Email</th>
+                                <th>Status</th>
+                                <th>About</th>
+                                <th>Remarks</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="contactsBody">
+                            <tr><td colspan="9" class="empty">No contacts added.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB: EVALUATIONS -->
+            <div class="sup-detail-section" id="tab-evaluations">
+                <div class="sup-section-hdr">
+                    <h3>Supplier Evaluation Workflow</h3>
+                    <button class="btn-primary" onclick="openAddEvaluationModal()"><span class="material-icons-outlined">add</span> Add Evaluation</button>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Period</th>
+                                <th>Stage</th>
+                                <th>Doc Verification</th>
+                                <th>Overall Score</th>
+                                <th>Quality</th>
+                                <th>Price</th>
+                                <th>Delivery</th>
+                                <th>Capacity</th>
+                                <th>Finance</th>
+                                <th>Experience</th>
+                                <th>Support</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="evaluationsBody">
+                            <tr><td colspan="12" class="empty">No evaluations added.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB: CONTRACTS -->
+            <div class="sup-detail-section" id="tab-contracts">
+                <div class="sup-section-hdr">
+                    <h3>Supplier Contracts</h3>
+                    <button class="btn-primary" onclick="openAddContractModal()"><span class="material-icons-outlined">add</span> Add Contract</button>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Contract #</th>
+                                <th>Type</th>
+                                <th>Start</th>
+                                <th>End</th>
+                                <th>Value</th>
+                                <th>Payment</th>
+                                <th>Delivery</th>
+                                <th>Stage</th>
+                                <th>Status</th>
+                                <th>Attachment</th>
+                            </tr>
+                        </thead>
+                        <tbody id="contractsBody">
+                            <tr><td colspan="10" class="empty">No contracts added.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB: PERFORMANCE -->
+            <div class="sup-detail-section" id="tab-performance">
+                <div class="sup-section-hdr">
+                    <h3>Performance Scorecard</h3>
+                    <button class="btn-primary" onclick="openAddPerformanceModal()"><span class="material-icons-outlined">add</span> Add Review</button>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Period</th>
+                                <th>POs</th>
+                                <th>GRNs</th>
+                                <th>Inspection Pass %</th>
+                                <th>NCR</th>
+                                <th>Defect %</th>
+                                <th>OTD %</th>
+                                <th>Overall Score</th>
+                                <th>Grade</th>
+                            </tr>
+                        </thead>
+                        <tbody id="performanceBody">
+                            <tr><td colspan="9" class="empty">No performance reviews added.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB: PARTS / RM ITEMS -->
+            <div class="sup-detail-section" id="tab-parts">
+                <div class="sup-section-hdr">
+                    <h3 id="partsTabTitle">Items</h3>
+                    <button class="btn-primary" onclick="openAddPartModal()"><span class="material-icons-outlined">add</span> <span id="addItemBtnLabel">Add Item</span></button>
+                </div>
+                <div class="table-container">
+                    <table class="data-table" id="partsTable">
+                        <thead id="partsTableHead"></thead>
+                        <tbody id="partsBody">
+                            <tr><td colspan="10" class="empty">No items added.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB: HISTORY -->
+            <div class="sup-detail-section" id="tab-history">
+                <div class="sup-section-hdr">
+                    <h3>Transaction History</h3>
+                    <button class="btn-primary" onclick="openAddHistoryModal()"><span class="material-icons-outlined">add</span> Add Entry</button>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Part Code</th>
+                                <th>Event</th>
+                                <th>Description</th>
+                                <th>Qty</th>
+                                <th>Amount</th>
+                                <th>Reference</th>
+                                <th>By</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyBody">
+                            <tr><td colspan="8" class="empty">No history entries.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB: AUDIT -->
+            <div class="sup-detail-section" id="tab-audit">
+                <div class="sup-section-hdr"><h3>Audit Logs</h3></div>
+                <div class="sup-card" style="padding:4px 16px">
+                    <div id="auditList"><div class="empty" style="padding:32px;text-align:center">No audit logs.</div></div>
+                </div>
+            </div>
+
+        </div><!-- /sdContent -->
+    </div>
+</div>
+
+<!-- EDIT SUPPLIER MODAL -->
+<div class="modal-overlay" id="editSupplierModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3 id="editSupModalTitle">Edit Supplier</h3>
+            <button class="close-btn" onclick="closeModal('editSupplierModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="saveEditSupplier(event)">
+                <div class="form-row">
+                    <div class="form-group"><label>Brand Name *</label><input type="text" id="esBrand" required></div>
+                    <div class="form-group"><label>Company Type</label>
+                        <select id="esType">
+                            <option value="">Select</option>
+                            <option value="manufacturer">Manufacturer</option>
+                            <option value="distributor">Distributor</option>
+                            <option value="trader">Trader</option>
+                            <option value="service_provider">Service Provider</option>
+                            <option value="oem">OEM</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Registered Name</label><input type="text" id="esRegName"></div>
+                    <div class="form-group"><label>GST No</label><input type="text" id="esGST"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Currency</label>
+                        <select id="esCurrency">
+                            <option value="INR">INR ₹</option><option value="USD">USD $</option>
+                            <option value="EUR">EUR €</option><option value="GBP">GBP £</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Status</label>
+                        <select id="esStatus">
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                            <option value="blocked">Blocked</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Rating (0–5)</label><input type="number" id="esRating" min="0" max="5" step="0.1"></div>
+                    <div class="form-group"><label>Website</label><input type="text" id="esWebsite"></div>
+                </div>
+                <div class="form-group"><label>Notes</label><textarea id="esNotes" rows="2"></textarea></div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('editSupplierModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ADD ADDRESS MODAL -->
+<div class="modal-overlay" id="addAddressModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3 id="addrModalTitle">Add Address</h3>
+            <button class="close-btn" onclick="closeModal('addAddressModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="saveAddress(event)">
+                <input type="hidden" id="addrId">
+                <div class="form-group"><label>Label</label><input type="text" id="addrLabel" placeholder="e.g. Head Office, Warehouse"></div>
+                <div class="form-group"><label>Billing Address</label><textarea id="addrBilling" rows="3" placeholder="Full billing address..."></textarea></div>
+                <div class="form-group"><label>Shipping Address</label><textarea id="addrShipping" rows="3" placeholder="Full shipping address..."></textarea></div>
+                <div class="form-group" style="display:flex;align-items:center;gap:8px">
+                    <input type="checkbox" id="addrDefault" style="width:auto">
+                    <label for="addrDefault" style="margin:0;cursor:pointer">Set as Default</label>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('addAddressModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Address</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ADD CONTACT MODAL -->
+<div class="modal-overlay" id="addContactModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3 id="contactModalTitle">Add Contact</h3>
+            <button class="close-btn" onclick="closeModal('addContactModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="saveContact(event)">
+                <input type="hidden" id="contactId">
+                <div class="form-row">
+                    <div class="form-group"><label>Name *</label><input type="text" id="contactName" required></div>
+                    <div class="form-group"><label>Designation</label><input type="text" id="contactDesig"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Mobile 1</label><input type="tel" id="contactM1"></div>
+                    <div class="form-group"><label>Mobile 2</label><input type="tel" id="contactM2"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Email</label><input type="email" id="contactEmail"></div>
+                    <div class="form-group"><label>Status</label>
+                        <select id="contactStatus">
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group"><label>About</label><textarea id="contactAbout" rows="2"></textarea></div>
+                <div class="form-group"><label>Remarks</label><textarea id="contactRemarks" rows="2"></textarea></div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('addContactModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Contact</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ADD PART / RM ITEM MODAL -->
+<div class="modal-overlay" id="addPartModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3 id="partModalTitle">Add Part</h3>
+            <button class="close-btn" onclick="closeModal('addPartModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="savePart(event)">
+                <input type="hidden" id="partId">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Item Type</label>
+                        <select id="partItemType" onchange="onItemTypeChange()">
+                            <option value="part">Part</option>
+                            <option value="raw_material">Raw Material</option>
+                            <option value="service">Service</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="position:relative">
+                        <label id="partCodeLabel">Item Code</label>
+                        <input type="text" id="partCode" placeholder="Type to search..." autocomplete="off" oninput="onItemCodeInput(this.value)">
+                        <div id="partCodeDropdown" class="item-search-dropdown" style="display:none"></div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group" id="mpnGroup"><label>MPN</label><input type="text" id="partMPN" placeholder="Manufacturer Part Number"></div>
+                    <div class="form-group"><label>Make / Brand</label><input type="text" id="partMake" placeholder="e.g. Bosch, Tata"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group" id="unitGroup"><label id="unitLabel">Unit</label><input type="text" id="partUnit" placeholder="kg, pcs, m, litre..."></div>
+                    <div class="form-group" style="visibility:hidden"></div>
+                </div>
+                <!-- Sample tier -->
+                <div class="form-group" style="margin-bottom:4px"><label style="font-weight:600;color:var(--primary)">Sample</label></div>
+                <div class="form-row-3">
+                    <div class="form-group"><label>Qty</label><input type="number" id="partSQ" min="0" step="0.001" value="0" oninput="calcPPU('sample')"></div>
+                    <div class="form-group"><label>Total Price</label><input type="number" id="partSP" min="0" step="0.01" value="0" oninput="calcPPU('sample')"></div>
+                    <div class="form-group"><label>Price / Unit <span style="color:var(--text-muted);font-size:11px">(auto)</span></label><input type="text" id="partSPPU" readonly style="background:var(--bg-secondary)"></div>
+                </div>
+                <!-- SPQ / Standard tier -->
+                <div class="form-group" style="margin-bottom:4px"><label style="font-weight:600;color:var(--primary)">Standard Qty (SPQ)</label></div>
+                <div class="form-row-3">
+                    <div class="form-group"><label>Qty</label><input type="number" id="partSPQ" min="0" step="0.001" value="0" oninput="calcPPU('spq')"></div>
+                    <div class="form-group"><label>Total Price</label><input type="number" id="partSPQP" min="0" step="0.01" value="0" oninput="calcPPU('spq')"></div>
+                    <div class="form-group"><label>Price / Unit <span style="color:var(--text-muted);font-size:11px">(auto)</span></label><input type="text" id="partSPQPPU" readonly style="background:var(--bg-secondary)"></div>
+                </div>
+                <!-- MOQ / Bulk tier -->
+                <div class="form-group" style="margin-bottom:4px"><label style="font-weight:600;color:var(--primary)">Bulk Qty (MOQ)</label></div>
+                <div class="form-row-3">
+                    <div class="form-group"><label>Qty</label><input type="number" id="partMOQ" min="0" step="0.001" value="0" oninput="calcPPU('moq')"></div>
+                    <div class="form-group"><label>Total Price</label><input type="number" id="partMOQP" min="0" step="0.01" value="0" oninput="calcPPU('moq')"></div>
+                    <div class="form-group"><label>Price / Unit <span style="color:var(--text-muted);font-size:11px">(auto)</span></label><input type="text" id="partMOQPPU" readonly style="background:var(--bg-secondary)"></div>
+                </div>
+                <div class="form-group"><label>Notes</label><textarea id="partNotes" rows="2"></textarea></div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('addPartModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ADD HISTORY MODAL -->
+<div class="modal-overlay" id="addHistoryModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3>Add History Entry</h3>
+            <button class="close-btn" onclick="closeModal('addHistoryModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="saveHistory(event)">
+                <div class="form-row">
+                    <div class="form-group"><label id="histItemLabel">Part Code</label><input type="text" id="histPartCode"></div>
+                    <div class="form-group"><label>Event Type</label>
+                        <select id="histEventType">
+                            <option value="purchase">Purchase</option>
+                            <option value="sample">Sample</option>
+                            <option value="return">Return</option>
+                            <option value="quote">Quote</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group"><label>Description</label><textarea id="histDesc" rows="2"></textarea></div>
+                <div class="form-row">
+                    <div class="form-group"><label>Quantity</label><input type="number" id="histQty" min="0" step="0.001"></div>
+                    <div class="form-group"><label>Unit</label><input type="text" id="histUnit" placeholder="pcs, kg, m..."></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Amount ₹</label><input type="number" id="histAmt" min="0" step="0.01"></div>
+                    <div class="form-group"><label>Reference No</label><input type="text" id="histRef" placeholder="PO/Invoice number"></div>
+                </div>
+                <div class="form-group"><label>Event Date</label><input type="date" id="histDate"></div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('addHistoryModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Entry</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ADD EVALUATION MODAL -->
+<div class="modal-overlay" id="addEvaluationModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3>Add Evaluation</h3>
+            <button class="close-btn" onclick="closeModal('addEvaluationModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="saveEvaluation(event)">
+                <div class="form-row">
+                    <div class="form-group"><label>Evaluation Date</label><input type="date" id="evalDate"></div>
+                    <div class="form-group"><label>Period</label><input type="text" id="evalPeriod" placeholder="Q1 2026"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Workflow Stage</label>
+                        <select id="evalStage">
+                            <option value="registration">Registration</option>
+                            <option value="document_verification">Document Verification</option>
+                            <option value="evaluation">Supplier Evaluation</option>
+                            <option value="approved">Approved</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Doc Verification</label>
+                        <select id="evalDocStatus">
+                            <option value="verified">Verified</option>
+                            <option value="pending">Pending</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row-3">
+                    <div class="form-group"><label>Quality</label><input type="number" id="evalQuality" min="0" max="100" step="0.1"></div>
+                    <div class="form-group"><label>Price</label><input type="number" id="evalPrice" min="0" max="100" step="0.1"></div>
+                    <div class="form-group"><label>Delivery</label><input type="number" id="evalDelivery" min="0" max="100" step="0.1"></div>
+                </div>
+                <div class="form-row-3">
+                    <div class="form-group"><label>Capacity</label><input type="number" id="evalCapacity" min="0" max="100" step="0.1"></div>
+                    <div class="form-group"><label>Financial</label><input type="number" id="evalFinance" min="0" max="100" step="0.1"></div>
+                    <div class="form-group"><label>Experience</label><input type="number" id="evalExperience" min="0" max="100" step="0.1"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Technical Support</label><input type="number" id="evalTechnical" min="0" max="100" step="0.1"></div>
+                    <div class="form-group"><label>Overall Score</label><input type="number" id="evalOverall" min="0" max="100" step="0.1"></div>
+                </div>
+                <div class="form-group"><label>Approval Status</label>
+                    <select id="evalStatus">
+                        <option value="pending">Pending</option>
+                        <option value="approved">Approved</option>
+                        <option value="conditional">Conditional</option>
+                        <option value="rejected">Rejected</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Comments</label><textarea id="evalComments" rows="2"></textarea></div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('addEvaluationModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Evaluation</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ADD CONTRACT MODAL -->
+<div class="modal-overlay" id="addContractModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3>Add Contract</h3>
+            <button class="close-btn" onclick="closeModal('addContractModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="saveContract(event)">
+                <div class="form-row">
+                    <div class="form-group"><label>Contract Number</label><input type="text" id="contractNumber"></div>
+                    <div class="form-group"><label>Contract Type</label><input type="text" id="contractType" placeholder="framework / annual / sample"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Start Date</label><input type="date" id="contractStart"></div>
+                    <div class="form-group"><label>End Date</label><input type="date" id="contractEnd"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Contract Value</label><input type="number" id="contractValue" min="0" step="0.01"></div>
+                    <div class="form-group"><label>Status</label>
+                        <select id="contractStatus">
+                            <option value="draft">Draft</option>
+                            <option value="active">Active</option>
+                            <option value="expired">Expired</option>
+                            <option value="terminated">Terminated</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Payment Terms</label><input type="text" id="contractPayment"></div>
+                    <div class="form-group"><label>Delivery Terms</label><input type="text" id="contractDelivery"></div>
+                </div>
+                <div class="form-group"><label>Lifecycle Stage</label>
+                    <select id="contractStage">
+                        <option value="draft">Draft</option>
+                        <option value="review">Review</option>
+                        <option value="approved">Approved</option>
+                        <option value="executed">Executed</option>
+                        <option value="renewal">Renewal</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Attachment Path</label><input type="text" id="contractAttachment"></div>
+                <div class="form-group"><label>Notes</label><textarea id="contractNotes" rows="2"></textarea></div>
+                <div class="form-group" style="display:flex;align-items:center;gap:8px">
+                    <input type="checkbox" id="contractAutoRenew" style="width:auto">
+                    <label for="contractAutoRenew" style="margin:0;cursor:pointer">Auto Renew</label>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('addContractModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Contract</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ADD PERFORMANCE REVIEW MODAL -->
+<div class="modal-overlay" id="addPerformanceModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3>Add Performance Review</h3>
+            <button class="close-btn" onclick="closeModal('addPerformanceModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="savePerformance(event)">
+                <div class="form-row">
+                    <div class="form-group"><label>Period</label><input type="text" id="perfPeriod" placeholder="Monthly / Q1 2026"></div>
+                    <div class="form-group"><label>PO Count</label><input type="number" id="perfPO" min="0" step="1"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>GRN Count</label><input type="number" id="perfGRN" min="0" step="1"></div>
+                    <div class="form-group"><label>Inspection Pass %</label><input type="number" id="perfInspection" min="0" max="100" step="0.1"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>NCR Count</label><input type="number" id="perfNCR" min="0" step="1"></div>
+                    <div class="form-group"><label>Quality Defect %</label><input type="number" id="perfDefect" min="0" max="100" step="0.1"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>On-Time Delivery %</label><input type="number" id="perfOTD" min="0" max="100" step="0.1"></div>
+                    <div class="form-group"><label>Overall Score %</label><input type="number" id="perfOverall" min="0" max="100" step="0.1"></div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('addPerformanceModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Review</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- DELETE CONFIRM -->
+<div class="modal-overlay" id="deleteModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Confirm Delete</h3>
+            <button class="close-btn" onclick="closeModal('deleteModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <p id="deleteMsg" style="font-size:13px;color:var(--text-secondary);margin-bottom:16px"></p>
+            <div class="form-actions">
+                <button class="btn-secondary" onclick="closeModal('deleteModal')">Cancel</button>
+                <button class="btn-primary" style="background:#e53935" id="deleteConfirmBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="sup-toast" id="supToast"></div>
+
+<script src="/static/js/header.js"></script>
+<script>requireAuth();</script>
+<script src="/static/js/supplier/common.js"></script>
+<script src="/static/js/supplier/supplier_detail.js"></script>
+<script>
+    const SUPPLIER_ID = {{ supplier_id | tojson }};
+    loadSupplierDetail(SUPPLIER_ID);
+</script>
+</body>
+</html>

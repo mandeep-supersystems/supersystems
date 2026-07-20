@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SUPERSYSTEMS</title>
+    <link rel="stylesheet" href="/static/css/header.css">
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+</head>
+<body>
+
+<!-- FIXED HEADER -->
+<header class="header">
+    <div class="header-left">
+        <div class="logo">
+            <img class="logo-light" src="/static/img/light_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <span class="logo-text">SUPERSYSTEMS</span>
+        </div>
+        <div class="nav-item services-trigger" onclick="toggleServices()">
+            <span class="material-icons-outlined">apps</span>
+            <span>Services</span>
+            <span class="material-icons-outlined arrow">expand_more</span>
+        </div>
+    </div>
+
+    <div class="header-center">
+        <div class="search-box">
+            <span class="material-icons-outlined">search</span>
+            <input type="text" placeholder="Search services, features..." id="globalSearch" oninput="handleSearch(this.value)">
+            <div class="search-results" id="searchResults"></div>
+        </div>
+    </div>
+
+    <div class="header-right">
+        <button class="header-icon-btn" title="Notifications">
+            <span class="material-icons-outlined">notifications</span>
+            <span class="badge">3</span>
+        </button>
+        <button class="header-icon-btn" title="Help">
+            <span class="material-icons-outlined">help_outline</span>
+        </button>
+        <button class="header-icon-btn" title="Settings">
+            <span class="material-icons-outlined">settings</span>
+        </button>
+        <button class="header-icon-btn theme-toggle" title="Toggle Dark Mode" onclick="toggleTheme()">
+            <span class="material-icons-outlined icon-light">dark_mode</span>
+            <span class="material-icons-outlined icon-dark">light_mode</span>
+        </button>
+        <div class="user-menu" id="userMenu">
+            <div class="user-avatar" onclick="toggleUserMenu()">
+                <span class="material-icons-outlined">person</span>
+            </div>
+            <div class="user-dropdown" id="userDropdown">
+                <a href="#" onclick="openProfile()"><span class="material-icons-outlined">person</span>Profile</a>
+                <a href="#" onclick="openAccount()"><span class="material-icons-outlined">manage_accounts</span>Account</a>
+                <div class="dropdown-divider"></div>
+                <a href="#" onclick="logout()"><span class="material-icons-outlined">logout</span>Logout</a>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- SERVICES PANEL (like AWS Console) -->
+<div class="services-panel" id="servicesPanel">
+    <div class="services-panel-header">
+        <h3>All Services</h3>
+        <div style="display:flex;align-items:center;gap:10px">
+            <button class="btn-outline" id="toggleAllServicesBtn" onclick="toggleAllServices()">
+                <span class="material-icons-outlined">unfold_less</span> Collapse All
+            </button>
+            <button class="close-btn" onclick="toggleServices()">
+                <span class="material-icons-outlined">close</span>
+            </button>
+        </div>
+    </div>
+    <div class="services-grid" id="servicesGrid">
+        <!-- Populated by JS -->
+    </div>
+</div>
+<div class="overlay" id="overlay" onclick="toggleServices()"></div>
+
+<!-- MAIN CONTENT -->
+<main class="main-content">
+    <div class="dash-layout">
+
+    <!-- SIDEBAR -->
+    <aside class="dash-sidebar" id="dashSidebar">
+        <div class="dsb-section" id="dsb-current-wrap" style="display:none">
+            <div class="dsb-label">Currently Open</div>
+            <div id="dsb-current"></div>
+        </div>
+        <div class="dsb-section">
+            <div class="dsb-label">Recently Visited</div>
+            <div id="dsb-recent"><div class="dsb-empty">No recent modules</div></div>
+        </div>
+    </aside>
+
+    <div class="dashboard">
+        <!-- Welcome Banner -->
+        <div class="welcome-banner">
+            <div class="welcome-text">
+                <h2>Welcome back, <span id="dashUserName">User</span></h2>
+                <p id="dashUserRole">Organization User</p>
+            </div>
+            <div class="period-filter">
+                <button class="period-btn" data-period="day">Today</button>
+                <button class="period-btn" data-period="week">Week</button>
+                <button class="period-btn active" data-period="month">Month</button>
+                <button class="period-btn" data-period="year">Year</button>
+                <button class="period-btn" data-period="all">All Time</button>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon blue"><span class="material-icons-outlined">login</span></div>
+                <div class="stat-info">
+                    <span class="stat-value" id="statLogins">0</span>
+                    <span class="stat-label">Total Logins</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon green"><span class="material-icons-outlined">task_alt</span></div>
+                <div class="stat-info">
+                    <span class="stat-value" id="statActions">0</span>
+                    <span class="stat-label">Total Actions</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon orange"><span class="material-icons-outlined">edit_note</span></div>
+                <div class="stat-info">
+                    <span class="stat-value" id="statCreates">0</span>
+                    <span class="stat-label">Created</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon purple"><span class="material-icons-outlined">update</span></div>
+                <div class="stat-info">
+                    <span class="stat-value" id="statUpdates">0</span>
+                    <span class="stat-label">Updated</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Two Column Layout -->
+        <div class="dash-grid">
+            <!-- Recent Logins -->
+            <div class="dash-card">
+                <div class="dash-card-header">
+                    <h3><span class="material-icons-outlined">history</span> Recent Logins</h3>
+                </div>
+                <div class="dash-card-body" id="recentLoginsBody">
+                    <div class="empty-state">Loading...</div>
+                </div>
+            </div>
+
+            <!-- Module Activity -->
+            <div class="dash-card">
+                <div class="dash-card-header">
+                    <h3><span class="material-icons-outlined">pie_chart</span> Module Activity</h3>
+                </div>
+                <div class="dash-card-body" id="moduleActivityBody">
+                    <div class="empty-state">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Audit Trail -->
+        <div class="dash-card full-width">
+            <div class="dash-card-header">
+                <h3><span class="material-icons-outlined">receipt_long</span> Recent Activity & Audit Trail</h3>
+            </div>
+            <div class="dash-card-body">
+                <table class="audit-table" id="auditTable">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Action</th>
+                            <th>Module</th>
+                            <th>Entity</th>
+                            <th>IP Address</th>
+                        </tr>
+                    </thead>
+                    <tbody id="auditTableBody">
+                        <tr><td colspan="5" class="empty-state">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div><!-- /.dashboard -->
+    </div><!-- /.dash-layout -->
+</main>
+
+<!-- PROFILE MODAL -->
+<div class="modal-overlay" id="profileModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Profile</h3>
+            <button class="close-btn" onclick="closeModal('profileModal')">
+                <span class="material-icons-outlined">close</span>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="profile-info">
+                <div class="profile-avatar"><span class="material-icons-outlined">person</span></div>
+                <div class="profile-fields">
+                    <p><strong>Name:</strong> <span id="profileName">-</span></p>
+                    <p><strong>Email:</strong> <span id="profileEmail">-</span></p>
+                    <p><strong>Role:</strong> <span id="profileRole">-</span></p>
+                    <p><strong>Organization:</strong> <span id="profileOrg">-</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ACCOUNT MODAL -->
+<div class="modal-overlay" id="accountModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Account Settings</h3>
+            <button class="close-btn" onclick="closeModal('accountModal')">
+                <span class="material-icons-outlined">close</span>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="accountForm" onsubmit="updateAccount(event)">
+                <div class="form-group">
+                    <label>First Name</label>
+                    <input type="text" id="accFirstName" placeholder="First Name">
+                </div>
+                <div class="form-group">
+                    <label>Last Name</label>
+                    <input type="text" id="accLastName" placeholder="Last Name">
+                </div>
+                <div class="form-group">
+                    <label>Phone</label>
+                    <input type="tel" id="accPhone" placeholder="Phone">
+                </div>
+                <hr>
+                <h4>Change Password</h4>
+                <div class="form-group">
+                    <label>Current Password</label>
+                    <input type="password" id="accCurrentPwd" placeholder="Current password">
+                </div>
+                <div class="form-group">
+                    <label>New Password</label>
+                    <input type="password" id="accNewPwd" placeholder="New password">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('accountModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/header.js"></script>
+<script src="/static/js/dashboard.js"></script>
+<script>requireAuth();</script>
+</body>
+</html>

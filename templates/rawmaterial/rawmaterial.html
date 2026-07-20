@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raw Material Management - SUPERSYSTEMS</title>
+    <link rel="stylesheet" href="/static/css/header.css">
+    <link rel="stylesheet" href="/static/css/part/part.css">
+    <link rel="stylesheet" href="/static/css/rawmaterial/rawmaterial.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+</head>
+<body>
+
+<!-- FIXED HEADER -->
+<header class="header">
+    <div class="header-left">
+        <div class="logo">
+            <img class="logo-light" src="/static/img/light_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <span class="logo-text">SUPERSYSTEMS</span>
+        </div>
+        <div class="nav-item services-trigger" onclick="toggleServices()">
+            <span class="material-icons-outlined">apps</span>
+            <span>Services</span>
+            <span class="material-icons-outlined arrow">expand_more</span>
+        </div>
+    </div>
+    <div class="header-center">
+        <div class="search-box">
+            <span class="material-icons-outlined">search</span>
+            <input type="text" placeholder="Search services, features..." id="globalSearch" oninput="handleSearch(this.value)">
+            <div class="search-results" id="searchResults"></div>
+        </div>
+    </div>
+    <div class="header-right">
+        <button class="header-icon-btn" title="Notifications"><span class="material-icons-outlined">notifications</span></button>
+        <button class="header-icon-btn theme-toggle" title="Toggle Dark Mode" onclick="toggleTheme()">
+            <span class="material-icons-outlined icon-light">dark_mode</span>
+            <span class="material-icons-outlined icon-dark">light_mode</span>
+        </button>
+        <div class="user-menu" id="userMenu">
+            <div class="user-avatar" onclick="toggleUserMenu()"><span class="material-icons-outlined">person</span></div>
+            <div class="user-dropdown" id="userDropdown">
+                <a href="#" onclick="openProfile()"><span class="material-icons-outlined">person</span>Profile</a>
+                <a href="#" onclick="openAccount()"><span class="material-icons-outlined">manage_accounts</span>Account</a>
+                <div class="dropdown-divider"></div>
+                <a href="#" onclick="logout()"><span class="material-icons-outlined">logout</span>Logout</a>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- SERVICES PANEL -->
+<div class="services-panel" id="servicesPanel">
+    <div class="services-panel-header">
+        <h3>All Services</h3>
+        <div style="display:flex;align-items:center;gap:10px">
+            <button class="btn-outline" id="toggleAllServicesBtn" onclick="toggleAllServices()"><span class="material-icons-outlined">unfold_less</span> Collapse All</button>
+            <button class="close-btn" onclick="toggleServices()"><span class="material-icons-outlined">close</span></button>
+        </div>
+    </div>
+    <div class="services-grid" id="servicesGrid"></div>
+</div>
+<div class="overlay" id="overlay" onclick="toggleServices()"></div>
+
+<!-- MAIN LAYOUT -->
+<div class="rm-layout">
+    <!-- SIDEBAR -->
+    <aside class="rm-sidebar">
+        <div class="sidebar-header">
+            <span class="material-icons-outlined">science</span>
+            <h3>RM Management</h3>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/" class="sidebar-link"><span class="material-icons-outlined">arrow_back</span>Home</a>
+            <div class="sidebar-divider"></div>
+            <a class="sidebar-link active" data-section="overview" onclick="rmShowSection('overview')"><span class="material-icons-outlined">dashboard</span>Overview</a>
+            <div class="sidebar-divider"></div>
+            <div class="sidebar-group-label">Configuration</div>
+            <a class="sidebar-link" data-section="criteria" onclick="rmShowSection('criteria')"><span class="material-icons-outlined">rule</span>RM Code Criteria</a>
+            <div class="sidebar-divider"></div>
+            <div class="sidebar-group-label">Raw Materials</div>
+            <a class="sidebar-link" data-section="master" onclick="rmShowSection('master')"><span class="material-icons-outlined">inventory_2</span>RM Master</a>
+            <a class="sidebar-link" data-section="partmapping" onclick="rmShowSection('partmapping')"><span class="material-icons-outlined">link</span>RM-Part Mapping</a>
+            <div class="sidebar-divider"></div>
+            <div class="sidebar-group-label">Stock</div>
+            <a class="sidebar-link disabled" data-section="inventory" style="opacity:0.5;pointer-events:none"><span class="material-icons-outlined">warehouse</span>RM Inventory <span class="coming-soon" style="font-size:9px;margin-left:auto">Soon</span></a>
+        </nav>
+    </aside>
+
+    <!-- CONTENT -->
+    <main class="rm-content">
+
+        <!-- OVERVIEW -->
+        <section class="content-section active" id="sec-overview">
+            <div class="section-header"><h2>RAW MATERIAL MANAGEMENT</h2></div>
+            <div class="overview-stats">
+                <div class="stat-card"><span class="material-icons-outlined stat-icon">rule</span><div class="stat-info"><div class="stat-value" id="statCriteria">-</div><div class="stat-label">Criteria</div></div></div>
+                <div class="stat-card"><span class="material-icons-outlined stat-icon">inventory_2</span><div class="stat-info"><div class="stat-value" id="statRawMaterials">-</div><div class="stat-label">Raw Materials</div></div></div>
+                <div class="stat-card"><span class="material-icons-outlined stat-icon">check_circle</span><div class="stat-info"><div class="stat-value" id="statActiveRM">-</div><div class="stat-label">Active RM</div></div></div>
+                <div class="stat-card"><span class="material-icons-outlined stat-icon">link</span><div class="stat-info"><div class="stat-value" id="statMappings">-</div><div class="stat-label">Part Mappings</div></div></div>
+            </div>
+            <div class="overview-grid">
+                <div class="overview-card">
+                    <div class="overview-card-header"><h3>Recent Activity</h3></div>
+                    <div class="overview-card-body" id="rmOverviewActivity"><div class="empty">Loading...</div></div>
+                </div>
+                <div class="overview-card">
+                    <div class="overview-card-header"><h3>Quick Actions</h3></div>
+                    <div class="overview-card-body">
+                        <div class="quick-actions">
+                            <button class="quick-action-btn" onclick="rmShowSection('criteria')"><span class="material-icons-outlined">rule</span><span>Code Criteria</span></button>
+                            <button class="quick-action-btn" onclick="rmShowSection('master')"><span class="material-icons-outlined">add_box</span><span>Create RM</span></button>
+                            <button class="quick-action-btn" onclick="rmShowSection('partmapping')"><span class="material-icons-outlined">link</span><span>Map to Part</span></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- RM CODE CRITERIA -->
+        <section class="content-section" id="sec-criteria">
+            <div class="section-header">
+                <h2>RM Code Criteria</h2>
+                <div class="section-actions"><button class="btn-primary" onclick="openAddCriteriaModal()"><span class="material-icons-outlined">add</span> New Criteria</button></div>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead><tr><th>Material Category</th><th>Sub-Category</th><th>Series Prefix</th><th>Separator</th><th>Format</th><th>Preview</th><th>Columns</th><th>Actions</th></tr></thead>
+                    <tbody id="criteriaTableBody"><tr><td colspan="8" class="empty">Loading...</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- RM MASTER -->
+        <section class="content-section" id="sec-master">
+            <div class="section-header">
+                <h2>RM Master</h2>
+                <div class="section-actions">
+                    <div class="search-box" style="width:240px"><span class="material-icons-outlined" style="font-size:16px">search</span><input type="text" id="rmMasterSearch" placeholder="Search RM..." oninput="filterRmMaster()" style="border:none;outline:none;width:100%;font-size:12px"></div>
+                    <button class="btn-primary" onclick="openAddRmModal()"><span class="material-icons-outlined">add</span> Create RM</button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead><tr><th>RM Code</th><th>Description</th><th>Category</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody id="rmMasterTableBody"><tr><td colspan="5" class="empty">Loading...</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- RM-PART MAPPING -->
+        <section class="content-section" id="sec-partmapping">
+            <div class="section-header">
+                <h2>RM-Part Mapping</h2>
+                <div class="section-actions">
+                    <div class="search-box" style="width:240px"><span class="material-icons-outlined" style="font-size:16px">search</span><input type="text" id="rmPmSearch" placeholder="Search..." oninput="filterRmPm()" style="border:none;outline:none;width:100%;font-size:12px"></div>
+                    <button class="btn-primary" onclick="openAddRmPmModal()"><span class="material-icons-outlined">add</span> Add Mapping</button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead><tr><th>Raw Material</th><th>Part Code</th><th>Qty Required</th><th>Unit</th><th>Wastage %</th><th>Effective Qty</th><th>Notes</th><th>Actions</th></tr></thead>
+                    <tbody id="rmPartMappingBody"><tr><td colspan="8" class="empty">Loading...</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- RM INVENTORY (placeholder) -->
+        <section class="content-section" id="sec-inventory">
+            <div class="section-header"><h2>RM Inventory</h2></div>
+            <div class="empty" style="padding:60px;text-align:center;color:var(--text-muted)">
+                <span class="material-icons-outlined" style="font-size:48px;display:block;margin-bottom:12px">warehouse</span>
+                Coming Soon — Track raw material stock levels, reorder points, and consumption.
+            </div>
+        </section>
+
+    </main>
+</div>
+
+<!-- CRITERIA MODAL -->
+<div class="modal-overlay" id="criteriaModal">
+    <div class="modal modal-lg">
+        <div class="modal-header"><h3 id="critModalTitle">New RM Code Criteria</h3><button class="close-btn" onclick="rmCloseModal('criteriaModal')"><span class="material-icons-outlined">close</span></button></div>
+        <div class="modal-body">
+            <form onsubmit="saveCriteria(event)">
+                <input type="hidden" id="critId">
+                <div class="form-row">
+                    <div class="form-group"><label>Material Category *</label><input type="text" id="critCategory" required placeholder="e.g. Steel, Plastic, Chemical" oninput="updateCritPreview()"></div>
+                    <div class="form-group"><label>Sub-Category</label><input type="text" id="critSubCategory" placeholder="e.g. Sheet, Rod, Tube"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Series Prefix *</label><input type="text" id="critPrefix" required placeholder="e.g. STL, PLS, CHM" oninput="updateCritPreview()"></div>
+                    <div class="form-group"><label>Number Format (digits)</label><input type="number" id="critNumFormat" value="4" min="2" max="8" oninput="updateCritPreview()"></div>
+                </div>
+                <div class="form-group">
+                    <label>Separator *</label>
+                    <div style="display:flex;gap:8px;margin-top:4px">
+                        <div class="crit-sep-btn" data-sep="-" data-active="1" onclick="setCritSep('-')" style="display:flex;align-items:center;justify-content:center;width:44px;height:38px;border:2px solid var(--accent);border-radius:8px;font-size:20px;font-weight:700;cursor:pointer;color:var(--accent);background:var(--accent-light)">-</div>
+                        <div class="crit-sep-btn" data-sep="." data-active="0" onclick="setCritSep('.')" style="display:flex;align-items:center;justify-content:center;width:44px;height:38px;border:2px solid var(--border-color);border-radius:8px;font-size:20px;font-weight:700;cursor:pointer;color:var(--text-secondary);background:var(--bg-primary)">.</div>
+                        <div class="crit-sep-btn" data-sep="/" data-active="0" onclick="setCritSep('/')" style="display:flex;align-items:center;justify-content:center;width:44px;height:38px;border:2px solid var(--border-color);border-radius:8px;font-size:20px;font-weight:700;cursor:pointer;color:var(--text-secondary);background:var(--bg-primary)">/</div>
+                    </div>
+                </div>
+                <div class="form-group"><label>Preview</label><div class="rm-code-preview" id="critPreview">---</div></div>
+                <div class="columns-section">
+                    <div class="columns-header">
+                        <label>Table Columns <span class="form-hint-inline">(define fields for RM in this criteria)</span></label>
+                        <button type="button" class="btn-sm" onclick="addCritColumnRow()"><span class="material-icons-outlined">add</span> Add Column</button>
+                    </div>
+                    <div id="critColumnsContainer"></div>
+                </div>
+                <div class="form-group"><label>Description</label><input type="text" id="critDesc" placeholder="Optional notes about this criteria"></div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="rmCloseModal('criteriaModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- RM MASTER MODAL -->
+<div class="modal-overlay" id="rmMasterModal">
+    <div class="modal modal-lg">
+        <div class="modal-header"><h3 id="rmModalTitle">Create Raw Material</h3><button class="close-btn" onclick="rmCloseModal('rmMasterModal')"><span class="material-icons-outlined">close</span></button></div>
+        <div class="modal-body">
+            <form onsubmit="saveRm(event)">
+                <input type="hidden" id="rmId">
+                <div class="form-group" id="rmCriteriaGroup"><label>Code Criteria * (determines RM code)</label><select id="rmCriteriaSelect" required onchange="onCriteriaChange()"><option value="">Select Criteria</option></select></div>
+                <div class="form-group" id="rmCodeDisplay" style="display:none"><label>RM Code</label><div class="rm-code-preview" style="font-size:14px;padding:8px"><span></span></div></div>
+                <div id="rmDynamicCols"></div>
+                <div class="form-group"><label>Description</label><input type="text" id="rmDescription" placeholder="Full description of raw material"></div>
+                <div class="form-group"><label>Notes</label><input type="text" id="rmNotes" placeholder="Any additional notes"></div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="rmCloseModal('rmMasterModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- RM-PART MAPPING MODAL -->
+<div class="modal-overlay" id="rmPmModal">
+    <div class="modal modal-lg">
+        <div class="modal-header"><h3 id="pmModalTitle">Add RM-Part Mapping</h3><button class="close-btn" onclick="rmCloseModal('rmPmModal')"><span class="material-icons-outlined">close</span></button></div>
+        <div class="modal-body">
+            <form onsubmit="saveRmPm(event)">
+                <input type="hidden" id="pmId">
+                <input type="hidden" id="pmRmCode">
+                <input type="hidden" id="pmRmDesc">
+                <input type="hidden" id="pmPartNum">
+                <input type="hidden" id="pmPartDesc">
+                <div class="form-group">
+                    <label>Raw Material *</label>
+                    <input type="text" id="pmRmSearch" placeholder="Search RM code or description..." oninput="searchRmForMapping(this.value)" autocomplete="off">
+                    <div id="pmRmResults" class="emp-search-results"></div>
+                    <div id="pmRmSelected" class="emp-selected-inline" style="display:none"><span id="pmRmSelLabel"></span><button type="button" class="btn-icon" onclick="clearPmRm()"><span class="material-icons-outlined">close</span></button></div>
+                </div>
+                <div class="form-group">
+                    <label>Part Code (Internal) *</label>
+                    <input type="text" id="pmPartSearch" placeholder="Search part number or description..." oninput="searchPartForRm(this.value)" autocomplete="off">
+                    <div id="pmPartResults" class="emp-search-results"></div>
+                    <div id="pmPartSelected" class="emp-selected-inline" style="display:none"><span id="pmPartSelLabel"></span><button type="button" class="btn-icon" onclick="clearPmPart()"><span class="material-icons-outlined">close</span></button></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Quantity Required</label><input type="number" id="pmQty" step="0.01" placeholder="Per 1 unit of part"></div>
+                    <div class="form-group"><label>Unit</label><select id="pmUnit"><option value="">Select</option><option value="kg">kg</option><option value="mtr">mtr</option><option value="pcs">pcs</option><option value="ltr">ltr</option><option value="nos">nos</option><option value="sqm">sqm</option></select></div>
+                </div>
+                <div class="form-group"><label>Wastage % (scrap allowance)</label><input type="number" id="pmWastage" step="0.1" placeholder="e.g. 5"></div>
+                <div class="form-group"><label>Process Notes</label><input type="text" id="pmNotes" placeholder="Manufacturing notes"></div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="rmCloseModal('rmPmModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- PROFILE MODAL -->
+<div class="modal-overlay" id="profileModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Profile</h3><button class="close-btn" onclick="rmCloseModal('profileModal')"><span class="material-icons-outlined">close</span></button></div>
+        <div class="modal-body">
+            <div class="profile-info"><div class="profile-avatar"><span class="material-icons-outlined">person</span></div>
+                <div class="profile-fields"><p><strong>Name:</strong> <span id="profileName">-</span></p><p><strong>Email:</strong> <span id="profileEmail">-</span></p><p><strong>Role:</strong> <span id="profileRole">-</span></p><p><strong>Organization:</strong> <span id="profileOrg">-</span></p></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ACCOUNT MODAL -->
+<div class="modal-overlay" id="accountModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Account Settings</h3><button class="close-btn" onclick="rmCloseModal('accountModal')"><span class="material-icons-outlined">close</span></button></div>
+        <div class="modal-body">
+            <form id="accountForm" onsubmit="updateAccount(event)">
+                <div class="form-group"><label>First Name</label><input type="text" id="accFirstName"></div>
+                <div class="form-group"><label>Last Name</label><input type="text" id="accLastName"></div>
+                <div class="form-group"><label>Phone</label><input type="tel" id="accPhone"></div>
+                <hr><h4>Change Password</h4>
+                <div class="form-group"><label>Current Password</label><input type="password" id="accCurrentPwd"></div>
+                <div class="form-group"><label>New Password</label><input type="password" id="accNewPwd"></div>
+                <div class="form-actions"><button type="button" class="btn-secondary" onclick="rmCloseModal('accountModal')">Cancel</button><button type="submit" class="btn-primary">Save Changes</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/header.js"></script>
+<script>requireAuth();</script>
+<script src="/static/js/rawmaterial/common.js"></script>
+<script src="/static/js/rawmaterial/overview.js"></script>
+<script src="/static/js/rawmaterial/criteria.js"></script>
+<script src="/static/js/rawmaterial/master.js"></script>
+<script src="/static/js/rawmaterial/partmapping.js"></script>
+</body>
+</html>

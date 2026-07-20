@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Routing Detail - SUPERSYSTEMS</title>
+    <link rel="stylesheet" href="/static/css/header.css">
+    <link rel="stylesheet" href="/static/css/workflow/workflow.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+</head>
+<body>
+<header class="header">
+    <div class="header-left">
+        <div class="logo">
+            <img class="logo-light" src="/static/img/light_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <span class="logo-text">SUPERSYSTEMS</span>
+        </div>
+        <div class="nav-item services-trigger" onclick="toggleServices()">
+            <span class="material-icons-outlined">apps</span><span>Services</span>
+            <span class="material-icons-outlined arrow">expand_more</span>
+        </div>
+    </div>
+    <div class="header-center">
+        <div class="search-box">
+            <span class="material-icons-outlined">search</span>
+            <input type="text" placeholder="Search services..." id="globalSearch" oninput="handleSearch(this.value)">
+            <div class="search-results" id="searchResults"></div>
+        </div>
+    </div>
+    <div class="header-right">
+        <button class="header-icon-btn theme-toggle" onclick="toggleTheme()">
+            <span class="material-icons-outlined icon-light">dark_mode</span>
+            <span class="material-icons-outlined icon-dark">light_mode</span>
+        </button>
+        <div class="user-menu" id="userMenu">
+            <div class="user-avatar" onclick="toggleUserMenu()"><span class="material-icons-outlined">person</span></div>
+            <div class="user-dropdown" id="userDropdown">
+                <a href="#" onclick="logout()"><span class="material-icons-outlined">logout</span>Logout</a>
+            </div>
+        </div>
+    </div>
+</header>
+<div class="services-panel" id="servicesPanel">
+    <div class="services-panel-header">
+        <h3>All Services</h3>
+        <div style="display:flex;align-items:center;gap:10px">
+            <button class="btn-outline" id="toggleAllServicesBtn" onclick="toggleAllServices()"><span class="material-icons-outlined">unfold_less</span> Collapse All</button>
+            <button class="close-btn" onclick="toggleServices()"><span class="material-icons-outlined">close</span></button>
+        </div>
+    </div>
+    <div class="services-grid" id="servicesGrid"></div>
+</div>
+<div class="overlay" id="overlay" onclick="toggleServices()"></div>
+
+<div class="wf-layout">
+
+    <!-- SIDEBAR -->
+    <aside class="wf-sidebar">
+        <div class="sidebar-header">
+            <span class="material-icons-outlined">account_tree</span>
+            <h3>Workflow & Costing</h3>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/workflow" class="sidebar-link"><span class="material-icons-outlined">arrow_back</span>All Routings</a>
+            <div class="sidebar-divider"></div>
+            <div class="sidebar-link active" style="cursor:default;flex-direction:column;align-items:flex-start;gap:2px">
+                <div style="display:flex;align-items:center;gap:8px">
+                    <span class="material-icons-outlined" style="font-size:18px">route</span>
+                    <span id="sbPartNumber" style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Loading...</span>
+                </div>
+                <span id="sbPartDesc" style="font-size:11px;color:var(--text-muted);padding-left:26px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%"></span>
+            </div>
+            <div class="sidebar-divider"></div>
+            <div class="sidebar-section-label">View</div>
+            <button class="sidebar-link" onclick="switchTab('routing')"><span class="material-icons-outlined">account_tree</span>Process Routing</button>
+            <button class="sidebar-link" onclick="switchTab('costing')"><span class="material-icons-outlined">calculate</span>View Costing</button>
+            <div class="sidebar-divider"></div>
+            <div class="sidebar-section-label">Edit</div>
+            <button class="sidebar-link" id="sbEditBtn" onclick="toggleEditMode()"><span class="material-icons-outlined">edit</span>Edit Routing</button>
+            <div class="sidebar-divider"></div>
+            <a href="/machine" class="sidebar-link"><span class="material-icons-outlined">memory</span>Machines ↗</a>
+        </nav>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="wf-content">
+
+        <div id="rdLoading" style="padding:60px;text-align:center;color:var(--text-muted)">
+            <span class="material-icons-outlined" style="font-size:40px;display:block;margin-bottom:8px;animation:spin 1s linear infinite">autorenew</span>
+            Loading routing...
+        </div>
+
+        <div id="rdContent" style="display:none">
+
+            <!-- PART INFO CARD -->
+            <div class="rd-info-card">
+                <div class="rd-info-left">
+                    <div class="rd-info-pn" id="rdPartNumber">—</div>
+                    <div class="rd-info-desc" id="rdPartDesc">—</div>
+                </div>
+                <div class="rd-info-stats" id="rdInfoStats"></div>
+                <div class="rd-info-right">
+                    <span id="rdStatusBadge" class="rd-status-badge">—</span>
+                    <span id="rdRevBadge" class="rd-rev-badge">Rev —</span>
+                    <button class="rd-edit-toggle" id="rdEditToggle" onclick="toggleEditMode()">
+                        <span class="material-icons-outlined">edit</span> Edit
+                    </button>
+                </div>
+            </div>
+
+            <!-- TAB BAR -->
+            <div class="rd-tabs">
+                <button class="rd-tab active" id="tab-routing" onclick="switchTab('routing')">
+                    <span class="material-icons-outlined">account_tree</span> Process Routing
+                </button>
+                <button class="rd-tab" id="tab-costing" onclick="switchTab('costing')">
+                    <span class="material-icons-outlined">calculate</span> View Costing
+                </button>
+            </div>
+
+            <!-- TAB: ROUTING — two-panel -->
+            <div class="rd-tab-panel active" id="panel-routing">
+                <div class="rd-two-panel">
+
+                    <!-- LEFT: TREE 30% -->
+                    <div class="rd-panel-tree">
+                        <div class="rd-panel-head">
+                            <span>Process Tree</span>
+                            <div style="display:flex;gap:4px">
+                                <button class="rd-toolbar-btn" onclick="expandAll()" title="Expand all"><span class="material-icons-outlined">unfold_more</span></button>
+                                <button class="rd-toolbar-btn" onclick="collapseAll()" title="Collapse all"><span class="material-icons-outlined">unfold_less</span></button>
+                            </div>
+                        </div>
+                        <div class="rd-tree-scroll" id="rdTree"></div>
+                    </div>
+
+                    <!-- RIGHT: DETAIL 70% -->
+                    <div class="rd-panel-detail">
+                        <div class="rd-panel-head">
+                            <span id="rdDetailTitle">Select a process</span>
+                        </div>
+                        <div class="rd-detail-scroll" id="rdDetail">
+                            <div class="rd-detail-empty">
+                                <span class="material-icons-outlined">touch_app</span>
+                                Click any process or sub-process in the tree to view its machines
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- TAB: COSTING -->
+            <div class="rd-tab-panel" id="panel-costing">
+                <div id="rdCostPanel">
+                    <div class="rd-detail-empty" style="padding:48px">
+                        <span class="material-icons-outlined">calculate</span>
+                        Click <strong>Load Cost Breakdown</strong> to calculate
+                        <button class="btn-primary" style="margin-top:16px" onclick="loadCost()">
+                            <span class="material-icons-outlined">calculate</span> Load Cost Breakdown
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+</div>
+
+<!-- ASSIGN MACHINE MODAL -->
+<div class="modal-overlay" id="assignMachineModal">
+    <div class="modal">
+        <div class="modal-header">
+            <div>
+                <h3>Assign Machine</h3>
+                <div id="amStepLabel" style="font-size:11px;color:var(--text-muted);margin-top:2px"></div>
+            </div>
+            <button class="close-btn" onclick="closeM('assignMachineModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="saveStepMachine(event)">
+                <input type="hidden" id="amStepId">
+                <input type="hidden" id="amSmId">
+                <div class="form-group" style="position:relative">
+                    <label>Machine *</label>
+                    <input type="text" id="amMachineSearch" placeholder="Type to search machines..." autocomplete="off" oninput="searchMachines(this.value)">
+                    <div id="amMachineDropdown" class="part-search-dropdown" style="display:none"></div>
+                    <input type="hidden" id="amMachineId">
+                    <div id="amMachineSelected" style="font-size:11px;color:var(--accent);margin-top:3px"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Cycle Time (min) *</label>
+                        <input type="number" id="amCycleTime" min="0" step="0.001" required placeholder="0.000">
+                    </div>
+                    <div class="form-group" style="display:flex;align-items:center;gap:8px;padding-top:22px">
+                        <input type="checkbox" id="amPreferred" style="width:auto;cursor:pointer">
+                        <label for="amPreferred" style="margin:0;cursor:pointer">Preferred Machine</label>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeM('assignMachineModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Assign Machine</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- DELETE CONFIRM -->
+<div class="modal-overlay" id="deleteModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Confirm Delete</h3><button class="close-btn" onclick="closeM('deleteModal')"><span class="material-icons-outlined">close</span></button></div>
+        <div class="modal-body">
+            <p id="deleteMsg" style="font-size:13px;color:var(--text-secondary);margin-bottom:16px"></p>
+            <div class="form-actions">
+                <button class="btn-secondary" onclick="closeM('deleteModal')">Cancel</button>
+                <button class="btn-primary" style="background:#e53935" id="deleteConfirmBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>@keyframes spin { to { transform:rotate(360deg); } }</style>
+<div class="wf-toast" id="wfToast"></div>
+<script src="/static/js/header.js"></script>
+<script>const ROUTING_ID = {{ routing_id | tojson }};</script>
+<script src="/static/js/workflow/routing_detail.js"></script>
+</body>
+</html>

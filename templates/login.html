@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SUPERSYSTEMS - Login</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+    <style>
+        @font-face {
+            font-family: "Alien Resurrection";
+            src: url("https://db.onlinewebfonts.com/t/e752b0cc1c28a71314ce0b53a6f0a05f.eot");
+            src: url("https://db.onlinewebfonts.com/t/e752b0cc1c28a71314ce0b53a6f0a05f.eot?#iefix") format("embedded-opentype"),
+                 url("https://db.onlinewebfonts.com/t/e752b0cc1c28a71314ce0b53a6f0a05f.woff2") format("woff2"),
+                 url("https://db.onlinewebfonts.com/t/e752b0cc1c28a71314ce0b53a6f0a05f.woff") format("woff"),
+                 url("https://db.onlinewebfonts.com/t/e752b0cc1c28a71314ce0b53a6f0a05f.ttf") format("truetype");
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-primary: #ffffff; --bg-secondary: #f5f5f5; --text-primary: #212121;
+            --text-secondary: #616161; --border-color: #e0e0e0; --accent: #1976D2;
+            --accent-light: #e3f2fd; --hover-bg: #f0f0f0; --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
+        }
+        [data-theme="dark"] {
+            --bg-primary: #203954; --bg-secondary: #1a2f45; --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0; --border-color: #334d66; --accent: #90CAF9;
+            --accent-light: #1a2733; --hover-bg: #2a4a6a; --shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
+        }
+        body {
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .login-container {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            box-shadow: var(--shadow-lg);
+            width: 400px;
+            max-width: 90vw;
+            overflow: hidden;
+        }
+        .login-header {
+            text-align: center;
+            padding: 32px 24px 16px;
+        }
+        .login-header img { height: 40px; margin-bottom: 12px; }
+        .login-header h2 { font-size: 20px; font-weight: 700; }
+        .login-header p { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+        [data-theme="light"] .logo-dark { display: none; }
+        [data-theme="dark"] .logo-light { display: none; }
+
+        .login-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            margin: 0 24px;
+        }
+        .login-tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .login-tab.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+        .login-tab:hover { color: var(--accent); }
+
+        .login-form { padding: 24px; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label {
+            display: block; font-size: 12px; font-weight: 600;
+            color: var(--text-secondary); margin-bottom: 6px;
+        }
+        .form-group input {
+            width: 100%; padding: 10px 12px;
+            border: 1px solid var(--border-color); border-radius: 8px;
+            font-size: 13px; background: var(--bg-secondary);
+            color: var(--text-primary); outline: none;
+        }
+        .form-group input:focus { border-color: var(--accent); }
+
+        .btn-login {
+            width: 100%; padding: 12px;
+            background: var(--accent); color: #fff;
+            border: none; border-radius: 8px;
+            font-size: 14px; font-weight: 600;
+            cursor: pointer; transition: opacity 0.2s;
+        }
+        .btn-login:hover { opacity: 0.9; }
+        .btn-login:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .login-error {
+            display: none; padding: 10px 12px;
+            background: #fbe9e7; color: #d32f2f;
+            border-radius: 6px; font-size: 12px; margin-bottom: 14px;
+        }
+        .login-error.active { display: block; }
+        [data-theme="dark"] .login-error { background: #3d1b1b; color: #e57373; }
+        [data-theme="dark"] .login-header h2 { color: #ffffff !important; }
+
+        .theme-toggle {
+            position: fixed; top: 16px; right: 16px;
+            background: var(--bg-primary); border: 1px solid var(--border-color);
+            border-radius: 8px; padding: 8px; cursor: pointer; color: var(--text-secondary);
+        }
+        [data-theme="light"] .icon-dark { display: none; }
+        [data-theme="dark"] .icon-light { display: none; }
+    </style>
+</head>
+<body>
+
+<button class="theme-toggle" onclick="toggleTheme()">
+    <span class="material-icons-outlined icon-light">dark_mode</span>
+    <span class="material-icons-outlined icon-dark">light_mode</span>
+</button>
+
+<div class="login-container">
+    <div class="login-header">
+        <img class="logo-light" src="/static/img/light_mode_logo.png" alt="SS">
+        <img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SS">
+        <h2 style="font-family:'Alien Resurrection',sans-serif;text-transform:uppercase;letter-spacing:0.05em;color:#000000">SUPERSYSTEMS</h2>
+        <p>Sign in to continue</p>
+    </div>
+
+    <div class="login-tabs">
+        <div class="login-tab active" onclick="switchTab('org')">Organization</div>
+        <div class="login-tab" onclick="switchTab('admin')">Super Admin</div>
+    </div>
+
+    <form class="login-form" id="loginForm" onsubmit="handleLogin(event)">
+        <div class="login-error" id="loginError"></div>
+        <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="loginEmail" required placeholder="Enter your email">
+        </div>
+        <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="loginPassword" required placeholder="Enter your password">
+        </div>
+        <button type="submit" class="btn-login" id="loginBtn">Sign In</button>
+    </form>
+</div>
+
+<script>
+let loginType = 'org';
+
+function switchTab(type) {
+    loginType = type;
+    document.querySelectorAll('.login-tab').forEach(t => t.classList.remove('active'));
+    document.querySelector(`.login-tab:${type === 'org' ? 'first' : 'last'}-child`).classList.add('active');
+    document.getElementById('loginError').classList.remove('active');
+}
+
+async function handleLogin(e) {
+    e.preventDefault();
+    const btn = document.getElementById('loginBtn');
+    const errEl = document.getElementById('loginError');
+    btn.disabled = true;
+    btn.textContent = 'Signing in...';
+    errEl.classList.remove('active');
+
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+
+    const url = loginType === 'admin'
+        ? '/api/v1/auth/super-admin/login'
+        : '/api/v1/auth/login';
+
+    try {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            const d = data.data;
+            localStorage.setItem('access_token', d.access_token);
+            localStorage.setItem('refresh_token', d.refresh_token || '');
+            localStorage.setItem('user', JSON.stringify(d.user || {}));
+            localStorage.setItem('user_type', d.user_type);
+            // Store flat keys used by all module pages
+            localStorage.setItem('user_email', d.user?.email || email);
+            localStorage.setItem('user_name', ((d.user?.first_name || '') + ' ' + (d.user?.last_name || '')).trim() || email);
+            if (d.tenant) {
+                localStorage.setItem('tenant', JSON.stringify(d.tenant));
+                localStorage.setItem('tenant_id', d.tenant.id || d.tenant.code || '');
+            }
+            // Redirect based on user type
+            if (d.user_type === 'super_admin') {
+                localStorage.setItem('sa_token', d.access_token);
+                localStorage.setItem('sa_email', email);
+                window.location.href = '/superadmin';
+            } else {
+                window.location.href = '/';
+            }
+        } else {
+            errEl.textContent = data.message || 'Login failed';
+            errEl.classList.add('active');
+        }
+    } catch (err) {
+        errEl.textContent = 'Connection error. Please try again.';
+        errEl.classList.add('active');
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Sign In';
+}
+
+function toggleTheme() {
+    const html = document.documentElement;
+    const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+}
+
+(function() {
+    const saved = localStorage.getItem('theme');
+    if (saved) document.documentElement.setAttribute('data-theme', saved);
+    // If already logged in with valid token, go to dashboard
+    const token = localStorage.getItem('access_token');
+    if (token) {
+        try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            if (!payload.exp || Date.now() / 1000 < payload.exp) {
+                window.location.href = '/';
+            }
+        } catch(e) {}
+    }
+})();
+</script>
+</body>
+</html>

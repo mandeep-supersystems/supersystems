@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Detail - SUPERSYSTEMS</title>
+    <link rel="stylesheet" href="/static/css/header.css">
+    <link rel="stylesheet" href="/static/css/hr/hr.css">
+    <link rel="stylesheet" href="/static/css/hr/employee_detail.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+</head>
+<body>
+
+<header class="header">
+    <div class="header-left">
+        <div class="logo">
+            <img class="logo-light" src="/static/img/light_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <span class="logo-text">SUPERSYSTEMS</span>
+        </div>
+        <div class="nav-item services-trigger" onclick="toggleServices()">
+            <span class="material-icons-outlined">apps</span>
+            <span>Services</span>
+            <span class="material-icons-outlined arrow">expand_more</span>
+        </div>
+    </div>
+    <div class="header-center">
+        <div class="search-box">
+            <span class="material-icons-outlined">search</span>
+            <input type="text" placeholder="Search services, features..." id="globalSearch" oninput="handleSearch(this.value)">
+            <div class="search-results" id="searchResults"></div>
+        </div>
+    </div>
+    <div class="header-right">
+        <button class="header-icon-btn" title="Notifications"><span class="material-icons-outlined">notifications</span></button>
+        <button class="header-icon-btn theme-toggle" title="Toggle Dark Mode" onclick="toggleTheme()">
+            <span class="material-icons-outlined icon-light">dark_mode</span>
+            <span class="material-icons-outlined icon-dark">light_mode</span>
+        </button>
+        <div class="user-menu" id="userMenu">
+            <div class="user-avatar" onclick="toggleUserMenu()"><span class="material-icons-outlined">person</span></div>
+            <div class="user-dropdown" id="userDropdown">
+                <a href="#" onclick="openProfile()"><span class="material-icons-outlined">person</span>Profile</a>
+                <a href="#" onclick="openAccount()"><span class="material-icons-outlined">manage_accounts</span>Account</a>
+                <div class="dropdown-divider"></div>
+                <a href="#" onclick="logout()"><span class="material-icons-outlined">logout</span>Logout</a>
+            </div>
+        </div>
+    </div>
+</header>
+
+<div class="services-panel" id="servicesPanel">
+    <div class="services-panel-header">
+        <h3>All Services</h3>
+        <div style="display:flex;align-items:center;gap:10px">
+            <button class="btn-outline" id="toggleAllServicesBtn" onclick="toggleAllServices()">
+                <span class="material-icons-outlined">unfold_less</span> Collapse All
+            </button>
+            <button class="close-btn" onclick="toggleServices()"><span class="material-icons-outlined">close</span></button>
+        </div>
+    </div>
+    <div class="services-grid" id="servicesGrid"></div>
+</div>
+<div class="overlay" id="overlay" onclick="toggleServices()"></div>
+
+<div class="ed-page">
+    <aside class="ed-sidebar">
+        <div class="ed-sidebar-profile">
+            <div class="ed-avatar"><span class="material-icons-outlined">person</span></div>
+            <div class="ed-emp-code" id="sideEmpCode">—</div>
+            <div class="ed-emp-name" id="sideEmpName">Loading...</div>
+            <div class="ed-emp-desig" id="sideEmpDesig">—</div>
+            <span class="ed-status-badge" id="sideEmpStatus">—</span>
+        </div>
+
+        <nav class="ed-sidebar-nav">
+            <button class="ed-nav-link active" data-section="personal" onclick="switchSection('personal')">
+                <span class="material-icons-outlined">person</span> Personal Info
+            </button>
+            <button class="ed-nav-link" data-section="employment" onclick="switchSection('employment')">
+                <span class="material-icons-outlined">work</span> Employment
+            </button>
+            <button class="ed-nav-link" data-section="bank" onclick="switchSection('bank')">
+                <span class="material-icons-outlined">account_balance</span> Bank & IDs
+            </button>
+            <button class="ed-nav-link" data-section="emergency" onclick="switchSection('emergency')">
+                <span class="material-icons-outlined">warning</span> Emergency Contact
+            </button>
+            <button class="ed-nav-link" data-section="experience" onclick="switchSection('experience')">
+                <span class="material-icons-outlined">history_edu</span> Experience
+            </button>
+            <button class="ed-nav-link" data-section="audit" onclick="switchSection('audit')">
+                <span class="material-icons-outlined">manage_search</span> Audit Logs
+            </button>
+        </nav>
+
+        <div class="ed-sidebar-actions">
+            <button class="btn-primary" onclick="openEditSectionModal('personal')"><span class="material-icons-outlined">edit</span> Edit Employee</button>
+            <a href="/hr" class="btn-secondary" style="text-align:center;text-decoration:none;display:block">← Back to HR</a>
+        </div>
+    </aside>
+
+    <main class="ed-main">
+        <div class="ed-topbar">
+            <a href="/hr" class="ed-back-btn"><span class="material-icons-outlined">arrow_back</span> Back</a>
+            <div class="ed-breadcrumb">
+                <a href="/hr">HR</a>
+                <span class="material-icons-outlined">chevron_right</span>
+                <a href="/hr">Employees</a>
+                <span class="material-icons-outlined">chevron_right</span>
+                <span id="breadcrumbEmp">Loading...</span>
+            </div>
+        </div>
+
+        <div id="edLoading" class="ed-loading">
+            <span class="material-icons-outlined ed-spin">autorenew</span>
+            <span>Loading employee detail...</span>
+        </div>
+
+        <div id="edError" class="ed-error" style="display:none">
+            <span class="material-icons-outlined">error</span>
+            <div id="edErrorText">Unable to load employee</div>
+            <a href="/hr" class="btn-secondary" style="text-decoration:none">Back to HR</a>
+        </div>
+
+        <div id="edContent" style="display:none">
+            <section class="ed-section active" id="section-personal">
+                <div class="ed-section-title">
+                    <span class="material-icons-outlined">person</span> Personal Info
+                </div>
+                <div class="ed-cards-grid">
+                    <div class="ed-card">
+                        <div class="ed-card-header">
+                            <div class="ed-card-title"><span class="material-icons-outlined">badge</span> Basic Info</div>
+                            <button class="ed-card-edit-btn" onclick="openEditSectionModal('personal')"><span class="material-icons-outlined">edit</span> Edit</button>
+                        </div>
+                        <div id="cardPersonal"></div>
+                    </div>
+                    <div class="ed-card">
+                        <div class="ed-card-header">
+                            <div class="ed-card-title"><span class="material-icons-outlined">home</span> Address</div>
+                            <button class="ed-card-edit-btn" onclick="openEditSectionModal('personal')"><span class="material-icons-outlined">edit</span> Edit</button>
+                        </div>
+                        <div id="cardAddress"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="ed-section" id="section-employment">
+                <div class="ed-section-title">
+                    <span class="material-icons-outlined">work</span> Employment
+                </div>
+                <div class="ed-cards-grid">
+                    <div class="ed-card" style="grid-column:1/-1;">
+                        <div class="ed-card-header">
+                            <div class="ed-card-title"><span class="material-icons-outlined">business_center</span> Employment Details</div>
+                            <button class="ed-card-edit-btn" onclick="openEditSectionModal('employment')"><span class="material-icons-outlined">edit</span> Edit</button>
+                        </div>
+                        <div id="cardEmployment"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="ed-section" id="section-bank">
+                <div class="ed-section-title">
+                    <span class="material-icons-outlined">account_balance</span> Bank & IDs
+                </div>
+                <div class="ed-cards-grid">
+                    <div class="ed-card">
+                        <div class="ed-card-header">
+                            <div class="ed-card-title"><span class="material-icons-outlined">payments</span> Bank Details</div>
+                            <button class="ed-card-edit-btn" onclick="openEditSectionModal('bank')"><span class="material-icons-outlined">edit</span> Edit</button>
+                        </div>
+                        <div id="cardBank"></div>
+                    </div>
+                    <div class="ed-card">
+                        <div class="ed-card-header">
+                            <div class="ed-card-title"><span class="material-icons-outlined">badge</span> Identity Documents</div>
+                            <button class="ed-card-edit-btn" onclick="openEditSectionModal('bank')"><span class="material-icons-outlined">edit</span> Edit</button>
+                        </div>
+                        <div id="cardIdentity"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="ed-section" id="section-emergency">
+                <div class="ed-section-title">
+                    <span class="material-icons-outlined">warning</span> Emergency Contact
+                </div>
+                <div class="ed-cards-grid">
+                    <div class="ed-card" style="grid-column:1/-1;">
+                        <div class="ed-card-header">
+                            <div class="ed-card-title"><span class="material-icons-outlined">contact_phone</span> Emergency Contact</div>
+                            <button class="ed-card-edit-btn" onclick="openEditSectionModal('emergency')"><span class="material-icons-outlined">edit</span> Edit</button>
+                        </div>
+                        <div id="cardEmergency"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="ed-section" id="section-experience">
+                <div class="ed-section-title">
+                    <span class="material-icons-outlined">history_edu</span> Experience
+                </div>
+                <div id="experienceContainer"></div>
+                <button class="ed-add-btn" onclick="alert('Experience add flow can be enabled in next step.')"><span class="material-icons-outlined">add</span> Add Experience</button>
+            </section>
+
+            <section class="ed-section" id="section-audit">
+                <div class="ed-section-title">
+                    <span class="material-icons-outlined">manage_search</span> Audit Logs
+                </div>
+                <div class="ed-card">
+                    <div class="ed-card-header">
+                        <div class="ed-card-title"><span class="material-icons-outlined">history</span> Recent Activity</div>
+                    </div>
+                    <div class="ed-field-list" id="auditList"></div>
+                </div>
+            </section>
+        </div>
+    </main>
+</div>
+
+<div class="ed-modal-overlay" id="editSectionModal">
+    <div class="ed-modal">
+        <div class="ed-modal-header">
+            <h3 id="editSectionTitle">Edit Section</h3>
+            <button class="ed-modal-close" onclick="closeModal('editSectionModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="ed-modal-body">
+            <form id="editSectionForm" onsubmit="saveSectionEdit(event)">
+                <div id="editSectionFields"></div>
+                <div class="ed-form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('editSectionModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="ed-toast" id="edToast"></div>
+
+<script src="/static/js/header.js"></script>
+<script>
+const empId = '{{ emp_id }}';
+let employeeData = null;
+let currentSection = 'personal';
+let currentEditSection = null;
+
+function getAuthHeaders() {
+    const token = localStorage.getItem('access_token') || '';
+    const tenantId = localStorage.getItem('tenant_id') || localStorage.getItem('tenant.id') || '';
+    const userEmail = localStorage.getItem('user_email') || '';
+    return {
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : '',
+        'X-Tenant-ID': tenantId,
+        'X-User-Email': userEmail,
+        'X-User-Name': userEmail
+    };
+}
+
+function apiUrl(path) {
+    return path;
+}
+
+function showToast(message, type = 'success') {
+    const toast = document.getElementById('edToast');
+    toast.textContent = message;
+    toast.className = `ed-toast show ${type}`;
+    clearTimeout(window.edToastTimer);
+    window.edToastTimer = setTimeout(() => toast.className = 'ed-toast', 2500);
+}
+
+function openModal(id) {
+    document.getElementById(id).classList.add('active');
+}
+
+function closeModal(id) {
+    document.getElementById(id).classList.remove('active');
+}
+
+function statusClass(status) {
+    return `ed-status-${(status || 'active').toLowerCase()}`;
+}
+
+function formatValue(value) {
+    if (value === null || value === undefined || value === '') return '—';
+    if (Array.isArray(value)) return value.length ? value.map(v => typeof v === 'object' ? v.company || v.name || JSON.stringify(v) : v).join(', ') : '—';
+    if (typeof value === 'object') return Object.values(value).filter(Boolean).join(', ') || '—';
+    return value;
+}
+
+function renderFieldList(fields, targetId) {
+    const target = document.getElementById(targetId);
+    target.innerHTML = fields.map(field => {
+        const val = formatValue(field.value);
+        const empty = val === '—';
+        return `
+            <div class="ed-field-row">
+                <div class="ed-field-label">${field.label}</div>
+                <div class="ed-field-val ${empty ? 'empty-val' : ''}">${val}</div>
+                <button type="button" class="ed-field-inline-edit" onclick="openEditSectionModal('${field.section || 'personal'}', '${field.key}')">
+                    <span class="material-icons-outlined">edit</span> Edit
+                </button>
+            </div>`;
+    }).join('');
+}
+
+function renderPersonalSections() {
+    const e = employeeData || {};
+    const addr = e.address || {};
+    const basicFields = [
+        { label: 'First Name', value: e.first_name, key: 'first_name', section: 'personal' },
+        { label: 'Last Name', value: e.last_name, key: 'last_name', section: 'personal' },
+        { label: 'Email', value: e.email, key: 'email', section: 'personal' },
+        { label: 'Phone', value: e.phone, key: 'phone', section: 'personal' },
+        { label: 'DOB', value: e.date_of_birth, key: 'date_of_birth', section: 'personal' },
+        { label: 'Gender', value: e.gender, key: 'gender', section: 'personal' },
+        { label: 'Blood Group', value: e.blood_group, key: 'blood_group', section: 'personal' },
+        { label: 'Marital Status', value: e.marital_status, key: 'marital_status', section: 'personal' },
+        { label: 'Nationality', value: e.nationality, key: 'nationality', section: 'personal' }
+    ];
+    const addressFields = [
+        { label: 'Line 1', value: addr.line1, key: 'address.line1', section: 'personal' },
+        { label: 'Line 2', value: addr.line2, key: 'address.line2', section: 'personal' },
+        { label: 'City', value: addr.city, key: 'address.city', section: 'personal' },
+        { label: 'State', value: addr.state, key: 'address.state', section: 'personal' },
+        { label: 'Pincode', value: addr.pincode, key: 'address.pincode', section: 'personal' },
+        { label: 'Country', value: addr.country, key: 'address.country', section: 'personal' }
+    ];
+    renderFieldList(basicFields, 'cardPersonal');
+    renderFieldList(addressFields, 'cardAddress');
+}
+
+function renderEmploymentSection() {
+    const e = employeeData || {};
+    const fields = [
+        { label: 'Emp Code', value: e.emp_code, key: 'emp_code', section: 'employment' },
+        { label: 'Department', value: e.department, key: 'department', section: 'employment' },
+        { label: 'Designation', value: e.designation, key: 'designation', section: 'employment' },
+        { label: 'DOJ', value: e.date_of_joining, key: 'date_of_joining', section: 'employment' },
+        { label: 'Employment Type', value: e.employment_type, key: 'employment_type', section: 'employment' },
+        { label: 'Reporting To', value: e.reporting_to, key: 'reporting_to', section: 'employment' },
+        { label: 'Work Location', value: e.work_location, key: 'work_location', section: 'employment' },
+        { label: 'Status', value: e.status, key: 'status', section: 'employment' }
+    ];
+    renderFieldList(fields, 'cardEmployment');
+}
+
+function renderBankSection() {
+    const e = employeeData || {};
+    const bank = e.bank_details || {};
+    const bankFields = [
+        { label: 'Bank Name', value: bank.bank_name, key: 'bank_details.bank_name', section: 'bank' },
+        { label: 'Account No', value: bank.account_no, key: 'bank_details.account_no', section: 'bank' },
+        { label: 'IFSC', value: bank.ifsc, key: 'bank_details.ifsc', section: 'bank' }
+    ];
+    renderFieldList(bankFields, 'cardBank');
+
+    const identityFields = [
+        { label: 'PAN', value: e.pan_number, key: 'pan_number', section: 'bank' },
+        { label: 'Aadhar', value: e.aadhar_number, key: 'aadhar_number', section: 'bank' },
+        { label: 'UAN', value: e.uan_number, key: 'uan_number', section: 'bank' },
+        { label: 'ESI', value: e.esi_number, key: 'esi_number', section: 'bank' }
+    ];
+    renderFieldList(identityFields, 'cardIdentity');
+}
+
+function renderEmergencySection() {
+    const e = employeeData || {};
+    const fields = [
+        { label: 'Name', value: e.emergency_contact_name, key: 'emergency_contact_name', section: 'emergency' },
+        { label: 'Phone', value: e.emergency_contact_phone, key: 'emergency_contact_phone', section: 'emergency' },
+        { label: 'Relation', value: e.emergency_contact_relation, key: 'emergency_contact_relation', section: 'emergency' }
+    ];
+    renderFieldList(fields, 'cardEmergency');
+}
+
+function renderExperienceSection() {
+    const exp = employeeData.previous_experience || [];
+    const container = document.getElementById('experienceContainer');
+    if (!exp.length) {
+        container.innerHTML = '<div class="ed-error" style="padding:20px"><span class="material-icons-outlined">info</span><div>No experience records found.</div></div>';
+        return;
+    }
+    container.innerHTML = exp.map(item => `
+        <div class="ed-exp-card">
+            <div class="ed-exp-company">${formatValue(item.company)}</div>
+            <div class="ed-exp-desig">${formatValue(item.designation)}</div>
+            <div class="ed-exp-dates">
+                <span class="material-icons-outlined">calendar_today</span>
+                <span>${formatValue(item.from)} - ${formatValue(item.to)}</span>
+            </div>
+            <div class="ed-exp-notes">${formatValue(item.notes)}</div>
+        </div>
+    `).join('');
+}
+
+function renderAuditSection(auditLogs) {
+    const list = document.getElementById('auditList');
+    if (!auditLogs || !auditLogs.length) {
+        list.innerHTML = '<div class="ed-field-row"><div class="ed-field-label">Status</div><div class="ed-field-val empty-val">No audit logs available.</div></div>';
+        return;
+    }
+
+    list.innerHTML = auditLogs.map(item => {
+        const action = (item.action || 'UPDATE').toUpperCase();
+        const iconClass = action === 'CREATE' ? 'audit-create' : action === 'DELETE' ? 'audit-delete' : 'audit-update';
+        const iconName = action === 'CREATE' ? 'add_circle' : action === 'DELETE' ? 'delete' : 'edit';
+        return `
+            <div class="ed-audit-item">
+                <div class="ed-audit-icon ${iconClass}"><span class="material-icons-outlined">${iconName}</span></div>
+                <div class="ed-audit-body">
+                    <div class="ed-audit-action">${action}</div>
+                    <div class="ed-audit-meta">
+                        <span>${item.user_name || item.user_email || 'System'}</span>
+                        <span>•</span>
+                        <span>${item.ip_address || 'N/A'}</span>
+                    </div>
+                </div>
+                <div class="ed-audit-time">${item.created_at || '—'}</div>
+            </div>`;
+    }).join('');
+}
+
+function updateSidebarSummary() {
+    const e = employeeData || {};
+    document.getElementById('sideEmpCode').textContent = e.emp_code || '—';
+    document.getElementById('sideEmpName').textContent = `${e.first_name || ''} ${e.last_name || ''}`.trim() || 'Employee';
+    document.getElementById('sideEmpDesig').textContent = e.designation || '—';
+    document.getElementById('sideEmpStatus').textContent = (e.status || 'active').toUpperCase();
+    document.getElementById('sideEmpStatus').className = `ed-status-badge ${statusClass(e.status || 'active')}`;
+    document.getElementById('breadcrumbEmp').textContent = e.emp_code || 'Employee';
+}
+
+function switchSection(section) {
+    currentSection = section;
+    document.querySelectorAll('.ed-nav-link').forEach(btn => btn.classList.toggle('active', btn.dataset.section === section));
+    document.querySelectorAll('.ed-section').forEach(sec => sec.classList.toggle('active', sec.id === `section-${section}`));
+}
+
+function getFieldValueByKey(key) {
+    const e = employeeData || {};
+    const bank = e.bank_details || {};
+    if (key === 'first_name') return e.first_name || '';
+    if (key === 'last_name') return e.last_name || '';
+    if (key === 'email') return e.email || '';
+    if (key === 'phone') return e.phone || '';
+    if (key === 'date_of_birth') return e.date_of_birth || '';
+    if (key === 'gender') return e.gender || '';
+    if (key === 'blood_group') return e.blood_group || '';
+    if (key === 'marital_status') return e.marital_status || '';
+    if (key === 'nationality') return e.nationality || '';
+    if (key === 'address.line1') return (e.address || {}).line1 || '';
+    if (key === 'address.line2') return (e.address || {}).line2 || '';
+    if (key === 'address.city') return (e.address || {}).city || '';
+    if (key === 'address.state') return (e.address || {}).state || '';
+    if (key === 'address.pincode') return (e.address || {}).pincode || '';
+    if (key === 'address.country') return (e.address || {}).country || '';
+    if (key === 'department') return e.department || '';
+    if (key === 'designation') return e.designation || '';
+    if (key === 'date_of_joining') return e.date_of_joining || '';
+    if (key === 'employment_type') return e.employment_type || '';
+    if (key === 'reporting_to') return e.reporting_to || '';
+    if (key === 'work_location') return e.work_location || '';
+    if (key === 'status') return e.status || 'active';
+    if (key === 'bank_details.bank_name') return bank.bank_name || '';
+    if (key === 'bank_details.account_no') return bank.account_no || '';
+    if (key === 'bank_details.ifsc') return bank.ifsc || '';
+    if (key === 'pan_number') return e.pan_number || '';
+    if (key === 'aadhar_number') return e.aadhar_number || '';
+    if (key === 'uan_number') return e.uan_number || '';
+    if (key === 'esi_number') return e.esi_number || '';
+    if (key === 'emergency_contact_name') return e.emergency_contact_name || '';
+    if (key === 'emergency_contact_phone') return e.emergency_contact_phone || '';
+    if (key === 'emergency_contact_relation') return e.emergency_contact_relation || '';
+    return '';
+}
+
+function buildEditForm(section) {
+    const fields = [];
+    const e = employeeData || {};
+    const bank = e.bank_details || {};
+    if (section === 'personal') {
+        fields.push({ name: 'first_name', label: 'First Name', type: 'text' });
+        fields.push({ name: 'last_name', label: 'Last Name', type: 'text' });
+        fields.push({ name: 'email', label: 'Email', type: 'email' });
+        fields.push({ name: 'phone', label: 'Phone', type: 'text' });
+        fields.push({ name: 'date_of_birth', label: 'DOB', type: 'date' });
+        fields.push({ name: 'gender', label: 'Gender', type: 'select', options: ['','male','female','other'] });
+        fields.push({ name: 'blood_group', label: 'Blood Group', type: 'text' });
+        fields.push({ name: 'marital_status', label: 'Marital Status', type: 'text' });
+        fields.push({ name: 'nationality', label: 'Nationality', type: 'text' });
+        fields.push({ name: 'address.line1', label: 'Address Line 1', type: 'text' });
+        fields.push({ name: 'address.line2', label: 'Address Line 2', type: 'text' });
+        fields.push({ name: 'address.city', label: 'City', type: 'text' });
+        fields.push({ name: 'address.state', label: 'State', type: 'text' });
+        fields.push({ name: 'address.pincode', label: 'Pincode', type: 'text' });
+        fields.push({ name: 'address.country', label: 'Country', type: 'text' });
+    } else if (section === 'employment') {
+        fields.push({ name: 'department', label: 'Department', type: 'text' });
+        fields.push({ name: 'designation', label: 'Designation', type: 'text' });
+        fields.push({ name: 'date_of_joining', label: 'DOJ', type: 'date' });
+        fields.push({ name: 'employment_type', label: 'Employment Type', type: 'text' });
+        fields.push({ name: 'reporting_to', label: 'Reporting To', type: 'text' });
+        fields.push({ name: 'work_location', label: 'Work Location', type: 'text' });
+        fields.push({ name: 'status', label: 'Status', type: 'select', options: ['active','inactive','terminated'] });
+    } else if (section === 'bank') {
+        fields.push({ name: 'bank_details.bank_name', label: 'Bank Name', type: 'text' });
+        fields.push({ name: 'bank_details.account_no', label: 'Account No', type: 'text' });
+        fields.push({ name: 'bank_details.ifsc', label: 'IFSC', type: 'text' });
+        fields.push({ name: 'pan_number', label: 'PAN', type: 'text' });
+        fields.push({ name: 'aadhar_number', label: 'Aadhar', type: 'text' });
+        fields.push({ name: 'uan_number', label: 'UAN', type: 'text' });
+        fields.push({ name: 'esi_number', label: 'ESI', type: 'text' });
+    } else if (section === 'emergency') {
+        fields.push({ name: 'emergency_contact_name', label: 'Name', type: 'text' });
+        fields.push({ name: 'emergency_contact_phone', label: 'Phone', type: 'text' });
+        fields.push({ name: 'emergency_contact_relation', label: 'Relation', type: 'text' });
+    }
+
+    const formFields = fields.map((field, index) => {
+        const value = getFieldValueByKey(field.name);
+        const inputId = `editField_${section}_${index}`;
+        if (field.type === 'select') {
+            return `<div class="ed-form-group"><label>${field.label}</label><select id="${inputId}">${field.options.map(opt => `<option value="${opt}" ${value === opt ? 'selected' : ''}>${opt || 'Select'}</option>`).join('')}</select></div>`;
+        }
+        return `<div class="ed-form-group"><label>${field.label}</label><input type="${field.type}" id="${inputId}" value="${(value || '').replace(/"/g, '&quot;')}"></div>`;
+    }).join('');
+
+    document.getElementById('editSectionFields').innerHTML = formFields;
+}
+
+function openEditSectionModal(section, key) {
+    currentEditSection = section;
+    document.getElementById('editSectionTitle').textContent = `Edit ${section.charAt(0).toUpperCase() + section.slice(1)} Section`;
+    buildEditForm(section);
+    openModal('editSectionModal');
+}
+
+function collectSectionPayload(section) {
+    const payload = {};
+    const fields = document.querySelectorAll('#editSectionFields input, #editSectionFields select');
+    fields.forEach((field, idx) => {
+        const name = field.id.replace(`editField_${section}_`, '');
+        const fieldName = field.id.replace(`editField_${section}_`, '');
+    });
+
+    if (section === 'personal') {
+        payload.first_name = document.getElementById('editField_personal_0').value.trim();
+        payload.last_name = document.getElementById('editField_personal_1').value.trim();
+        payload.email = document.getElementById('editField_personal_2').value.trim();
+        payload.phone = document.getElementById('editField_personal_3').value.trim();
+        payload.date_of_birth = document.getElementById('editField_personal_4').value || null;
+        payload.gender = document.getElementById('editField_personal_5').value;
+        payload.blood_group = document.getElementById('editField_personal_6').value.trim();
+        payload.marital_status = document.getElementById('editField_personal_7').value.trim();
+        payload.nationality = document.getElementById('editField_personal_8').value.trim();
+        payload.address = {
+            line1: document.getElementById('editField_personal_9').value.trim(),
+            line2: document.getElementById('editField_personal_10').value.trim(),
+            city: document.getElementById('editField_personal_11').value.trim(),
+            state: document.getElementById('editField_personal_12').value.trim(),
+            pincode: document.getElementById('editField_personal_13').value.trim(),
+            country: document.getElementById('editField_personal_14').value.trim()
+        };
+    } else if (section === 'employment') {
+        payload.department = document.getElementById('editField_employment_0').value.trim();
+        payload.designation = document.getElementById('editField_employment_1').value.trim();
+        payload.date_of_joining = document.getElementById('editField_employment_2').value || null;
+        payload.employment_type = document.getElementById('editField_employment_3').value.trim();
+        payload.reporting_to = document.getElementById('editField_employment_4').value.trim();
+        payload.work_location = document.getElementById('editField_employment_5').value.trim();
+        payload.status = document.getElementById('editField_employment_6').value;
+    } else if (section === 'bank') {
+        payload.bank_details = {
+            bank_name: document.getElementById('editField_bank_0').value.trim(),
+            account_no: document.getElementById('editField_bank_1').value.trim(),
+            ifsc: document.getElementById('editField_bank_2').value.trim()
+        };
+        payload.pan_number = document.getElementById('editField_bank_3').value.trim();
+        payload.aadhar_number = document.getElementById('editField_bank_4').value.trim();
+        payload.uan_number = document.getElementById('editField_bank_5').value.trim();
+        payload.esi_number = document.getElementById('editField_bank_6').value.trim();
+    } else if (section === 'emergency') {
+        payload.emergency_contact_name = document.getElementById('editField_emergency_0').value.trim();
+        payload.emergency_contact_phone = document.getElementById('editField_emergency_1').value.trim();
+        payload.emergency_contact_relation = document.getElementById('editField_emergency_2').value.trim();
+    }
+    return payload;
+}
+
+async function saveSectionEdit(event) {
+    event.preventDefault();
+    const payload = collectSectionPayload(currentEditSection);
+    const res = await fetch(`/api/v1/hr/employees/${empId}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data.success) {
+        closeModal('editSectionModal');
+        await loadEmployeeDetail();
+        showToast('Employee updated successfully');
+    } else {
+        showToast(data.message || 'Update failed', 'error');
+    }
+}
+
+async function loadEmployeeDetail() {
+    try {
+        document.getElementById('edLoading').style.display = 'flex';
+        document.getElementById('edContent').style.display = 'none';
+        document.getElementById('edError').style.display = 'none';
+
+        const res = await fetch(`/api/v1/hr/employee-detail/${empId}`, {
+            headers: getAuthHeaders()
+        });
+        const data = await res.json();
+        if (!data.success) {
+            throw new Error(data.message || 'Employee not found');
+        }
+        employeeData = data.data.employee || {};
+        renderPersonalSections();
+        renderEmploymentSection();
+        renderBankSection();
+        renderEmergencySection();
+        renderExperienceSection();
+        renderAuditSection(data.data.audit_logs || []);
+        updateSidebarSummary();
+
+        document.getElementById('edLoading').style.display = 'none';
+        document.getElementById('edContent').style.display = 'block';
+    } catch (err) {
+        document.getElementById('edLoading').style.display = 'none';
+        document.getElementById('edError').style.display = 'flex';
+        document.getElementById('edErrorText').textContent = err.message || 'Unable to load employee detail';
+    }
+}
+
+window.addEventListener('DOMContentLoaded', function() {
+    loadEmployeeDetail();
+});
+</script>
+</body>
+</html>

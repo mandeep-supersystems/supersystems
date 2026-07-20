@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supplier Performance - SUPERSYSTEMS</title>
+    <link rel="stylesheet" href="/static/css/header.css">
+    <link rel="stylesheet" href="/static/css/supplier/supplier.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+</head>
+<body>
+<header class="header">
+    <div class="header-left">
+        <div class="logo">
+            <img class="logo-light" src="/static/img/light_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <span class="logo-text">SUPERSYSTEMS</span>
+        </div>
+        <div class="nav-item services-trigger" onclick="toggleServices()">
+            <span class="material-icons-outlined">apps</span><span>Services</span>
+            <span class="material-icons-outlined arrow">expand_more</span>
+        </div>
+    </div>
+    <div class="header-center">
+        <div class="search-box">
+            <span class="material-icons-outlined">search</span>
+            <input type="text" placeholder="Search services..." id="globalSearch" oninput="handleSearch(this.value)">
+            <div class="search-results" id="searchResults"></div>
+        </div>
+    </div>
+    <div class="header-right">
+        <button class="header-icon-btn theme-toggle" onclick="toggleTheme()">
+            <span class="material-icons-outlined icon-light">dark_mode</span>
+            <span class="material-icons-outlined icon-dark">light_mode</span>
+        </button>
+        <div class="user-menu" id="userMenu">
+            <div class="user-avatar" onclick="toggleUserMenu()"><span class="material-icons-outlined">person</span></div>
+            <div class="user-dropdown" id="userDropdown">
+                <a href="#" onclick="logout()"><span class="material-icons-outlined">logout</span>Logout</a>
+            </div>
+        </div>
+    </div>
+</header>
+<div class="services-panel" id="servicesPanel">
+    <div class="services-panel-header">
+        <h3>All Services</h3>
+        <div style="display:flex;align-items:center;gap:10px">
+            <button class="btn-outline" id="toggleAllServicesBtn" onclick="toggleAllServices()"><span class="material-icons-outlined">unfold_less</span> Collapse All</button>
+            <button class="close-btn" onclick="toggleServices()"><span class="material-icons-outlined">close</span></button>
+        </div>
+    </div>
+    <div class="services-grid" id="servicesGrid"></div>
+</div>
+<div class="overlay" id="overlay" onclick="toggleServices()"></div>
+
+<div class="sup-layout">
+    <aside class="sup-sidebar">
+        <div class="sidebar-header">
+            <span class="material-icons-outlined">handshake</span>
+            <h3>Supplier Management</h3>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/" class="sidebar-link"><span class="material-icons-outlined">arrow_back</span>Home</a>
+            <div class="sidebar-divider"></div>
+            <a class="sidebar-link" href="/supplier"><span class="material-icons-outlined">storefront</span>All Suppliers</a>
+            <a class="sidebar-link" href="/supplier/evaluation"><span class="material-icons-outlined">fact_check</span>Evaluation</a>
+            <a class="sidebar-link" href="/supplier/contracts"><span class="material-icons-outlined">description</span>Contracts</a>
+            <a class="sidebar-link active" href="/supplier/performance"><span class="material-icons-outlined">leaderboard</span>Performance</a>
+        </nav>
+    </aside>
+    <main class="sup-content">
+        <div class="section-header">
+            <h2>Performance Scoring</h2>
+            <button class="btn-primary" onclick="openAddModal()"><span class="material-icons-outlined">add</span> New Review</button>
+        </div>
+
+        <div class="sup-filter-bar">
+            <div class="sup-search-bar" style="flex:1;margin-bottom:0">
+                <span class="material-icons-outlined">search</span>
+                <input type="text" id="perfSearch" placeholder="Search by supplier name, period..." oninput="filterTable(this.value)">
+            </div>
+            <select id="perfGradeFilter" onchange="filterTable(document.getElementById('perfSearch').value)" style="padding:8px 12px;border:1px solid var(--border-color);border-radius:9px;font-size:13px;background:var(--bg-primary);color:var(--text-primary)">
+                <option value="">All Grades</option>
+                <option value="A">Grade A (≥90)</option>
+                <option value="B">Grade B (≥75)</option>
+                <option value="C">Grade C (≥60)</option>
+                <option value="D">Grade D (&lt;60)</option>
+            </select>
+        </div>
+
+        <div class="table-container" style="margin-top:14px">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Supplier</th>
+                        <th>Period</th>
+                        <th>POs</th>
+                        <th>GRNs</th>
+                        <th>Inspection Pass %</th>
+                        <th>NCR</th>
+                        <th>Defect %</th>
+                        <th>OTD %</th>
+                        <th>Overall Score</th>
+                        <th>Grade</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="perfBody"><tr><td colspan="11" class="empty">Loading...</td></tr></tbody>
+            </table>
+        </div>
+    </main>
+</div>
+
+<!-- ADD PERFORMANCE MODAL -->
+<div class="modal-overlay" id="addPerfModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3 id="perfModalTitle">New Performance Review</h3>
+            <button class="close-btn" onclick="closeModal('addPerfModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="savePerf(event)">
+                <input type="hidden" id="perfId">
+                <input type="hidden" id="perfSupplierId">
+                <div class="form-row">
+                    <div class="form-group" style="position:relative">
+                        <label>Supplier *</label>
+                        <input type="text" id="perfSupplierSearch" placeholder="Type to search supplier..." autocomplete="off" oninput="searchSupplier(this.value)" required>
+                        <div id="perfSupplierDropdown" class="item-search-dropdown" style="display:none"></div>
+                        <div id="perfSupplierSelected" style="font-size:12px;color:var(--accent);margin-top:4px"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Period *</label>
+                        <input type="text" id="perfPeriod" placeholder="Monthly / Q1 2026" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>PO Count</label><input type="number" id="perfPO" min="0" step="1" placeholder="0"></div>
+                    <div class="form-group"><label>GRN Count</label><input type="number" id="perfGRN" min="0" step="1" placeholder="0"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Inspection Pass %</label><input type="number" id="perfInspection" min="0" max="100" step="0.1" placeholder="0"></div>
+                    <div class="form-group"><label>NCR Count</label><input type="number" id="perfNCR" min="0" step="1" placeholder="0"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Quality Defect %</label><input type="number" id="perfDefect" min="0" max="100" step="0.1" placeholder="0"></div>
+                    <div class="form-group"><label>On-Time Delivery %</label><input type="number" id="perfOTD" min="0" max="100" step="0.1" placeholder="0"></div>
+                </div>
+                <div class="form-group">
+                    <label>Overall Score % <span style="color:var(--text-muted);font-weight:400">(auto-calculated if 0)</span></label>
+                    <input type="number" id="perfOverall" min="0" max="100" step="0.1" placeholder="auto">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('addPerfModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Review</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- DELETE CONFIRM -->
+<div class="modal-overlay" id="deleteModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Confirm Delete</h3><button class="close-btn" onclick="closeModal('deleteModal')"><span class="material-icons-outlined">close</span></button></div>
+        <div class="modal-body">
+            <p id="deleteMsg" style="font-size:13px;color:var(--text-secondary);margin-bottom:16px"></p>
+            <div class="form-actions">
+                <button class="btn-secondary" onclick="closeModal('deleteModal')">Cancel</button>
+                <button class="btn-primary" style="background:#e53935" id="deleteConfirmBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="sup-toast" id="supToast"></div>
+<script src="/static/js/header.js"></script>
+<script src="/static/js/supplier/common.js"></script>
+<script src="/static/js/supplier/supplier_performance.js"></script>
+</body>
+</html>

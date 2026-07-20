@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Human Resources - SUPERSYSTEMS</title>
+    <link rel="stylesheet" href="/static/css/header.css">
+    <link rel="stylesheet" href="/static/css/hr/hr.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+</head>
+<body>
+
+<!-- FIXED HEADER -->
+<header class="header">
+    <div class="header-left">
+        <div class="logo">
+            <img class="logo-light" src="/static/img/light_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <span class="logo-text">SUPERSYSTEMS</span>
+        </div>
+        <div class="nav-item services-trigger" onclick="toggleServices()">
+            <span class="material-icons-outlined">apps</span>
+            <span>Services</span>
+            <span class="material-icons-outlined arrow">expand_more</span>
+        </div>
+    </div>
+    <div class="header-center">
+        <div class="search-box">
+            <span class="material-icons-outlined">search</span>
+            <input type="text" placeholder="Search services, features..." id="globalSearch" oninput="handleSearch(this.value)">
+            <div class="search-results" id="searchResults"></div>
+        </div>
+    </div>
+    <div class="header-right">
+        <button class="header-icon-btn" title="Notifications"><span class="material-icons-outlined">notifications</span></button>
+        <button class="header-icon-btn theme-toggle" title="Toggle Dark Mode" onclick="toggleTheme()">
+            <span class="material-icons-outlined icon-light">dark_mode</span>
+            <span class="material-icons-outlined icon-dark">light_mode</span>
+        </button>
+        <div class="user-menu" id="userMenu">
+            <div class="user-avatar" onclick="toggleUserMenu()"><span class="material-icons-outlined">person</span></div>
+            <div class="user-dropdown" id="userDropdown">
+                <a href="#" onclick="openProfile()"><span class="material-icons-outlined">person</span>Profile</a>
+                <a href="#" onclick="openAccount()"><span class="material-icons-outlined">manage_accounts</span>Account</a>
+                <div class="dropdown-divider"></div>
+                <a href="#" onclick="logout()"><span class="material-icons-outlined">logout</span>Logout</a>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- SERVICES PANEL -->
+<div class="services-panel" id="servicesPanel">
+    <div class="services-panel-header">
+        <h3>All Services</h3>
+        <div style="display:flex;align-items:center;gap:10px">
+            <button class="btn-outline" id="toggleAllServicesBtn" onclick="toggleAllServices()">
+                <span class="material-icons-outlined">unfold_less</span> Collapse All
+            </button>
+            <button class="close-btn" onclick="toggleServices()"><span class="material-icons-outlined">close</span></button>
+        </div>
+    </div>
+    <div class="services-grid" id="servicesGrid"></div>
+</div>
+<div class="overlay" id="overlay" onclick="toggleServices()"></div>
+
+<!-- MAIN LAYOUT -->
+<div class="hr-layout">
+    <aside class="hr-sidebar">
+        <div class="sidebar-header">
+            <span class="material-icons-outlined">people</span>
+            <h3>Human Resources</h3>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/" class="sidebar-link"><span class="material-icons-outlined">arrow_back</span>Home</a>
+            <div class="sidebar-divider"></div>
+            <a class="sidebar-link active" data-section="codecriteria" onclick="showSection('codecriteria')">
+                <span class="material-icons-outlined">pin</span>Employee Code Criteria
+            </a>
+            <a class="sidebar-link" data-section="employees" onclick="showSection('employees')">
+                <span class="material-icons-outlined">badge</span>Employee Management
+            </a>
+            <div class="sidebar-divider"></div>
+            <div class="sidebar-group-label">Coming Soon</div>
+            <a class="sidebar-link disabled"><span class="material-icons-outlined">event_busy</span>Leave Management<span class="soon-badge">Soon</span></a>
+            <a class="sidebar-link disabled"><span class="material-icons-outlined">schedule</span>Attendance<span class="soon-badge">Soon</span></a>
+            <a class="sidebar-link disabled"><span class="material-icons-outlined">payments</span>Payroll<span class="soon-badge">Soon</span></a>
+            <a class="sidebar-link disabled"><span class="material-icons-outlined">work</span>Recruitment<span class="soon-badge">Soon</span></a>
+            <a class="sidebar-link disabled"><span class="material-icons-outlined">trending_up</span>Performance<span class="soon-badge">Soon</span></a>
+            <a class="sidebar-link disabled"><span class="material-icons-outlined">school</span>Training<span class="soon-badge">Soon</span></a>
+        </nav>
+    </aside>
+
+    <main class="hr-content">
+
+        <!-- EMPLOYEE CODE CRITERIA -->
+        <section class="content-section active" id="sec-codecriteria">
+            <div class="section-header">
+                <h2>Employee Code Criteria</h2>
+                <div class="section-actions">
+                    <button class="btn-primary" onclick="openCreateCriteriaModal()"><span class="material-icons-outlined">add</span> New Criteria</button>
+                </div>
+            </div>
+            <p class="section-desc">Define how employee codes are generated. Format: <strong>Prefix + Separator + Auto-Number + Separator + Suffix</strong></p>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead><tr><th>Name</th><th>Preview</th><th>Prefix</th><th>Sep</th><th>Next Code</th><th>Sep</th><th>Suffix</th><th>Actions</th></tr></thead>
+                    <tbody id="criteriaTableBody"><tr><td colspan="8" class="empty">Loading...</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- EMPLOYEE MANAGEMENT -->
+        <section class="content-section" id="sec-employees">
+            <div class="section-header">
+                <h2>Employee Management</h2>
+                <div class="section-actions">
+                    <button class="btn-primary" onclick="openAddEmployeeModal()"><span class="material-icons-outlined">person_add</span> Add Employee</button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead><tr><th>Code</th><th>Name</th><th>Email</th><th>Phone</th><th>Designation</th><th>DOJ</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody id="employeesTableBody"><tr><td colspan="8" class="empty">Loading...</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
+</div>
+
+<!-- CREATE CRITERIA MODAL -->
+<div class="modal-overlay" id="createCriteriaModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>New Employee Code Criteria</h3>
+            <button class="close-btn" onclick="closeModal('createCriteriaModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="saveCriteria(event)">
+                <div class="form-group"><label>Criteria Name *</label><input type="text" id="ccName" required placeholder="e.g. Main Series"></div>
+                <div class="form-row">
+                    <div class="form-group"><label>Prefix</label><input type="text" id="ccPrefix" placeholder="e.g. EMP, SS (optional)"></div>
+                    <div class="form-group"><label>Prefix Separator</label>
+                        <select id="ccPrefixSep">
+                            <option value="">None</option>
+                            <option value="-">- (Dash)</option>
+                            <option value="/">/  (Slash)</option>
+                            <option value=".">. (Dot)</option>
+                            <option value="_">_ (Underscore)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group"><label>Code Start Number *</label><input type="number" id="ccCodeStart" required value="1" min="1" placeholder="e.g. 60001"></div>
+                <div class="form-row">
+                    <div class="form-group"><label>Suffix Separator</label>
+                        <select id="ccSuffixSep">
+                            <option value="">None</option>
+                            <option value="-">- (Dash)</option>
+                            <option value="/">/  (Slash)</option>
+                            <option value=".">. (Dot)</option>
+                            <option value="_">_ (Underscore)</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Suffix</label><input type="text" id="ccSuffix" placeholder="e.g. SS, IND (optional)"></div>
+                </div>
+                <div class="code-preview">
+                    <label>Preview:</label>
+                    <span id="ccPreview" class="preview-code">—</span>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('createCriteriaModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- EDIT CRITERIA MODAL -->
+<div class="modal-overlay" id="editCriteriaModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Edit Code Criteria</h3>
+            <button class="close-btn" onclick="closeModal('editCriteriaModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="updateCriteria(event)">
+                <input type="hidden" id="ecId">
+                <div class="form-group"><label>Criteria Name *</label><input type="text" id="ecName" required></div>
+                <div class="form-row">
+                    <div class="form-group"><label>Prefix</label><input type="text" id="ecPrefix"></div>
+                    <div class="form-group"><label>Prefix Separator</label>
+                        <select id="ecPrefixSep">
+                            <option value="">None</option><option value="-">-</option><option value="/">/</option><option value=".">.</option><option value="_">_</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group"><label>Code Start</label><input type="number" id="ecCodeStart" min="1"></div>
+                <div class="form-row">
+                    <div class="form-group"><label>Suffix Separator</label>
+                        <select id="ecSuffixSep">
+                            <option value="">None</option><option value="-">-</option><option value="/">/</option><option value=".">.</option><option value="_">_</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Suffix</label><input type="text" id="ecSuffix"></div>
+                </div>
+                <div class="code-preview"><label>Preview:</label><span id="ecPreview" class="preview-code">—</span></div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('editCriteriaModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ADD EMPLOYEE MODAL -->
+<div class="modal-overlay" id="addEmployeeModal">
+    <div class="modal modal-xl">
+        <div class="modal-header">
+            <h3>Add New Employee</h3>
+            <button class="close-btn" onclick="closeModal('addEmployeeModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="saveEmployee(event)">
+                <!-- Tab Navigation -->
+                <div class="emp-tabs">
+                    <button type="button" class="emp-tab active" onclick="showEmpTab('personal')">Personal</button>
+                    <button type="button" class="emp-tab" onclick="showEmpTab('employment')">Employment</button>
+                    <button type="button" class="emp-tab" onclick="showEmpTab('experience')">Experience</button>
+                    <button type="button" class="emp-tab" onclick="showEmpTab('bank')">Bank & IDs</button>
+                    <button type="button" class="emp-tab" onclick="showEmpTab('emergency')">Emergency</button>
+                </div>
+
+                <!-- Personal Tab -->
+                <div class="emp-tab-content active" id="tab-personal">
+                    <div class="form-group"><label>Code Criteria *</label>
+                        <select id="aeCodeCriteria" required><option value="">Select Code Criteria</option></select>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>First Name *</label><input type="text" id="aeFirstName" required></div>
+                        <div class="form-group"><label>Last Name</label><input type="text" id="aeLastName"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Email</label><input type="email" id="aeEmail"></div>
+                        <div class="form-group"><label>Phone</label><input type="tel" id="aePhone"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Date of Birth</label><input type="date" id="aeDOB"></div>
+                        <div class="form-group"><label>Gender</label>
+                            <select id="aeGender"><option value="">Select</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option></select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Blood Group</label>
+                            <select id="aeBlood"><option value="">Select</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>O+</option><option>O-</option><option>AB+</option><option>AB-</option></select>
+                        </div>
+                        <div class="form-group"><label>Marital Status</label>
+                            <select id="aeMarital"><option value="">Select</option><option value="single">Single</option><option value="married">Married</option><option value="divorced">Divorced</option><option value="widowed">Widowed</option></select>
+                        </div>
+                    </div>
+                    <div class="form-group"><label>Nationality</label><input type="text" id="aeNationality" value="Indian"></div>
+                    <h4 class="sub-heading">Address</h4>
+                    <div class="form-group"><label>Address Line 1</label><input type="text" id="aeAddr1"></div>
+                    <div class="form-group"><label>Address Line 2</label><input type="text" id="aeAddr2"></div>
+                    <div class="form-row">
+                        <div class="form-group"><label>City</label><input type="text" id="aeCity"></div>
+                        <div class="form-group"><label>State</label><input type="text" id="aeState"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Pincode</label><input type="text" id="aePincode"></div>
+                        <div class="form-group"><label>Country</label><input type="text" id="aeCountry" value="India"></div>
+                    </div>
+                </div>
+
+                <!-- Employment Tab -->
+                <div class="emp-tab-content" id="tab-employment">
+                    <div class="form-row">
+                        <div class="form-group"><label>Department</label><input type="text" id="aeDept"></div>
+                        <div class="form-group"><label>Designation</label><input type="text" id="aeDesig"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Date of Joining</label><input type="date" id="aeDOJ"></div>
+                        <div class="form-group"><label>Employment Type</label>
+                            <select id="aeEmpType"><option value="full_time">Full Time</option><option value="part_time">Part Time</option><option value="contract">Contract</option><option value="intern">Intern</option></select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Reporting To</label><input type="text" id="aeReporting"></div>
+                        <div class="form-group"><label>Work Location</label><input type="text" id="aeLocation"></div>
+                    </div>
+                </div>
+
+                <!-- Experience Tab -->
+                <div class="emp-tab-content" id="tab-experience">
+                    <div class="section-actions" style="margin-bottom:12px">
+                        <button type="button" class="btn-outline btn-sm" onclick="addExperienceRow()"><span class="material-icons-outlined">add</span> Add Experience</button>
+                    </div>
+                    <div id="experienceRows"></div>
+                </div>
+
+                <!-- Bank & IDs Tab -->
+                <div class="emp-tab-content" id="tab-bank">
+                    <h4 class="sub-heading">Bank Details</h4>
+                    <div class="form-row">
+                        <div class="form-group"><label>Bank Name</label><input type="text" id="aeBankName"></div>
+                        <div class="form-group"><label>Account Number</label><input type="text" id="aeBankAcc"></div>
+                    </div>
+                    <div class="form-group"><label>IFSC Code</label><input type="text" id="aeIFSC"></div>
+                    <h4 class="sub-heading">Identity Documents</h4>
+                    <div class="form-row">
+                        <div class="form-group"><label>PAN Number</label><input type="text" id="aePAN"></div>
+                        <div class="form-group"><label>Aadhar Number</label><input type="text" id="aeAadhar"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>UAN Number</label><input type="text" id="aeUAN"></div>
+                        <div class="form-group"><label>ESI Number</label><input type="text" id="aeESI"></div>
+                    </div>
+                </div>
+
+                <!-- Emergency Tab -->
+                <div class="emp-tab-content" id="tab-emergency">
+                    <div class="form-group"><label>Contact Name</label><input type="text" id="aeECName"></div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Contact Phone</label><input type="tel" id="aeECPhone"></div>
+                        <div class="form-group"><label>Relation</label><input type="text" id="aeECRelation"></div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('addEmployeeModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Add Employee</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- EDIT EMPLOYEE MODAL -->
+<div class="modal-overlay" id="editEmployeeModal">
+    <div class="modal modal-xl">
+        <div class="modal-header">
+            <h3>Edit Employee</h3>
+            <button class="close-btn" onclick="closeModal('editEmployeeModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="updateEmployee(event)">
+                <input type="hidden" id="eeId">
+                <div class="emp-tabs">
+                    <button type="button" class="emp-tab active" onclick="showEditEmpTab('personal')">Personal</button>
+                    <button type="button" class="emp-tab" onclick="showEditEmpTab('employment')">Employment</button>
+                    <button type="button" class="emp-tab" onclick="showEditEmpTab('experience')">Experience</button>
+                    <button type="button" class="emp-tab" onclick="showEditEmpTab('bank')">Bank & IDs</button>
+                    <button type="button" class="emp-tab" onclick="showEditEmpTab('emergency')">Emergency</button>
+                </div>
+                <div class="emp-tab-content active" id="etab-personal">
+                    <div class="form-group"><label>Employee Code</label><input type="text" id="eeCode" disabled></div>
+                    <div class="form-row">
+                        <div class="form-group"><label>First Name *</label><input type="text" id="eeFirstName" required></div>
+                        <div class="form-group"><label>Last Name</label><input type="text" id="eeLastName"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Email</label><input type="email" id="eeEmail"></div>
+                        <div class="form-group"><label>Phone</label><input type="tel" id="eePhone"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Date of Birth</label><input type="date" id="eeDOB"></div>
+                        <div class="form-group"><label>Gender</label>
+                            <select id="eeGender"><option value="">Select</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option></select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Blood Group</label>
+                            <select id="eeBlood"><option value="">Select</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>O+</option><option>O-</option><option>AB+</option><option>AB-</option></select>
+                        </div>
+                        <div class="form-group"><label>Marital Status</label>
+                            <select id="eeMarital"><option value="">Select</option><option value="single">Single</option><option value="married">Married</option><option value="divorced">Divorced</option><option value="widowed">Widowed</option></select>
+                        </div>
+                    </div>
+                    <div class="form-group"><label>Nationality</label><input type="text" id="eeNationality"></div>
+                    <h4 class="sub-heading">Address</h4>
+                    <div class="form-group"><label>Address Line 1</label><input type="text" id="eeAddr1"></div>
+                    <div class="form-group"><label>Address Line 2</label><input type="text" id="eeAddr2"></div>
+                    <div class="form-row">
+                        <div class="form-group"><label>City</label><input type="text" id="eeCity"></div>
+                        <div class="form-group"><label>State</label><input type="text" id="eeState"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Pincode</label><input type="text" id="eePincode"></div>
+                        <div class="form-group"><label>Country</label><input type="text" id="eeCountry"></div>
+                    </div>
+                </div>
+                <div class="emp-tab-content" id="etab-employment">
+                    <div class="form-row">
+                        <div class="form-group"><label>Department</label><input type="text" id="eeDept"></div>
+                        <div class="form-group"><label>Designation</label><input type="text" id="eeDesig"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Date of Joining</label><input type="date" id="eeDOJ"></div>
+                        <div class="form-group"><label>Employment Type</label>
+                            <select id="eeEmpType"><option value="full_time">Full Time</option><option value="part_time">Part Time</option><option value="contract">Contract</option><option value="intern">Intern</option></select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Reporting To</label><input type="text" id="eeReporting"></div>
+                        <div class="form-group"><label>Work Location</label><input type="text" id="eeLocation"></div>
+                    </div>
+                    <div class="form-group"><label>Status</label>
+                        <select id="eeStatus"><option value="active">Active</option><option value="inactive">Inactive</option><option value="terminated">Terminated</option></select>
+                    </div>
+                </div>
+                <div class="emp-tab-content" id="etab-experience">
+                    <div class="section-actions" style="margin-bottom:12px">
+                        <button type="button" class="btn-outline btn-sm" onclick="addEditExperienceRow()"><span class="material-icons-outlined">add</span> Add Experience</button>
+                    </div>
+                    <div id="editExperienceRows"></div>
+                </div>
+                <div class="emp-tab-content" id="etab-bank">
+                    <h4 class="sub-heading">Bank Details</h4>
+                    <div class="form-row">
+                        <div class="form-group"><label>Bank Name</label><input type="text" id="eeBankName"></div>
+                        <div class="form-group"><label>Account Number</label><input type="text" id="eeBankAcc"></div>
+                    </div>
+                    <div class="form-group"><label>IFSC Code</label><input type="text" id="eeIFSC"></div>
+                    <h4 class="sub-heading">Identity Documents</h4>
+                    <div class="form-row">
+                        <div class="form-group"><label>PAN Number</label><input type="text" id="eePAN"></div>
+                        <div class="form-group"><label>Aadhar Number</label><input type="text" id="eeAadhar"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>UAN Number</label><input type="text" id="eeUAN"></div>
+                        <div class="form-group"><label>ESI Number</label><input type="text" id="eeESI"></div>
+                    </div>
+                </div>
+                <div class="emp-tab-content" id="etab-emergency">
+                    <div class="form-group"><label>Contact Name</label><input type="text" id="eeECName"></div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Contact Phone</label><input type="tel" id="eeECPhone"></div>
+                        <div class="form-group"><label>Relation</label><input type="text" id="eeECRelation"></div>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('editEmployeeModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- VIEW EMPLOYEE MODAL -->
+<div class="modal-overlay" id="viewEmployeeModal">
+    <div class="modal modal-xl">
+        <div class="modal-header">
+            <h3>Employee Details</h3>
+            <button class="close-btn" onclick="closeModal('viewEmployeeModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body" id="viewEmpBody">
+        </div>
+    </div>
+</div>
+
+<!-- DELETE CONFIRM MODAL -->
+<div class="modal-overlay" id="deleteConfirmModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Confirm Delete</h3><button class="close-btn" onclick="closeModal('deleteConfirmModal')"><span class="material-icons-outlined">close</span></button></div>
+        <div class="modal-body">
+            <p id="deleteMsg" style="margin-bottom:16px;color:var(--text-secondary)"></p>
+            <div class="form-actions">
+                <button type="button" class="btn-secondary" onclick="closeModal('deleteConfirmModal')">Cancel</button>
+                <button type="button" class="btn-primary" style="background:#e53935" id="deleteConfirmBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- PROFILE MODAL -->
+<div class="modal-overlay" id="profileModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Profile</h3><button class="close-btn" onclick="closeModal('profileModal')"><span class="material-icons-outlined">close</span></button></div>
+        <div class="modal-body"><div class="profile-info"><div class="profile-avatar"><span class="material-icons-outlined">person</span></div><div class="profile-fields"><p><strong>Name:</strong> <span id="profileName">-</span></p><p><strong>Email:</strong> <span id="profileEmail">-</span></p><p><strong>Role:</strong> <span id="profileRole">-</span></p><p><strong>Organization:</strong> <span id="profileOrg">-</span></p></div></div></div>
+    </div>
+</div>
+
+<!-- ACCOUNT MODAL -->
+<div class="modal-overlay" id="accountModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Account Settings</h3><button class="close-btn" onclick="closeModal('accountModal')"><span class="material-icons-outlined">close</span></button></div>
+        <div class="modal-body">
+            <form id="accountForm" onsubmit="updateAccount(event)">
+                <div class="form-group"><label>First Name</label><input type="text" id="accFirstName"></div>
+                <div class="form-group"><label>Last Name</label><input type="text" id="accLastName"></div>
+                <div class="form-group"><label>Phone</label><input type="tel" id="accPhone"></div>
+                <hr><h4>Change Password</h4>
+                <div class="form-group"><label>Current Password</label><input type="password" id="accCurrentPwd"></div>
+                <div class="form-group"><label>New Password</label><input type="password" id="accNewPwd"></div>
+                <div class="form-actions"><button type="button" class="btn-secondary" onclick="closeModal('accountModal')">Cancel</button><button type="submit" class="btn-primary">Save</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/header.js"></script>
+<script>requireAuth();</script>
+<script src="/static/js/hr/common.js"></script>
+<script src="/static/js/hr/codecriteria.js"></script>
+<script src="/static/js/hr/employees.js"></script>
+</body>
+</html>

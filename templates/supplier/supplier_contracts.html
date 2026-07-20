@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supplier Contracts - SUPERSYSTEMS</title>
+    <link rel="stylesheet" href="/static/css/header.css">
+    <link rel="stylesheet" href="/static/css/supplier/supplier.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+</head>
+<body>
+<header class="header">
+    <div class="header-left">
+        <div class="logo">
+            <img class="logo-light" src="/static/img/light_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <span class="logo-text">SUPERSYSTEMS</span>
+        </div>
+        <div class="nav-item services-trigger" onclick="toggleServices()">
+            <span class="material-icons-outlined">apps</span><span>Services</span>
+            <span class="material-icons-outlined arrow">expand_more</span>
+        </div>
+    </div>
+    <div class="header-center">
+        <div class="search-box">
+            <span class="material-icons-outlined">search</span>
+            <input type="text" placeholder="Search services..." id="globalSearch" oninput="handleSearch(this.value)">
+            <div class="search-results" id="searchResults"></div>
+        </div>
+    </div>
+    <div class="header-right">
+        <button class="header-icon-btn theme-toggle" onclick="toggleTheme()">
+            <span class="material-icons-outlined icon-light">dark_mode</span>
+            <span class="material-icons-outlined icon-dark">light_mode</span>
+        </button>
+        <div class="user-menu" id="userMenu">
+            <div class="user-avatar" onclick="toggleUserMenu()"><span class="material-icons-outlined">person</span></div>
+            <div class="user-dropdown" id="userDropdown">
+                <a href="#" onclick="logout()"><span class="material-icons-outlined">logout</span>Logout</a>
+            </div>
+        </div>
+    </div>
+</header>
+<div class="services-panel" id="servicesPanel">
+    <div class="services-panel-header">
+        <h3>All Services</h3>
+        <div style="display:flex;align-items:center;gap:10px">
+            <button class="btn-outline" id="toggleAllServicesBtn" onclick="toggleAllServices()"><span class="material-icons-outlined">unfold_less</span> Collapse All</button>
+            <button class="close-btn" onclick="toggleServices()"><span class="material-icons-outlined">close</span></button>
+        </div>
+    </div>
+    <div class="services-grid" id="servicesGrid"></div>
+</div>
+<div class="overlay" id="overlay" onclick="toggleServices()"></div>
+
+<div class="sup-layout">
+    <aside class="sup-sidebar">
+        <div class="sidebar-header">
+            <span class="material-icons-outlined">handshake</span>
+            <h3>Supplier Management</h3>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/" class="sidebar-link"><span class="material-icons-outlined">arrow_back</span>Home</a>
+            <div class="sidebar-divider"></div>
+            <a class="sidebar-link" href="/supplier"><span class="material-icons-outlined">storefront</span>All Suppliers</a>
+            <a class="sidebar-link" href="/supplier/evaluation"><span class="material-icons-outlined">fact_check</span>Evaluation</a>
+            <a class="sidebar-link active" href="/supplier/contracts"><span class="material-icons-outlined">description</span>Contracts</a>
+            <a class="sidebar-link" href="/supplier/performance"><span class="material-icons-outlined">leaderboard</span>Performance</a>
+        </nav>
+    </aside>
+    <main class="sup-content">
+        <div class="section-header">
+            <h2>Supplier Contracts</h2>
+            <button class="btn-primary" onclick="openAddModal()"><span class="material-icons-outlined">add</span> New Contract</button>
+        </div>
+
+        <div class="sup-filter-bar">
+            <div class="sup-search-bar" style="flex:1;margin-bottom:0">
+                <span class="material-icons-outlined">search</span>
+                <input type="text" id="contractSearch" placeholder="Search by contract #, supplier, type..." oninput="filterTable(this.value)">
+            </div>
+            <select id="contractStatusFilter" onchange="filterTable(document.getElementById('contractSearch').value)" style="padding:8px 12px;border:1px solid var(--border-color);border-radius:9px;font-size:13px;background:var(--bg-primary);color:var(--text-primary)">
+                <option value="">All Statuses</option>
+                <option value="draft">Draft</option>
+                <option value="active">Active</option>
+                <option value="expired">Expired</option>
+                <option value="terminated">Terminated</option>
+            </select>
+            <select id="contractStageFilter" onchange="filterTable(document.getElementById('contractSearch').value)" style="padding:8px 12px;border:1px solid var(--border-color);border-radius:9px;font-size:13px;background:var(--bg-primary);color:var(--text-primary)">
+                <option value="">All Stages</option>
+                <option value="draft">Draft</option>
+                <option value="review">Review</option>
+                <option value="approved">Approved</option>
+                <option value="executed">Executed</option>
+                <option value="renewal">Renewal</option>
+            </select>
+        </div>
+
+        <div class="table-container" style="margin-top:14px">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Supplier</th>
+                        <th>Contract #</th>
+                        <th>Type</th>
+                        <th>Start</th>
+                        <th>End</th>
+                        <th>Value</th>
+                        <th>Payment Terms</th>
+                        <th>Delivery Terms</th>
+                        <th>Stage</th>
+                        <th>Status</th>
+                        <th>Auto Renew</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="contractBody"><tr><td colspan="12" class="empty">Loading...</td></tr></tbody>
+            </table>
+        </div>
+    </main>
+</div>
+
+<!-- ADD CONTRACT MODAL -->
+<div class="modal-overlay" id="addContractModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3 id="contractModalTitle">New Contract</h3>
+            <button class="close-btn" onclick="closeModal('addContractModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="saveContract(event)">
+                <input type="hidden" id="contractId">
+                <input type="hidden" id="contractSupplierId">
+                <div class="form-row">
+                    <div class="form-group" style="position:relative">
+                        <label>Supplier *</label>
+                        <input type="text" id="contractSupplierSearch" placeholder="Type to search supplier..." autocomplete="off" oninput="searchSupplier(this.value)" required>
+                        <div id="contractSupplierDropdown" class="item-search-dropdown" style="display:none"></div>
+                        <div id="contractSupplierSelected" style="font-size:12px;color:var(--accent);margin-top:4px"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Contract Number</label>
+                        <input type="text" id="contractNumber" placeholder="CON-2026-001">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Contract Type</label>
+                        <input type="text" id="contractType" placeholder="framework / annual / sample">
+                    </div>
+                    <div class="form-group">
+                        <label>Contract Value</label>
+                        <input type="number" id="contractValue" min="0" step="0.01" placeholder="0">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Start Date</label><input type="date" id="contractStart"></div>
+                    <div class="form-group"><label>End Date</label><input type="date" id="contractEnd"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Payment Terms</label><input type="text" id="contractPayment" placeholder="Net 30, Advance..."></div>
+                    <div class="form-group"><label>Delivery Terms</label><input type="text" id="contractDelivery" placeholder="FOB, CIF..."></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select id="contractStatus">
+                            <option value="draft">Draft</option>
+                            <option value="active">Active</option>
+                            <option value="expired">Expired</option>
+                            <option value="terminated">Terminated</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Lifecycle Stage</label>
+                        <select id="contractStage">
+                            <option value="draft">Draft</option>
+                            <option value="review">Review</option>
+                            <option value="approved">Approved</option>
+                            <option value="executed">Executed</option>
+                            <option value="renewal">Renewal</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group"><label>Attachment Path</label><input type="text" id="contractAttachment" placeholder="/docs/contracts/..."></div>
+                <div class="form-group"><label>Notes</label><textarea id="contractNotes" rows="2"></textarea></div>
+                <div class="form-group" style="display:flex;align-items:center;gap:8px">
+                    <input type="checkbox" id="contractAutoRenew" style="width:auto">
+                    <label for="contractAutoRenew" style="margin:0;cursor:pointer">Auto Renew</label>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('addContractModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Contract</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- DELETE CONFIRM -->
+<div class="modal-overlay" id="deleteModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Confirm Delete</h3><button class="close-btn" onclick="closeModal('deleteModal')"><span class="material-icons-outlined">close</span></button></div>
+        <div class="modal-body">
+            <p id="deleteMsg" style="font-size:13px;color:var(--text-secondary);margin-bottom:16px"></p>
+            <div class="form-actions">
+                <button class="btn-secondary" onclick="closeModal('deleteModal')">Cancel</button>
+                <button class="btn-primary" style="background:#e53935" id="deleteConfirmBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="sup-toast" id="supToast"></div>
+<script src="/static/js/header.js"></script>
+<script src="/static/js/supplier/common.js"></script>
+<script src="/static/js/supplier/supplier_contracts.js"></script>
+</body>
+</html>

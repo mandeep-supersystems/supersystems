@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Part Management - SUPERSYSTEMS</title>
+    <link rel="stylesheet" href="/static/css/header.css">
+    <link rel="stylesheet" href="/static/css/part/part.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+</head>
+<body>
+
+<!-- FIXED HEADER -->
+<header class="header">
+    <div class="header-left">
+        <div class="logo">
+            <img class="logo-light" src="/static/img/light_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <span class="logo-text">SUPERSYSTEMS</span>
+        </div>
+        <div class="nav-item services-trigger" onclick="toggleServices()">
+            <span class="material-icons-outlined">apps</span>
+            <span>Services</span>
+            <span class="material-icons-outlined arrow">expand_more</span>
+        </div>
+    </div>
+    <div class="header-center">
+        <div class="search-box">
+            <span class="material-icons-outlined">search</span>
+            <input type="text" placeholder="Search services, features..." id="globalSearch" oninput="handleSearch(this.value)">
+            <div class="search-results" id="searchResults"></div>
+        </div>
+    </div>
+    <div class="header-right">
+        <button class="header-icon-btn" title="Notifications">
+            <span class="material-icons-outlined">notifications</span>
+        </button>
+        <button class="header-icon-btn theme-toggle" title="Toggle Dark Mode" onclick="toggleTheme()">
+            <span class="material-icons-outlined icon-light">dark_mode</span>
+            <span class="material-icons-outlined icon-dark">light_mode</span>
+        </button>
+        <div class="user-menu" id="userMenu">
+            <div class="user-avatar" onclick="toggleUserMenu()">
+                <span class="material-icons-outlined">person</span>
+            </div>
+            <div class="user-dropdown" id="userDropdown">
+                <a href="#" onclick="openProfile()"><span class="material-icons-outlined">person</span>Profile</a>
+                <a href="#" onclick="openAccount()"><span class="material-icons-outlined">manage_accounts</span>Account</a>
+                <div class="dropdown-divider"></div>
+                <a href="#" onclick="logout()"><span class="material-icons-outlined">logout</span>Logout</a>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- SERVICES PANEL -->
+<div class="services-panel" id="servicesPanel">
+    <div class="services-panel-header">
+        <h3>All Services</h3>
+        <div style="display:flex;align-items:center;gap:10px">
+            <button class="btn-outline" id="toggleAllServicesBtn" onclick="toggleAllServices()">
+                <span class="material-icons-outlined">unfold_less</span> Collapse All
+            </button>
+            <button class="close-btn" onclick="toggleServices()">
+                <span class="material-icons-outlined">close</span>
+            </button>
+        </div>
+    </div>
+    <div class="services-grid" id="servicesGrid"></div>
+</div>
+<div class="overlay" id="overlay" onclick="toggleServices()"></div>
+
+<!-- MAIN LAYOUT -->
+<div class="part-layout">
+    <!-- SIDEBAR -->
+    <aside class="part-sidebar">
+        <div class="sidebar-header">
+            <span class="material-icons-outlined">settings_input_component</span>
+            <h3>Part Management</h3>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/" class="sidebar-link">
+                <span class="material-icons-outlined">arrow_back</span>Home
+            </a>
+            <div class="sidebar-divider"></div>
+
+            <a class="sidebar-link active" data-section="overview" onclick="showSection('overview')">
+                <span class="material-icons-outlined">dashboard</span>Overview
+            </a>
+            <a class="sidebar-link" data-section="categories" onclick="showSection('categories')">
+                <span class="material-icons-outlined">folder</span>Categories
+            </a>
+            <a class="sidebar-link" data-section="subcategories" onclick="showSection('subcategories')">
+                <span class="material-icons-outlined">folder_open</span>Subcategories
+            </a>
+            <a class="sidebar-link" data-section="generate" onclick="showSection('generate')">
+                <span class="material-icons-outlined">bolt</span>Generate Part Code
+            </a>
+            <a class="sidebar-link" data-section="allparts" onclick="showSection('allparts')">
+                <span class="material-icons-outlined">view_list</span>All Parts
+            </a>
+            <a class="sidebar-link" data-section="partmapping" onclick="showSection('partmapping')">
+                <span class="material-icons-outlined">swap_horiz</span>Part Mapping
+            </a>
+            <div class="sidebar-divider"></div>
+            <a class="sidebar-link" data-section="auditlogs" onclick="showSection('auditlogs')">
+                <span class="material-icons-outlined">history</span>Audit Logs
+            </a>
+            <a class="sidebar-link" data-section="obsolete" onclick="showSection('obsolete')">
+                <span class="material-icons-outlined">block</span>Obsolete Parts
+            </a>
+            <div class="sidebar-divider"></div>
+            <a class="sidebar-link" data-section="moduleusers" onclick="showSection('moduleusers')">
+                <span class="material-icons-outlined">manage_accounts</span>User Management
+            </a>
+        </nav>
+    </aside>
+
+    <!-- CONTENT -->
+    <main class="part-content">
+
+        <!-- OVERVIEW SECTION -->
+        <section class="content-section active" id="sec-overview">
+            <div class="section-header">
+                <h2>Overview</h2>
+            </div>
+            <div class="overview-stats" id="overviewStats">
+                <div class="stat-card">
+                    <span class="material-icons-outlined stat-icon">folder</span>
+                    <div class="stat-info">
+                        <div class="stat-value" id="statCategories">-</div>
+                        <div class="stat-label">Categories</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <span class="material-icons-outlined stat-icon">folder_open</span>
+                    <div class="stat-info">
+                        <div class="stat-value" id="statSubcategories">-</div>
+                        <div class="stat-label">Subcategories</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <span class="material-icons-outlined stat-icon">precision_manufacturing</span>
+                    <div class="stat-info">
+                        <div class="stat-value" id="statTotalParts">-</div>
+                        <div class="stat-label">Total Parts</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <span class="material-icons-outlined stat-icon">check_circle</span>
+                    <div class="stat-info">
+                        <div class="stat-value" id="statActiveParts">-</div>
+                        <div class="stat-label">Active Parts</div>
+                    </div>
+                </div>
+                <div class="stat-card stat-warning">
+                    <span class="material-icons-outlined stat-icon">block</span>
+                    <div class="stat-info">
+                        <div class="stat-value" id="statObsolete">-</div>
+                        <div class="stat-label">Obsolete</div>
+                    </div>
+                </div>
+            </div>
+            <div class="overview-grid">
+                <div class="overview-card">
+                    <div class="overview-card-header">
+                        <h3>Recent Activity</h3>
+                    </div>
+                    <div class="overview-card-body" id="overviewActivity">
+                        <div class="empty">Loading...</div>
+                    </div>
+                </div>
+                <div class="overview-card">
+                    <div class="overview-card-header">
+                        <h3>Quick Actions</h3>
+                    </div>
+                    <div class="overview-card-body">
+                        <div class="quick-actions">
+                            <button class="quick-action-btn" onclick="showSection('generate')">
+                                <span class="material-icons-outlined">bolt</span>
+                                <span>Generate Part</span>
+                            </button>
+                            <button class="quick-action-btn" onclick="openCategoryModal()">
+                                <span class="material-icons-outlined">create_new_folder</span>
+                                <span>New Category</span>
+                            </button>
+                            <button class="quick-action-btn" onclick="showSection('subcategories'); setTimeout(openSubcategoryModal, 300)">
+                                <span class="material-icons-outlined">add_box</span>
+                                <span>New Subcategory</span>
+                            </button>
+                            <button class="quick-action-btn" onclick="showSection('allparts')">
+                                <span class="material-icons-outlined">view_list</span>
+                                <span>View All Parts</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CATEGORIES SECTION -->
+        <section class="content-section" id="sec-categories">
+            <div class="section-header">
+                <h2>Categories</h2>
+                <div class="section-actions">
+                    <button class="btn-outline" onclick="exportData('categories')" title="Export CSV">
+                        <span class="material-icons-outlined">download</span> Export
+                    </button>
+                    <button class="btn-outline" onclick="importData('categories')" title="Import CSV">
+                        <span class="material-icons-outlined">upload</span> Import
+                    </button>
+                    <button class="btn-outline" onclick="downloadTemplate('categories')" title="Download Template">
+                        <span class="material-icons-outlined">description</span> Template
+                    </button>
+                    <button class="btn-primary" onclick="openCategoryModal()">
+                        <span class="material-icons-outlined">add</span> New Category
+                    </button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Code</th>
+                            <th>Series Prefix</th>
+                            <th>Separator</th>
+                            <th>Description</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="categoriesTableBody">
+                        <tr><td colspan="6" class="empty">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- SUBCATEGORIES SECTION -->
+        <section class="content-section" id="sec-subcategories">
+            <div class="section-header">
+                <h2>Subcategories</h2>
+                <div class="section-actions">
+                    <button class="btn-outline" onclick="exportData('subcategories')" title="Export CSV">
+                        <span class="material-icons-outlined">download</span> Export
+                    </button>
+                    <button class="btn-outline" onclick="importData('subcategories')" title="Import CSV">
+                        <span class="material-icons-outlined">upload</span> Import
+                    </button>
+                    <button class="btn-outline" onclick="downloadTemplate('subcategories')" title="Download Template">
+                        <span class="material-icons-outlined">description</span> Template
+                    </button>
+                    <button class="btn-primary" onclick="openSubcategoryModal()">
+                        <span class="material-icons-outlined">add</span> New Subcategory
+                    </button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Category</th>
+                            <th>Series</th>
+                            <th>Parts Generated</th>
+                            <th>Columns</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="subcategoriesTableBody">
+                        <tr><td colspan="6" class="empty">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- GENERATE PART SECTION -->
+        <section class="content-section" id="sec-generate">
+            <div class="section-header">
+                <h2>Generate Part Code</h2>
+                <div class="section-actions">
+                    <button class="btn-outline" onclick="exportData('parts')" title="Export CSV">
+                        <span class="material-icons-outlined">download</span> Export
+                    </button>
+                    <button class="btn-outline" onclick="importData('parts')" title="Import CSV">
+                        <span class="material-icons-outlined">upload</span> Import
+                    </button>
+                    <button class="btn-outline" onclick="downloadTemplate('parts')" title="Download Template">
+                        <span class="material-icons-outlined">description</span> Template
+                    </button>
+                </div>
+            </div>
+            <div class="generate-layout">
+                <div class="generate-form-card">
+                    <div class="form-group">
+                        <label>Category</label>
+                        <select id="genCategory" onchange="loadGenSubcategories()">
+                            <option value="">Select Category</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Subcategory</label>
+                        <select id="genSubcategory" onchange="loadGenColumns()">
+                            <option value="">Select Subcategory</option>
+                        </select>
+                    </div>
+                    <div id="genColumnsForm"></div>
+                    <div class="form-group" id="genPreview" style="display:none">
+                        <label>Part Number Preview</label>
+                        <div class="part-preview" id="partPreviewText">---</div>
+                    </div>
+                    <button class="btn-primary btn-generate" id="btnGenerate" onclick="generatePart()" disabled>
+                        <span class="material-icons-outlined">bolt</span> Generate Part Code
+                    </button>
+                    <div class="gen-result" id="genResult"></div>
+                </div>
+                <div class="generated-parts-card">
+                    <h3>Generated Parts</h3>
+                    <div id="generatedPartsList" class="parts-list">
+                        <div class="empty">Select a subcategory to view parts</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ALL PARTS SECTION -->
+        <section class="content-section" id="sec-allparts">
+            <div class="section-header">
+                <h2>All Parts</h2>
+                <div class="section-actions">
+                    <button class="btn-outline" onclick="exportData('allparts')" title="Export CSV">
+                        <span class="material-icons-outlined">download</span> Export
+                    </button>
+                </div>
+            </div>
+            <div class="allparts-filter">
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="apCategory" onchange="loadApSubcategories()">
+                        <option value="">All Categories</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Subcategory</label>
+                    <select id="apSubcategory" onchange="loadAllParts()">
+                        <option value="">All Subcategories</option>
+                    </select>
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead id="allPartsHead">
+                        <tr><th>Part Number</th><th>Description</th><th>Created By</th><th>Status</th><th>Created</th></tr>
+                    </thead>
+                    <tbody id="allPartsBody">
+                        <tr><td colspan="7" class="empty">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- PART MAPPING SECTION -->
+        <section class="content-section" id="sec-partmapping">
+            <div class="section-header">
+                <h2>Part Mapping (Cross-Reference)</h2>
+                <div class="section-actions">
+                    <button class="btn-primary" onclick="openAddMappingModal()">
+                        <span class="material-icons-outlined">add</span> Add Mapping
+                    </button>
+                </div>
+            </div>
+            <!-- Unmapped customer parts from POs -->
+            <div class="unmapped-section" style="margin-bottom:24px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                    <h3 style="font-size:14px;color:var(--text-secondary);margin:0"><span class="material-icons-outlined" style="font-size:16px;vertical-align:middle;color:#e65100">warning</span> Remaining Unmapped — <span id="unmappedCount" style="color:#e65100;font-weight:700">0</span> parts left</h3>
+                    <div class="search-box" style="width:240px"><span class="material-icons-outlined" style="font-size:16px">search</span><input type="text" id="unmappedSearchInput" placeholder="Search unmapped..." oninput="filterUnmapped()" style="border:none;outline:none;width:100%;font-size:12px"></div>
+                </div>
+                <div id="unmappedPartsContainer" class="table-container" style="max-height:250px;overflow-y:auto"><div class="empty" style="padding:12px">Loading...</div></div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <h3 style="font-size:14px;color:var(--text-secondary);margin:0">All Mappings</h3>
+                <div class="search-box" style="width:260px"><span class="material-icons-outlined" style="font-size:16px">search</span><input type="text" id="mappingSearchInput" placeholder="Search mappings..." oninput="filterMappings()" style="border:none;outline:none;width:100%;font-size:12px"></div>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Part Code</th>
+                            <th>Description</th>
+                            <th>Customer Part #</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mappingsTableBody">
+                        <tr><td colspan="5" class="empty">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- AUDIT LOGS SECTION -->
+        <section class="content-section" id="sec-auditlogs">
+            <div class="section-header">
+                <h2>Audit Logs</h2>
+                <div class="section-actions">
+                    <button class="btn-outline" onclick="exportData('auditlogs')" title="Export CSV">
+                        <span class="material-icons-outlined">download</span> Export
+                    </button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Action</th>
+                            <th>Entity</th>
+                            <th>Performed By</th>
+                            <th>IP Address</th>
+                            <th>Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody id="auditLogsBody">
+                        <tr><td colspan="5" class="empty">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="pagination" id="auditPagination"></div>
+        </section>
+
+        <!-- OBSOLETE PARTS SECTION -->
+        <section class="content-section" id="sec-obsolete">
+            <div class="section-header">
+                <h2>Obsolete Parts</h2>
+                <div class="section-actions">
+                    <button class="btn-outline" onclick="exportData('obsolete')" title="Export CSV">
+                        <span class="material-icons-outlined">download</span> Export
+                    </button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Part Number</th>
+                            <th>Category</th>
+                            <th>Subcategory</th>
+                            <th>Obsoleted At</th>
+                            <th>Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody id="obsoletePartsBody">
+                        <tr><td colspan="5" class="empty">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- MODULE USER MANAGEMENT SECTION -->
+        <section class="content-section" id="sec-moduleusers">
+            <div class="section-header">
+                <h2>User Management</h2>
+                <div class="section-actions">
+                    <button class="btn-primary" onclick="openAddUserModal()">
+                        <span class="material-icons-outlined">person_add</span> Add User
+                    </button>
+                </div>
+            </div>
+            <div class="module-roles-info">
+                <div class="role-chip role-admin"><span class="material-icons-outlined">admin_panel_settings</span> Module Admin <small>Full control + manage users</small></div>
+                <div class="role-chip role-editor"><span class="material-icons-outlined">edit</span> Editor <small>Create, edit, export, import</small></div>
+                <div class="role-chip role-viewer"><span class="material-icons-outlined">visibility</span> Viewer <small>View &amp; export only</small></div>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Role</th>
+                            <th>Allowed Sections</th>
+                            <th>Status</th>
+                            <th>Granted</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="moduleUsersBody">
+                        <tr><td colspan="6" class="empty">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
+</div>
+
+<!-- CATEGORY MODAL -->
+<div class="modal-overlay" id="categoryModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>New Category</h3>
+            <button class="close-btn" onclick="partCloseModal('categoryModal')">
+                <span class="material-icons-outlined">close</span>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="saveCategory(event)">
+                <div class="form-group">
+                    <label>Category Name *</label>
+                    <input type="text" id="catName" required placeholder="e.g. Sheetmetal">
+                </div>
+                <div class="form-group">
+                    <label>Series Prefix * (numeric)</label>
+                    <input type="text" id="catSeries" required placeholder="e.g. 601">
+                </div>
+                <div class="form-group">
+                    <label>Separator</label>
+                    <div style="display:flex;gap:8px;margin-top:4px">
+                        <div class="part-cat-sep-btn" data-sep="-" data-active="1" onclick="setPartCatSep('-')" style="display:flex;align-items:center;justify-content:center;width:44px;height:38px;border:2px solid var(--accent);border-radius:8px;font-size:20px;font-weight:700;cursor:pointer;color:var(--accent);background:var(--accent-light)">-</div>
+                        <div class="part-cat-sep-btn" data-sep="." data-active="0" onclick="setPartCatSep('.')" style="display:flex;align-items:center;justify-content:center;width:44px;height:38px;border:2px solid var(--border-color);border-radius:8px;font-size:20px;font-weight:700;cursor:pointer;color:var(--text-secondary);background:var(--bg-primary)">.</div>
+                        <div class="part-cat-sep-btn" data-sep="/" data-active="0" onclick="setPartCatSep('/')" style="display:flex;align-items:center;justify-content:center;width:44px;height:38px;border:2px solid var(--border-color);border-radius:8px;font-size:20px;font-weight:700;cursor:pointer;color:var(--text-secondary);background:var(--bg-primary)">/</div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Code</label>
+                    <input type="text" id="catCode" placeholder="e.g. SM (auto-generated if empty)">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <input type="text" id="catDesc" placeholder="Optional description">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="partCloseModal('categoryModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Create Category</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- SUBCATEGORY MODAL -->
+<div class="modal-overlay" id="subcategoryModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3>New Subcategory</h3>
+            <button class="close-btn" onclick="partCloseModal('subcategoryModal')">
+                <span class="material-icons-outlined">close</span>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="saveSubcategory(event)">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Category *</label>
+                        <select id="subCatCategory" required>
+                            <option value="">Select Category</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Subcategory Name *</label>
+                        <input type="text" id="subCatName" required placeholder="e.g. Proto">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Series Number * (e.g. 0, 1, 2...)</label>
+                        <input type="text" id="subCatSeries" required placeholder="e.g. 0">
+                    </div>
+                    <div class="form-group">
+                        <label>Code</label>
+                        <input type="text" id="subCatCode" placeholder="e.g. PR">
+                    </div>
+                </div>
+                <div class="columns-section">
+                    <div class="columns-header">
+                        <label>Table Columns * (define fields for parts in this subcategory)</label>
+                        <button type="button" class="btn-sm" onclick="addColumnRow()">
+                            <span class="material-icons-outlined">add</span> Add Column
+                        </button>
+                    </div>
+                    <div id="columnsContainer">
+                        <div class="column-row">
+                            <input type="text" placeholder="Column name (e.g. material)" class="col-name" required onblur="updateDescColsCheckboxes()">
+                            <select class="col-type">
+                                <option value="varchar">Text</option>
+                                <option value="integer">Number</option>
+                                <option value="numeric">Decimal</option>
+                                <option value="boolean">Yes/No</option>
+                                <option value="date">Date</option>
+                            </select>
+                            <button type="button" class="btn-icon-danger" onclick="removeColumnRow(this)">
+                                <span class="material-icons-outlined">close</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="desc-cols-section">
+                    <label>Description Columns <span class="form-hint-inline">(select columns to auto-concat as Description — duplicate check uses this)</span></label>
+                    <div id="descColsContainer" class="desc-cols-grid">
+                        <span class="text-muted">Add columns first</span>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="partCloseModal('subcategoryModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Create Subcategory</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- PROFILE MODAL -->
+<div class="modal-overlay" id="profileModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Profile</h3>
+            <button class="close-btn" onclick="partCloseModal('profileModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <div class="profile-info">
+                <div class="profile-avatar"><span class="material-icons-outlined">person</span></div>
+                <div class="profile-fields">
+                    <p><strong>Name:</strong> <span id="profileName">-</span></p>
+                    <p><strong>Email:</strong> <span id="profileEmail">-</span></p>
+                    <p><strong>Role:</strong> <span id="profileRole">-</span></p>
+                    <p><strong>Organization:</strong> <span id="profileOrg">-</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ACCOUNT MODAL -->
+<div class="modal-overlay" id="accountModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Account Settings</h3>
+            <button class="close-btn" onclick="partCloseModal('accountModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <form id="accountForm" onsubmit="updateAccount(event)">
+                <div class="form-group"><label>First Name</label><input type="text" id="accFirstName"></div>
+                <div class="form-group"><label>Last Name</label><input type="text" id="accLastName"></div>
+                <div class="form-group"><label>Phone</label><input type="tel" id="accPhone"></div>
+                <hr>
+                <h4>Change Password</h4>
+                <div class="form-group"><label>Current Password</label><input type="password" id="accCurrentPwd"></div>
+                <div class="form-group"><label>New Password</label><input type="password" id="accNewPwd"></div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="partCloseModal('accountModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ADD MODULE USER MODAL -->
+<div class="modal-overlay" id="addModuleUserModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3>Add User to Part Management</h3>
+            <button class="close-btn" onclick="partCloseModal('addModuleUserModal')">
+                <span class="material-icons-outlined">close</span>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="saveModuleUser(event)">
+                <div class="form-group">
+                    <label>Search User (by name, email, or employee code) *</label>
+                    <input type="text" id="muUserSearch" placeholder="Type to search employees..." oninput="searchEmployeesForPart(this.value)" autocomplete="off">
+                    <input type="hidden" id="muUserSelect">
+                    <div id="muUserResults" class="emp-search-results"></div>
+                    <div id="muUserSelected" class="emp-selected-inline" style="display:none"><span id="muUserSelLabel"></span><button type="button" class="btn-icon" onclick="clearMuUser()"><span class="material-icons-outlined">close</span></button></div>
+                </div>
+                <div class="form-group">
+                    <label>Role *</label>
+                    <select id="muRole" required onchange="onMuRoleChange()">
+                        <option value="viewer">Viewer (View & export only)</option>
+                        <option value="editor">Editor (Create, edit, export, import)</option>
+                        <option value="module_admin">Module Admin (Full control + manage users)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Allowed Sections <span class="form-hint-inline">(which sidebar items this user can see)</span></label>
+                    <div class="section-checkboxes" id="muSectionCheckboxes"></div>
+                </div>
+                <div class="form-group">
+                    <label>Entity Permissions <span class="form-hint-inline">(what actions this user can perform)</span></label>
+                    <div class="perm-matrix-wrap" id="muPermMatrix"></div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="partCloseModal('addModuleUserModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Grant Access</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- EDIT SUBCATEGORY MODAL -->
+<div class="modal-overlay" id="editModuleUserModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3>Edit User Access</h3>
+            <button class="close-btn" onclick="partCloseModal('editModuleUserModal')">
+                <span class="material-icons-outlined">close</span>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="saveEditModuleUser(event)">
+                <input type="hidden" id="emuAccessId">
+                <div class="form-group">
+                    <label>User</label>
+                    <div class="form-static" id="emuUserName">-</div>
+                </div>
+                <div class="form-group">
+                    <label>Role *</label>
+                    <select id="emuRole" required onchange="onEmuRoleChange()">
+                        <option value="viewer">Viewer</option>
+                        <option value="editor">Editor</option>
+                        <option value="module_admin">Module Admin</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Allowed Sections</label>
+                    <div class="section-checkboxes" id="emuSectionCheckboxes"></div>
+                </div>
+                <div class="form-group">
+                    <label>Entity Permissions</label>
+                    <div class="perm-matrix-wrap" id="emuPermMatrix"></div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="partCloseModal('editModuleUserModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- EDIT SUBCATEGORY MODAL -->
+<div class="modal-overlay" id="editSubcategoryModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3>Edit Subcategory</h3>
+            <button class="close-btn" onclick="partCloseModal('editSubcategoryModal')">
+                <span class="material-icons-outlined">close</span>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="saveEditSubcategory(event)">
+                <input type="hidden" id="editSubId">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Category</label>
+                        <select id="editSubCategory">
+                            <option value="">Select Category</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Subcategory Name *</label>
+                        <input type="text" id="editSubName" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Series Number</label>
+                        <input type="text" id="editSubSeries">
+                    </div>
+                    <div class="form-group">
+                        <label>Code</label>
+                        <input type="text" id="editSubCode">
+                    </div>
+                </div>
+                <div class="columns-section">
+                    <div class="columns-header">
+                        <label>Table Columns</label>
+                        <button type="button" class="btn-sm" onclick="addEditColumnRow()">
+                            <span class="material-icons-outlined">add</span> Add Column
+                        </button>
+                    </div>
+                    <div id="editColumnsContainer"></div>
+                </div>
+                <div class="desc-cols-section">
+                    <label>Description Columns <span class="form-hint-inline">(select columns to auto-concat as Description)</span></label>
+                    <div id="editDescColsContainer" class="desc-cols-grid">
+                        <span class="text-muted">No columns defined</span>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="partCloseModal('editSubcategoryModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- DELETE CONFIRMATION MODAL -->
+<div class="modal-overlay" id="deleteConfirmModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Confirm Delete</h3>
+            <button class="close-btn" onclick="partCloseModal('deleteConfirmModal')">
+                <span class="material-icons-outlined">close</span>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p id="deleteConfirmMsg" style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;"></p>
+            <div class="form-group">
+                <label>Enter your password to confirm</label>
+                <input type="password" id="deleteConfirmPassword" placeholder="Your password" autocomplete="off">
+            </div>
+            <div class="login-error" id="deleteError" style="display:none;padding:8px 12px;background:#fbe9e7;color:#d32f2f;border-radius:6px;font-size:12px;margin-bottom:12px;"></div>
+            <div class="form-actions">
+                <button type="button" class="btn-secondary" onclick="partCloseModal('deleteConfirmModal')">Cancel</button>
+                <button type="button" class="btn-primary" style="background:#e53935" id="deleteConfirmBtn" onclick="executeDelete()">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<input type="file" id="importFileInput" accept=".csv" style="display:none" onchange="handleImportFile(this)">
+
+<!-- ADD MAPPING MODAL -->
+<div class="modal-overlay" id="addMappingModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3>Add Part Mapping</h3>
+            <button class="close-btn" onclick="partCloseModal('addMappingModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="saveMapping(event)">
+                <div class="form-group">
+                    <label>Part Code (Internal) *</label>
+                    <input type="text" id="mapIntSearch" placeholder="Search your part number or description..." oninput="searchInternalParts(this.value)" autocomplete="off">
+                    <div id="mapIntResults" class="emp-search-results"></div>
+                    <div id="mapIntSelected" class="emp-selected-inline" style="display:none"><span id="mapIntSelLabel"></span><button type="button" class="btn-icon" onclick="clearMapInt()"><span class="material-icons-outlined">close</span></button></div>
+                    <input type="hidden" id="mapIntPartNum">
+                    <input type="hidden" id="mapIntDesc">
+                </div>
+                <div class="form-group">
+                    <label>Customer Part Number *</label>
+                    <input type="text" id="mapCustSearch" placeholder="Search or type customer part number..." oninput="searchCustomerParts(this.value)" autocomplete="off">
+                    <div id="mapCustResults" class="emp-search-results"></div>
+                    <div id="mapCustSelected" class="emp-selected-inline" style="display:none"><span id="mapCustSelLabel"></span><button type="button" class="btn-icon" onclick="clearMapCust()"><span class="material-icons-outlined">close</span></button></div>
+                    <input type="hidden" id="mapCustPartNum">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="partCloseModal('addMappingModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Create Mapping</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- EDIT MAPPING MODAL -->
+<div class="modal-overlay" id="editMappingModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3>Edit Part Mapping</h3>
+            <button class="close-btn" onclick="partCloseModal('editMappingModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="updateMapping(event)">
+                <input type="hidden" id="emapId">
+                <div class="form-group"><label>Part Code (Internal) *</label><input type="text" id="emapIntPart" required></div>
+                <div class="form-group"><label>Description</label><input type="text" id="emapIntDesc"></div>
+                <div class="form-group"><label>Customer Part Number *</label><input type="text" id="emapCustPart" required></div>
+                <p style="font-size:11px;color:var(--text-secondary);margin-top:8px"><span class="material-icons-outlined" style="font-size:13px;vertical-align:middle">sync</span> Changes will auto-sync to all PO line items using this mapping.</p>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="partCloseModal('editMappingModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save & Sync</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/header.js"></script>
+<script>requireAuth();</script>
+<script src="/static/js/part/common.js"></script>
+<script src="/static/js/part/overview.js"></script>
+<script src="/static/js/part/categories.js"></script>
+<script src="/static/js/part/subcategories.js"></script>
+<script src="/static/js/part/generate.js"></script>
+<script src="/static/js/part/allparts.js"></script>
+<script src="/static/js/part/partmapping.js"></script>
+<script src="/static/js/part/auditlogs.js"></script>
+<script src="/static/js/part/moduleusers.js"></script>
+</body>
+</html>

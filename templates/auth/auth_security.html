@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auth & Security - SUPERSYSTEMS</title>
+    <link rel="stylesheet" href="/static/css/header.css">
+    <link rel="stylesheet" href="/static/css/auth/auth_security.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+</head>
+<body>
+
+<!-- FIXED HEADER -->
+<header class="header">
+    <div class="header-left">
+        <div class="logo">
+            <img class="logo-light" src="/static/img/light_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <span class="logo-text">SUPERSYSTEMS</span>
+        </div>
+        <div class="nav-item services-trigger" onclick="toggleServices()">
+            <span class="material-icons-outlined">apps</span>
+            <span>Services</span>
+            <span class="material-icons-outlined arrow">expand_more</span>
+        </div>
+    </div>
+    <div class="header-center">
+        <div class="search-box">
+            <span class="material-icons-outlined">search</span>
+            <input type="text" placeholder="Search services, features..." id="globalSearch" oninput="handleSearch(this.value)">
+            <div class="search-results" id="searchResults"></div>
+        </div>
+    </div>
+    <div class="header-right">
+        <button class="header-icon-btn" title="Notifications">
+            <span class="material-icons-outlined">notifications</span>
+        </button>
+        <button class="header-icon-btn theme-toggle" title="Toggle Dark Mode" onclick="toggleTheme()">
+            <span class="material-icons-outlined icon-light">dark_mode</span>
+            <span class="material-icons-outlined icon-dark">light_mode</span>
+        </button>
+        <div class="user-menu" id="userMenu">
+            <div class="user-avatar" onclick="toggleUserMenu()">
+                <span class="material-icons-outlined">person</span>
+            </div>
+            <div class="user-dropdown" id="userDropdown">
+                <a href="#" onclick="openProfile()"><span class="material-icons-outlined">person</span>Profile</a>
+                <a href="#" onclick="openAccount()"><span class="material-icons-outlined">manage_accounts</span>Account</a>
+                <div class="dropdown-divider"></div>
+                <a href="#" onclick="logout()"><span class="material-icons-outlined">logout</span>Logout</a>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- SERVICES PANEL -->
+<div class="services-panel" id="servicesPanel">
+    <div class="services-panel-header">
+        <h3>All Services</h3>
+        <div style="display:flex;align-items:center;gap:10px">
+            <button class="btn-outline" id="toggleAllServicesBtn" onclick="toggleAllServices()">
+                <span class="material-icons-outlined">unfold_less</span> Collapse All
+            </button>
+            <button class="close-btn" onclick="toggleServices()">
+                <span class="material-icons-outlined">close</span>
+            </button>
+        </div>
+    </div>
+    <div class="services-grid" id="servicesGrid"></div>
+</div>
+<div class="overlay" id="overlay" onclick="toggleServices()"></div>
+
+<!-- MAIN LAYOUT -->
+<div class="auth-layout">
+    <!-- SIDEBAR -->
+    <aside class="auth-sidebar">
+        <div class="sidebar-header">
+            <span class="material-icons-outlined">security</span>
+            <h3>Auth & Security</h3>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/" class="sidebar-link">
+                <span class="material-icons-outlined">arrow_back</span>Home
+            </a>
+            <div class="sidebar-divider"></div>
+
+            <a class="sidebar-link active" data-section="overview" onclick="showSection('overview')">
+                <span class="material-icons-outlined">dashboard</span>Overview
+            </a>
+
+            <div class="sidebar-divider"></div>
+            <div class="sidebar-group-label">User Management</div>
+            <a class="sidebar-link" data-section="users" onclick="showSection('users')">
+                <span class="material-icons-outlined">people</span>Users
+            </a>
+
+            <div class="sidebar-divider"></div>
+            <div class="sidebar-group-label">Access Control</div>
+            <a class="sidebar-link" data-section="permissions" onclick="showSection('permissions')">
+                <span class="material-icons-outlined">manage_accounts</span>User Permissions
+            </a>
+            <a class="sidebar-link" data-section="modules" onclick="showSection('modules')">
+                <span class="material-icons-outlined">apps</span>Module Access
+            </a>
+            <a class="sidebar-link" data-section="roles" onclick="showSection('roles')">
+                <span class="material-icons-outlined">admin_panel_settings</span>Roles & Permissions
+            </a>
+            <a class="sidebar-link" data-section="matrix" onclick="showSection('matrix')">
+                <span class="material-icons-outlined">grid_on</span>Permission Matrix
+            </a>
+
+            <div class="sidebar-divider"></div>
+            <div class="sidebar-group-label">Audit & Compliance</div>
+            <a class="sidebar-link" data-section="auditlogs" onclick="showSection('auditlogs')">
+                <span class="material-icons-outlined">history</span>Audit Logs
+            </a>
+        </nav>
+    </aside>
+
+    <!-- CONTENT -->
+    <main class="auth-content">
+
+        <!-- OVERVIEW -->
+        <section class="content-section active" id="sec-overview">
+            <div class="section-header"><h2>Overview</h2></div>
+            <div class="overview-stats" id="overviewStats">
+                <div class="stat-card"><span class="material-icons-outlined stat-icon">people</span><div class="stat-info"><div class="stat-value" id="statUsers">-</div><div class="stat-label">Total Users</div></div></div>
+                <div class="stat-card"><span class="material-icons-outlined stat-icon">admin_panel_settings</span><div class="stat-info"><div class="stat-value" id="statRoles">-</div><div class="stat-label">Roles Defined</div></div></div>
+                <div class="stat-card"><span class="material-icons-outlined stat-icon">link</span><div class="stat-info"><div class="stat-value" id="statAssignments">-</div><div class="stat-label">Module Assignments</div></div></div>
+                <div class="stat-card"><span class="material-icons-outlined stat-icon">apps</span><div class="stat-info"><div class="stat-value" id="statModules">-</div><div class="stat-label">Active Modules</div></div></div>
+            </div>
+            <div class="overview-info">
+                <div class="info-card">
+                    <h3><span class="material-icons-outlined">info</span> How Access Control Works</h3>
+                    <div class="info-steps">
+                        <div class="info-step"><span class="step-num">1</span><div><strong>Create Users</strong><p>Add organization users with email & password</p></div></div>
+                        <div class="info-step"><span class="step-num">2</span><div><strong>Assign to Modules</strong><p>Grant users access to specific modules (Part Management, etc.)</p></div></div>
+                        <div class="info-step"><span class="step-num">3</span><div><strong>Set Role & Permissions</strong><p>Choose a role (Admin/Editor/Viewer) or customize per-entity permissions</p></div></div>
+                        <div class="info-step"><span class="step-num">4</span><div><strong>Granular Control</strong><p>Each button (Create, Edit, Delete, Export, Import) is permission-controlled</p></div></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- USERS -->
+        <section class="content-section" id="sec-users">
+            <div class="section-header">
+                <h2>Users</h2>
+                <div class="section-actions">
+                    <button class="btn-outline" onclick="exportUsers()"><span class="material-icons-outlined">download</span> Export</button>
+                    <button class="btn-secondary" onclick="openCreateUserModal()"><span class="material-icons-outlined">person_add</span> Create User</button>
+                    <button class="btn-primary" onclick="openImportEmployeeModal()"><span class="material-icons-outlined">badge</span> Add from HR</button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+                    <tbody id="usersTableBody"><tr><td colspan="6" class="empty">Loading...</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- USER PERMISSIONS -->
+        <section class="content-section" id="sec-permissions">
+            <div class="section-header">
+                <h2>User Permissions</h2>
+                <div class="section-actions">
+                    <input type="text" id="permSearch" placeholder="Search by name or email..." oninput="filterPermUsers(this.value)" class="search-input">
+                </div>
+            </div>
+            <div id="permUsersContainer"><div class="empty" style="padding:40px;text-align:center">Loading...</div></div>
+        </section>
+
+        <!-- MODULE ACCESS -->
+        <section class="content-section" id="sec-modules">
+            <div class="section-header">
+                <h2>Module Access</h2>
+                <div class="section-actions">
+                    <button class="btn-primary" onclick="openAssignModuleModal()"><span class="material-icons-outlined">add_link</span> Assign User to Module</button>
+                </div>
+            </div>
+            <div class="module-filter">
+                <label>Filter by Module:</label>
+                <select id="moduleFilter" onchange="loadModuleAccess()">
+                    <option value="">All Modules</option>
+                </select>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead><tr><th>User</th><th>Module</th><th>Role</th><th>Status</th><th>Granted</th><th>Actions</th></tr></thead>
+                    <tbody id="moduleAccessBody"><tr><td colspan="6" class="empty">Loading...</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ROLES & PERMISSIONS -->
+        <section class="content-section" id="sec-roles">
+            <div class="section-header">
+                <h2>Roles & Permissions</h2>
+                <div class="section-actions">
+                    <button class="btn-primary" onclick="openCreateRoleModal()"><span class="material-icons-outlined">add</span> Create Role</button>
+                </div>
+            </div>
+            <div class="module-filter">
+                <label>Filter by Module:</label>
+                <select id="roleModuleFilter" onchange="loadRoles()">
+                    <option value="">All Modules</option>
+                </select>
+            </div>
+            <div id="rolesContainer" class="roles-grid"></div>
+        </section>
+
+        <!-- PERMISSION MATRIX -->
+        <section class="content-section" id="sec-matrix">
+            <div class="section-header">
+                <h2>Permission Matrix</h2>
+            </div>
+            <div class="matrix-controls">
+                <div class="form-group">
+                    <label>Select Module</label>
+                    <select id="matrixModule" onchange="loadMatrix()">
+                        <option value="">— Select Module —</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Select Role</label>
+                    <select id="matrixRole" onchange="renderMatrix()">
+                        <option value="">— Select Role —</option>
+                    </select>
+                </div>
+            </div>
+            <div id="matrixContainer" class="matrix-wrapper">
+                <div class="empty">Select a module and role to view/edit the permission matrix</div>
+            </div>
+            <div class="matrix-actions" id="matrixActions" style="display:none">
+                <button class="btn-primary" onclick="saveMatrix()"><span class="material-icons-outlined">save</span> Save Permissions</button>
+                <button class="btn-outline" onclick="resetMatrix()"><span class="material-icons-outlined">restart_alt</span> Reset to Default</button>
+            </div>
+        </section>
+
+        <!-- AUDIT LOGS -->
+        <section class="content-section" id="sec-auditlogs">
+            <div class="section-header">
+                <h2>Audit & Login History</h2>
+                <div class="section-actions">
+                    <div class="audit-subtabs">
+                        <button class="btn-subtab active" id="subtabAuditLogs" onclick="switchAuditSubtab('logs')">System Audit Logs</button>
+                        <button class="btn-subtab" id="subtabLoginHistory" onclick="switchAuditSubtab('login')">Login & Logout History</button>
+                    </div>
+                    <button class="btn-outline" onclick="exportAuditLogs()"><span class="material-icons-outlined">download</span> Export</button>
+                </div>
+            </div>
+
+            <!-- SYSTEM AUDIT LOGS WRAPPER -->
+            <div id="auditLogsWrap">
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Action</th>
+                                <th>Entity / ID</th>
+                                <th>Performed By</th>
+                                <th>IP Address</th>
+                                <th>Timestamp</th>
+                                <th>Changes Done</th>
+                            </tr>
+                        </thead>
+                        <tbody id="auditLogsBody"><tr><td colspan="6" class="empty">Loading...</td></tr></tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="auditPagination"></div>
+            </div>
+
+            <!-- LOGIN & LOGOUT HISTORY WRAPPER -->
+            <div id="loginHistoryWrap" style="display:none">
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>User Email</th>
+                                <th>Login Time</th>
+                                <th>Logout Time</th>
+                                <th>Login Type / Status</th>
+                                <th>IP Address</th>
+                            </tr>
+                        </thead>
+                        <tbody id="loginHistoryBody"><tr><td colspan="5" class="empty">Loading...</td></tr></tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="loginHistoryPagination"></div>
+            </div>
+        </section>
+
+    </main>
+</div>
+
+<!-- EDIT PERMISSIONS MODAL -->
+<div class="modal-overlay" id="editPermModal">
+    <div class="modal modal-xl">
+        <div class="modal-header">
+            <div>
+                <h3>Edit Permissions</h3>
+                <div class="modal-subtitle" id="epUserLabel"></div>
+            </div>
+            <button class="close-btn" onclick="secCloseModal('editPermModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body" id="epModalBody"></div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="secCloseModal('editPermModal')">Cancel</button>
+            <button class="btn-primary" onclick="saveEditPermissions()"><span class="material-icons-outlined">save</span> Save All Changes</button>
+        </div>
+    </div>
+</div>
+
+<!-- IMPORT EMPLOYEE MODAL -->
+<div class="modal-overlay" id="importEmployeeModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3>Add User from HR Employees</h3>
+            <button class="close-btn" onclick="secCloseModal('importEmployeeModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>Search Employee (by name, email, or code)</label>
+                <input type="text" id="ieSearch" placeholder="Type at least 2 characters..." oninput="searchEmployeesForImport(this.value)" autocomplete="off">
+            </div>
+            <div id="ieResults" class="emp-search-results"></div>
+            <div id="ieSelected" class="emp-selected" style="display:none">
+                <div class="selected-emp-card">
+                    <div><strong id="ieSelName"></strong></div>
+                    <div class="cell-sub" id="ieSelDetails"></div>
+                </div>
+                <button type="button" class="btn-primary" onclick="confirmImportEmployee()">Add as System User</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CREATE USER MODAL -->
+<div class="modal-overlay" id="createUserModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Create User</h3>
+            <button class="close-btn" onclick="secCloseModal('createUserModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="saveUser(event)">
+                <div class="form-row">
+                    <div class="form-group"><label>First Name</label><input type="text" id="cuFirstName" placeholder="First Name"></div>
+                    <div class="form-group"><label>Last Name</label><input type="text" id="cuLastName" placeholder="Last Name"></div>
+                </div>
+                <div class="form-group"><label>Email *</label><input type="email" id="cuEmail" required placeholder="user@company.com"></div>
+                <div class="form-group"><label>Phone</label><input type="tel" id="cuPhone" placeholder="Phone number"></div>
+                <div class="form-group"><label>Password *</label><input type="password" id="cuPassword" required placeholder="Min 6 characters" minlength="6"></div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="secCloseModal('createUserModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Create User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- EDIT USER MODAL -->
+<div class="modal-overlay" id="editUserModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Edit User</h3>
+            <button class="close-btn" onclick="secCloseModal('editUserModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="updateUser(event)">
+                <input type="hidden" id="euId">
+                <div class="form-row">
+                    <div class="form-group"><label>First Name</label><input type="text" id="euFirstName"></div>
+                    <div class="form-group"><label>Last Name</label><input type="text" id="euLastName"></div>
+                </div>
+                <div class="form-group"><label>Phone</label><input type="tel" id="euPhone"></div>
+                <div class="form-group"><label>New Password (leave blank to keep)</label><input type="password" id="euPassword" placeholder="Leave blank to keep current"></div>
+                <div class="form-group"><label>Status</label><select id="euStatus"><option value="true">Active</option><option value="false">Inactive</option></select></div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="secCloseModal('editUserModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- EDIT ACCESS MODAL -->
+<div class="modal-overlay" id="editAccessModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <div>
+                <h3>Edit Module Access</h3>
+                <div class="modal-subtitle" id="eaModule" style="font-weight:600;color:var(--accent)"></div>
+            </div>
+            <button class="close-btn" onclick="secCloseModal('editAccessModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="saveEditAccess(event)">
+                <input type="hidden" id="eaAccessId">
+                <div class="form-group">
+                    <label>Role</label>
+                    <select id="eaRole" class="ep-role-sel">
+                        <option value="module_admin">Module Admin</option>
+                        <option value="editor">Editor</option>
+                        <option value="viewer">Viewer</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Entity Permissions <span class="form-hint" style="display:inline">— changing role above resets to role defaults</span></label>
+                    <div id="eaPermMatrix" class="ep-matrix-wrap"></div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="secCloseModal('editAccessModal')">Cancel</button>
+                    <button type="submit" class="btn-primary"><span class="material-icons-outlined">save</span> Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ASSIGN MODULE MODAL -->
+<div class="modal-overlay" id="assignModuleModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3>Assign User to Module</h3>
+            <button class="close-btn" onclick="secCloseModal('assignModuleModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="saveModuleAssignment(event)">
+                <div class="form-group">
+                    <label>Select User *</label>
+                    <select id="amUserSelect" onchange="onAmUserSelectChange(this.value)">
+                        <option value="">Loading users...</option>
+                    </select>
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:6px;margin-bottom:4px">Or search by name, email, or employee code:</div>
+                    <input type="text" id="amUserSearch" placeholder="Type to search..." oninput="searchUsersForAssign(this.value)" autocomplete="off">
+                    <input type="hidden" id="amUser">
+                    <div id="amUserResults" class="emp-search-results"></div>
+                    <div id="amUserSelected" class="emp-selected-inline" style="display:none;margin-top:6px"><span id="amUserSelLabel"></span><button type="button" class="btn-icon" onclick="clearAmUser()"><span class="material-icons-outlined">close</span></button></div>
+                </div>
+                <div class="form-group">
+                    <label>Select Module *</label>
+                    <select id="amModule" required onchange="loadRolesForModule()"><option value="">Select Module</option></select>
+                </div>
+                <div class="form-group">
+                    <label>Role *</label>
+                    <select id="amRole" required><option value="">Select module first</option></select>
+                </div>
+                <div class="perm-matrix-mini" id="amPermMatrix" style="display:none">
+                    <label>Custom Permissions (override role defaults)</label>
+                    <div id="amPermCheckboxes" class="perm-grid"></div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="secCloseModal('assignModuleModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Assign Access</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- CREATE ROLE MODAL -->
+<div class="modal-overlay" id="createRoleModal">
+    <div class="modal modal-xl">
+        <div class="modal-header">
+            <div>
+                <h3>Create Custom Role</h3>
+                <div class="modal-subtitle">Role will be created for each selected module</div>
+            </div>
+            <button class="close-btn" onclick="secCloseModal('createRoleModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="saveRole(event)">
+                <div class="form-row">
+                    <div class="form-group"><label>Role Name *</label><input type="text" id="crName" required placeholder="e.g. Department Head"></div>
+                    <div class="form-group"><label>Role Code *</label><input type="text" id="crCode" required placeholder="e.g. dept_head"></div>
+                </div>
+                <div class="form-group">
+                    <label>Select Modules * <span class="form-hint" style="display:inline">— choose one or more</span></label>
+                    <div class="cr-module-list" id="crModuleList"></div>
+                </div>
+                <div class="form-group" id="crBaseRoleSection" style="display:none">
+                    <label>Base Permission Template</label>
+                    <select id="crBaseRole" onchange="onBaseRoleSelected()">
+                        <option value="">— Pre-fill from template —</option>
+                        <option value="module_admin">Module Admin (Full Access)</option>
+                        <option value="editor">Editor (View, Create, Edit, Export)</option>
+                        <option value="viewer">Viewer (View, Export only)</option>
+                    </select>
+                    <span class="form-hint">Permissions pre-filled per template — customize per module below.</span>
+                </div>
+                <div id="crModuleBlocks"></div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="secCloseModal('createRoleModal')">Cancel</button>
+                    <button type="submit" class="btn-primary"><span class="material-icons-outlined">save</span> Create Role</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- EDIT ROLE MODAL -->
+<div class="modal-overlay" id="editRoleModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3>Edit Role</h3>
+            <button class="close-btn" onclick="secCloseModal('editRoleModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="updateRole(event)">
+                <input type="hidden" id="erRoleId">
+                <input type="hidden" id="erIsSystem">
+                <div class="form-row">
+                    <div class="form-group"><label>Role Name</label><input type="text" id="erName"></div>
+                    <div class="form-group"><label>Code</label><div class="form-static" id="erCode">-</div></div>
+                </div>
+                <div class="form-group"><label>Module</label><div class="form-static" id="erModule">-</div></div>
+                <div id="erPermMatrix" class="role-perm-matrix"></div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="secCloseModal('editRoleModal')">Cancel</button>
+                    <button type="submit" class="btn-primary" id="erSaveBtn">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- DELETE CONFIRM MODAL -->
+<div class="modal-overlay" id="deleteConfirmModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Confirm Action</h3>
+            <button class="close-btn" onclick="secCloseModal('deleteConfirmModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <p id="deleteConfirmMsg" style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;"></p>
+            <div class="form-group">
+                <label>Enter your password to confirm</label>
+                <input type="password" id="deleteConfirmPassword" placeholder="Your password" autocomplete="off">
+            </div>
+            <div class="login-error" id="deleteError" style="display:none;padding:8px 12px;background:#fbe9e7;color:#d32f2f;border-radius:6px;font-size:12px;margin-bottom:12px;"></div>
+            <div class="form-actions">
+                <button type="button" class="btn-secondary" onclick="secCloseModal('deleteConfirmModal')">Cancel</button>
+                <button type="button" class="btn-primary" style="background:#e53935" id="deleteConfirmBtn" onclick="executeSecDelete()">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- PROFILE MODAL -->
+<div class="modal-overlay" id="profileModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Profile</h3><button class="close-btn" onclick="secCloseModal('profileModal')"><span class="material-icons-outlined">close</span></button></div>
+        <div class="modal-body">
+            <div class="profile-info"><div class="profile-avatar"><span class="material-icons-outlined">person</span></div>
+            <div class="profile-fields"><p><strong>Name:</strong> <span id="profileName">-</span></p><p><strong>Email:</strong> <span id="profileEmail">-</span></p><p><strong>Role:</strong> <span id="profileRole">-</span></p><p><strong>Organization:</strong> <span id="profileOrg">-</span></p></div></div>
+        </div>
+    </div>
+</div>
+
+<!-- ACCOUNT MODAL -->
+<div class="modal-overlay" id="accountModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Account Settings</h3><button class="close-btn" onclick="secCloseModal('accountModal')"><span class="material-icons-outlined">close</span></button></div>
+        <div class="modal-body">
+            <form id="accountForm" onsubmit="updateAccount(event)">
+                <div class="form-group"><label>First Name</label><input type="text" id="accFirstName"></div>
+                <div class="form-group"><label>Last Name</label><input type="text" id="accLastName"></div>
+                <div class="form-group"><label>Phone</label><input type="tel" id="accPhone"></div>
+                <hr><h4>Change Password</h4>
+                <div class="form-group"><label>Current Password</label><input type="password" id="accCurrentPwd"></div>
+                <div class="form-group"><label>New Password</label><input type="password" id="accNewPwd"></div>
+                <div class="form-actions"><button type="button" class="btn-secondary" onclick="secCloseModal('accountModal')">Cancel</button><button type="submit" class="btn-primary">Save</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/header.js"></script>
+<script>requireAuth();</script>
+<script src="/static/js/auth/users.js"></script>
+<script src="/static/js/auth/modules.js"></script>
+<script src="/static/js/auth/roles.js"></script>
+<script src="/static/js/auth/matrix.js"></script>
+<script src="/static/js/auth/audit.js"></script>
+<script src="/static/js/auth/permissions.js"></script>
+<script src="/static/js/auth/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Management - SUPERSYSTEMS</title>
+    <link rel="stylesheet" href="/static/css/header.css">
+    <link rel="stylesheet" href="/static/css/project/project.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+</head>
+<body>
+<header class="header">
+    <div class="header-left">
+        <div class="logo"><img class="logo-light" src="/static/img/light_mode_logo.png" alt="SUPERSYSTEMS" height="36"><img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SUPERSYSTEMS" height="36"><span class="logo-text">SUPERSYSTEMS</span></div>
+        <div class="nav-item services-trigger" onclick="toggleServices()"><span class="material-icons-outlined">apps</span><span>Services</span><span class="material-icons-outlined arrow">expand_more</span></div>
+    </div>
+    <div class="header-center"><div class="search-box"><span class="material-icons-outlined">search</span><input type="text" placeholder="Search services, features..." id="globalSearch" oninput="handleSearch(this.value)"><div class="search-results" id="searchResults"></div></div></div>
+    <div class="header-right">
+        <button class="header-icon-btn" title="Notifications"><span class="material-icons-outlined">notifications</span></button>
+        <button class="header-icon-btn theme-toggle" title="Toggle Dark Mode" onclick="toggleTheme()"><span class="material-icons-outlined icon-light">dark_mode</span><span class="material-icons-outlined icon-dark">light_mode</span></button>
+        <div class="user-menu" id="userMenu"><div class="user-avatar" onclick="toggleUserMenu()"><span class="material-icons-outlined">person</span></div><div class="user-dropdown" id="userDropdown"><a href="#" onclick="openProfile()"><span class="material-icons-outlined">person</span>Profile</a><a href="#" onclick="openAccount()"><span class="material-icons-outlined">manage_accounts</span>Account</a><div class="dropdown-divider"></div><a href="#" onclick="logout()"><span class="material-icons-outlined">logout</span>Logout</a></div></div>
+    </div>
+</header>
+<div class="services-panel" id="servicesPanel"><div class="services-panel-header"><h3>All Services</h3><div style="display:flex;align-items:center;gap:10px"><button class="btn-outline" id="toggleAllServicesBtn" onclick="toggleAllServices()"><span class="material-icons-outlined">unfold_less</span> Collapse All</button><button class="close-btn" onclick="toggleServices()"><span class="material-icons-outlined">close</span></button></div></div><div class="services-grid" id="servicesGrid"></div></div>
+<div class="overlay" id="overlay" onclick="toggleServices()"></div>
+
+<div class="pm-layout">
+    <aside class="pm-sidebar">
+        <div class="sidebar-header"><span class="material-icons-outlined">assignment</span><h3>Project Management</h3></div>
+        <nav class="sidebar-nav">
+            <a href="/" class="sidebar-link"><span class="material-icons-outlined">arrow_back</span>Home</a>
+            <div class="sidebar-divider"></div>
+            <a class="sidebar-link active" data-section="overview" onclick="showSection('overview')"><span class="material-icons-outlined">dashboard</span>Overview</a>
+            <a class="sidebar-link" data-section="projects" onclick="showSection('projects')"><span class="material-icons-outlined">folder_special</span>All Projects</a>
+            <a class="sidebar-link" data-section="addproject" onclick="showSection('addproject')"><span class="material-icons-outlined">add_circle</span>Add Project</a>
+            <a class="sidebar-link" data-section="organizations" onclick="showSection('organizations')"><span class="material-icons-outlined">business</span>Organizations</a>
+            <div class="sidebar-divider"></div>
+            <a class="sidebar-link" data-section="auditlogs" onclick="showSection('auditlogs')"><span class="material-icons-outlined">history</span>Audit Logs</a>
+            <a class="sidebar-link" data-section="moduleusers" onclick="showSection('moduleusers')"><span class="material-icons-outlined">manage_accounts</span>User Management</a>
+        </nav>
+    </aside>
+
+    <main class="pm-content">
+        <!-- OVERVIEW -->
+        <section class="content-section active" id="sec-overview">
+            <div class="section-header"><h2>Overview</h2></div>
+            <div class="overview-stats" id="overviewStats">
+                <div class="stat-card"><span class="material-icons-outlined stat-icon">folder_special</span><div class="stat-info"><div class="stat-value" id="statTotalProjects">-</div><div class="stat-label">Total Projects</div></div></div>
+                <div class="stat-card"><span class="material-icons-outlined stat-icon">play_circle</span><div class="stat-info"><div class="stat-value" id="statOpenProjects">-</div><div class="stat-label">Open / In Progress</div></div></div>
+                <div class="stat-card"><span class="material-icons-outlined stat-icon">check_circle</span><div class="stat-info"><div class="stat-value" id="statCompletedProjects">-</div><div class="stat-label">Completed</div></div></div>
+                <div class="stat-card"><span class="material-icons-outlined stat-icon">task</span><div class="stat-info"><div class="stat-value" id="statTotalTasks">-</div><div class="stat-label">Total Tasks</div></div></div>
+                <div class="stat-card"><span class="material-icons-outlined stat-icon">business</span><div class="stat-info"><div class="stat-value" id="statTotalOrgs">-</div><div class="stat-label">Organizations</div></div></div>
+            </div>
+            <div class="overview-grid">
+                <div class="overview-card"><div class="overview-card-header"><h3>Recent Activity</h3></div><div class="overview-card-body" id="overviewActivity"><div class="empty">Loading...</div></div></div>
+                <div class="overview-card"><div class="overview-card-header"><h3>Quick Actions</h3></div><div class="overview-card-body"><div class="quick-actions">
+                    <button class="quick-action-btn" onclick="showSection('addproject')"><span class="material-icons-outlined">add_circle</span><span>New Project</span></button>
+                    <button class="quick-action-btn" onclick="showSection('organizations')"><span class="material-icons-outlined">business</span><span>Organizations</span></button>
+                    <button class="quick-action-btn" onclick="showSection('projects')"><span class="material-icons-outlined">view_list</span><span>All Projects</span></button>
+                </div></div></div>
+            </div>
+        </section>
+
+        <!-- ALL PROJECTS -->
+        <section class="content-section" id="sec-projects">
+            <div class="section-header"><h2>All Projects</h2></div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead><tr><th>Project #</th><th>Name</th><th>Organization</th><th>Type</th><th>Status</th><th>Start</th><th>Due</th><th>% Complete</th><th>Actions</th></tr></thead>
+                    <tbody id="projectsTableBody"><tr><td colspan="9" class="empty">Loading...</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ADD PROJECT (Tabbed) -->
+        <section class="content-section" id="sec-addproject">
+            <div class="section-header"><h2>Add Project</h2></div>
+            <div class="form-card form-card-wide">
+                <div class="form-tabs">
+                    <button class="form-tab active" onclick="showApTab('overview')">Overview</button>
+                    <button class="form-tab" onclick="showApTab('addresses')">Addresses</button>
+                    <button class="form-tab" onclick="showApTab('contacts')">Contacts</button>
+                </div>
+                <form onsubmit="saveProject(event)">
+                    <div class="tab-panel active" id="apTab-overview">
+                        <div class="form-row"><div class="form-group"><label>Project Name *</label><input type="text" id="apName" required></div><div class="form-group"><label>Project Number *</label><input type="text" id="apNumber" required></div></div>
+                        <div class="form-row"><div class="form-group form-group-wide"><label>Organization *</label><div class="org-select-wrap"><input type="text" id="apOrgSearch" placeholder="Search organization..." oninput="searchOrgsForProject(this.value)" autocomplete="off"><button type="button" class="btn-inline-add" onclick="openAddOrgInline()" title="Add New Organization"><span class="material-icons-outlined">add</span></button></div><div class="org-search-results" id="apOrgResults"></div><div class="org-selected" id="apOrgSelected" style="display:none"><span id="apOrgSelLabel"></span><button type="button" class="btn-clear" onclick="clearOrgSelection()"><span class="material-icons-outlined">close</span></button></div><input type="hidden" id="apOrgId"></div></div>
+                        <div class="form-row"><div class="form-group"><label>Project Type</label><input type="text" id="apType" placeholder="e.g. Internal, Client, R&D"></div><div class="form-group"><label>Status</label><select id="apStatus"><option value="open">Open</option><option value="in_progress">In Progress</option><option value="on_hold">On Hold</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></div></div>
+                        <div class="form-row"><div class="form-group"><label>Start Date</label><input type="date" id="apStart"></div><div class="form-group"><label>Due Date</label><input type="date" id="apDue"></div><div class="form-group"><label>Closing Date</label><input type="date" id="apClosing"></div></div>
+                        <div class="form-row"><div class="form-group"><label>Territory</label><input type="text" id="apTerritory"></div><div class="form-group"><label>Sales Employee</label><input type="text" id="apSales"></div><div class="form-group"><label>Owner</label><input type="text" id="apOwner"></div></div>
+                    </div>
+                    <div class="tab-panel" id="apTab-addresses">
+                        <div class="tab-panel-header"><span>Project Addresses</span><button type="button" class="btn-outline btn-sm" onclick="addApAddress()"><span class="material-icons-outlined">add</span> Add Address</button></div>
+                        <div id="apAddressList" class="repeater-list"></div>
+                    </div>
+                    <div class="tab-panel" id="apTab-contacts">
+                        <div class="tab-panel-header"><span>Project Contacts</span><button type="button" class="btn-outline btn-sm" onclick="addApContact()"><span class="material-icons-outlined">add</span> Add Contact</button></div>
+                        <div id="apContactList" class="repeater-list"></div>
+                    </div>
+                    <div class="form-actions"><button type="submit" class="btn-primary"><span class="material-icons-outlined">save</span> Create Project</button></div>
+                </form>
+            </div>
+        </section>
+
+        <!-- AUDIT LOGS -->
+        <section class="content-section" id="sec-auditlogs">
+            <div class="section-header"><h2>Audit Logs</h2></div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead><tr><th>Action</th><th>Entity</th><th>Performed By</th><th>IP Address</th><th>Timestamp</th></tr></thead>
+                    <tbody id="auditLogsBody"><tr><td colspan="5" class="empty">Loading...</td></tr></tbody>
+                </table>
+            </div>
+            <div class="pagination" id="auditPagination"></div>
+        </section>
+
+        <!-- USER MANAGEMENT -->
+        <section class="content-section" id="sec-moduleusers">
+            <div class="section-header"><h2>User Management</h2><button class="btn-primary" onclick="openAddUserModal()"><span class="material-icons-outlined">person_add</span> Add User</button></div>
+            <div class="module-roles-info">
+                <div class="role-chip role-admin"><span class="material-icons-outlined">admin_panel_settings</span> Module Admin <small>Full control + manage users</small></div>
+                <div class="role-chip role-editor"><span class="material-icons-outlined">edit</span> Editor <small>Create, edit, export</small></div>
+                <div class="role-chip role-viewer"><span class="material-icons-outlined">visibility</span> Viewer <small>View only</small></div>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead><tr><th>User</th><th>Role</th><th>Allowed Sections</th><th>Status</th><th>Granted</th><th>Actions</th></tr></thead>
+                    <tbody id="moduleUsersBody"><tr><td colspan="6" class="empty">Loading...</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ORGANIZATIONS -->
+        <section class="content-section" id="sec-organizations">
+            <div class="section-header"><h2>Organizations</h2><button class="btn-primary" onclick="openAddOrgModal()"><span class="material-icons-outlined">add</span> Add Organization</button></div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead><tr><th>Code</th><th>Name</th><th>Industry</th><th>Phone</th><th>Email</th><th>GST</th><th>Actions</th></tr></thead>
+                    <tbody id="orgsTableBody"><tr><td colspan="7" class="empty">Loading...</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ORGANIZATION DETAIL -->
+        <section class="content-section" id="sec-orgdetail">
+            <div class="section-header">
+                <div><button class="btn-outline btn-sm" onclick="showSection('organizations')"><span class="material-icons-outlined">arrow_back</span> Back</button> <span id="odTitle" style="font-size:18px;font-weight:600;margin-left:8px"></span></div>
+            </div>
+            <div class="org-detail-info" id="odInfo"></div>
+            <h3 style="margin:20px 0 12px">Projects in this Organization</h3>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead><tr><th>Project #</th><th>Name</th><th>Status</th><th>Start</th><th>Due</th><th>Tasks</th></tr></thead>
+                    <tbody id="odProjectsBody"><tr><td colspan="6" class="empty">Loading...</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- PROJECT DETAIL -->
+        <section class="content-section" id="sec-projectdetail">
+            <div class="section-header">
+                <div><button class="btn-outline btn-sm" onclick="showSection('projects')"><span class="material-icons-outlined">arrow_back</span> Back</button> <span id="pdTitle" style="font-size:18px;font-weight:600;margin-left:8px"></span></div>
+                <div class="section-actions"><button class="btn-primary" onclick="openAddTaskModal()"><span class="material-icons-outlined">add_task</span> Add Task</button></div>
+            </div>
+            <!-- Detail Tabs -->
+            <div class="form-tabs" id="pdTabs">
+                <button class="form-tab active" onclick="showPdTab('overview')">Overview</button>
+                <button class="form-tab" onclick="showPdTab('tasks')">Tasks</button>
+
+                <button class="form-tab" onclick="showPdTab('pos')">POs</button>
+            </div>
+            <!-- Overview -->
+            <div class="tab-panel active" id="pdTab-overview"><div id="pdCards"></div></div>
+            <!-- Tasks -->
+            <div class="tab-panel" id="pdTab-tasks">
+                <div class="table-container"><table class="data-table"><thead><tr><th>Task</th><th>Stage</th><th>Owner</th><th>Start</th><th>Due</th><th>Planned Cost</th><th>Invoiced</th><th>% Done</th><th>Status</th><th>Actions</th></tr></thead><tbody id="tasksTableBody"><tr><td colspan="10" class="empty">No tasks</td></tr></tbody></table></div>
+            </div>
+
+            <!-- POs (read-only, from procurement) -->
+            <div class="tab-panel" id="pdTab-pos">
+                <div class="tab-panel-header"><span>Purchase Orders</span><button class="btn-primary btn-sm" onclick="goToAddPO()"><span class="material-icons-outlined">add</span> Create PO in Procurement</button></div>
+                <div class="table-container"><table class="data-table"><thead><tr><th>PO #</th><th>Date</th><th>Customer Part #</th><th>Qty</th><th>Price/Qty</th><th>Total</th><th>ETD</th><th>ETA</th><th>Ship By</th><th>Status</th></tr></thead><tbody id="posTableBody"><tr><td colspan="10" class="empty">No POs</td></tr></tbody></table></div>
+            </div>
+        </section>
+
+
+    </main>
+</div>
+
+<!-- ADD TASK MODAL -->
+<div class="modal-overlay" id="addTaskModal"><div class="modal modal-lg"><div class="modal-header"><h3>Add Task</h3><button class="close-btn" onclick="closeModal('addTaskModal')"><span class="material-icons-outlined">close</span></button></div><div class="modal-body"><form onsubmit="saveTask(event)"><div class="form-group"><label>Task Name *</label><input type="text" id="atName" required></div><div class="form-group"><label>Description</label><textarea id="atDesc" rows="2"></textarea></div><div class="form-row"><div class="form-group"><label>Stage</label><input type="text" id="atStage"></div><div class="form-group"><label>Owner</label><input type="text" id="atOwner"></div></div><div class="form-row"><div class="form-group"><label>Start Date</label><input type="date" id="atStart"></div><div class="form-group"><label>End Date</label><input type="date" id="atEnd"></div><div class="form-group"><label>Due Date</label><input type="date" id="atDue"></div></div><div class="form-row"><div class="form-group"><label>Planned Cost</label><input type="number" id="atCost" step="0.01" value="0"></div><div class="form-group"><label>Invoiced Amount</label><input type="number" id="atInvoiced" step="0.01" value="0"></div><div class="form-group"><label>% Complete</label><input type="number" id="atPct" min="0" max="100" value="0"></div></div><div class="form-group"><label>Dependencies</label><input type="text" id="atDeps"></div><div class="form-actions"><button type="button" class="btn-secondary" onclick="closeModal('addTaskModal')">Cancel</button><button type="submit" class="btn-primary">Add Task</button></div></form></div></div></div>
+
+<!-- EDIT TASK MODAL -->
+<div class="modal-overlay" id="editTaskModal"><div class="modal modal-lg"><div class="modal-header"><h3>Edit Task</h3><button class="close-btn" onclick="closeModal('editTaskModal')"><span class="material-icons-outlined">close</span></button></div><div class="modal-body"><form onsubmit="updateTask(event)"><input type="hidden" id="etId"><div class="form-group"><label>Task Name *</label><input type="text" id="etName" required></div><div class="form-group"><label>Description</label><textarea id="etDesc" rows="2"></textarea></div><div class="form-row"><div class="form-group"><label>Stage</label><input type="text" id="etStage"></div><div class="form-group"><label>Owner</label><input type="text" id="etOwner"></div></div><div class="form-row"><div class="form-group"><label>Start Date</label><input type="date" id="etStart"></div><div class="form-group"><label>End Date</label><input type="date" id="etEnd"></div><div class="form-group"><label>Due Date</label><input type="date" id="etDue"></div></div><div class="form-row"><div class="form-group"><label>Planned Cost</label><input type="number" id="etCost" step="0.01"></div><div class="form-group"><label>Invoiced Amount</label><input type="number" id="etInvoiced" step="0.01"></div><div class="form-group"><label>% Complete</label><input type="number" id="etPct" min="0" max="100"></div></div><div class="form-group"><label>Dependencies</label><input type="text" id="etDeps"></div><div class="form-group"><label>Status</label><select id="etStatus"><option value="open">Open</option><option value="in_progress">In Progress</option><option value="completed">Completed</option><option value="on_hold">On Hold</option></select></div><div class="form-actions"><button type="button" class="btn-secondary" onclick="closeModal('editTaskModal')">Cancel</button><button type="submit" class="btn-primary">Save Changes</button></div></form></div></div></div>
+
+
+
+<!-- ADD ORGANIZATION MODAL -->
+<div class="modal-overlay" id="addOrgModal"><div class="modal modal-lg"><div class="modal-header"><h3>Add Organization</h3><button class="close-btn" onclick="closeModal('addOrgModal')"><span class="material-icons-outlined">close</span></button></div><div class="modal-body"><form onsubmit="saveOrganization(event)"><div class="form-row"><div class="form-group"><label>Organization Name *</label><input type="text" id="aoName" required></div><div class="form-group"><label>Code</label><input type="text" id="aoCode"></div></div><div class="form-row"><div class="form-group"><label>Industry</label><input type="text" id="aoIndustry"></div><div class="form-group"><label>Website</label><input type="text" id="aoWebsite"></div></div><div class="form-row"><div class="form-group"><label>Phone</label><input type="text" id="aoPhone"></div><div class="form-group"><label>Email</label><input type="email" id="aoEmail"></div></div><div class="form-row"><div class="form-group"><label>GST Number</label><input type="text" id="aoGST"></div><div class="form-group"><label>PAN Number</label><input type="text" id="aoPAN"></div></div><div class="form-actions"><button type="button" class="btn-secondary" onclick="closeModal('addOrgModal')">Cancel</button><button type="submit" class="btn-primary">Save Organization</button></div></form></div></div></div>
+
+<!-- EDIT ORGANIZATION MODAL -->
+<div class="modal-overlay" id="editOrgModal"><div class="modal modal-lg"><div class="modal-header"><h3>Edit Organization</h3><button class="close-btn" onclick="closeModal('editOrgModal')"><span class="material-icons-outlined">close</span></button></div><div class="modal-body"><form onsubmit="updateOrganization(event)"><input type="hidden" id="eoId"><div class="form-row"><div class="form-group"><label>Organization Name *</label><input type="text" id="eoName" required></div><div class="form-group"><label>Code</label><input type="text" id="eoCode"></div></div><div class="form-row"><div class="form-group"><label>Industry</label><input type="text" id="eoIndustry"></div><div class="form-group"><label>Website</label><input type="text" id="eoWebsite"></div></div><div class="form-row"><div class="form-group"><label>Phone</label><input type="text" id="eoPhone"></div><div class="form-group"><label>Email</label><input type="email" id="eoEmail"></div></div><div class="form-row"><div class="form-group"><label>GST Number</label><input type="text" id="eoGST"></div><div class="form-group"><label>PAN Number</label><input type="text" id="eoPAN"></div></div><div class="form-actions"><button type="button" class="btn-secondary" onclick="closeModal('editOrgModal')">Cancel</button><button type="submit" class="btn-primary">Update</button></div></form></div></div></div>
+
+<!-- PROFILE / ACCOUNT MODALS -->
+<div class="modal-overlay" id="profileModal"><div class="modal"><div class="modal-header"><h3>Profile</h3><button class="close-btn" onclick="closeModal('profileModal')"><span class="material-icons-outlined">close</span></button></div><div class="modal-body"><div class="profile-info"><div class="profile-avatar"><span class="material-icons-outlined">person</span></div><div class="profile-fields"><p><strong>Name:</strong> <span id="profileName">-</span></p><p><strong>Email:</strong> <span id="profileEmail">-</span></p><p><strong>Role:</strong> <span id="profileRole">-</span></p><p><strong>Organization:</strong> <span id="profileOrg">-</span></p></div></div></div></div></div>
+<div class="modal-overlay" id="accountModal"><div class="modal"><div class="modal-header"><h3>Account Settings</h3><button class="close-btn" onclick="closeModal('accountModal')"><span class="material-icons-outlined">close</span></button></div><div class="modal-body"><form id="accountForm" onsubmit="updateAccount(event)"><div class="form-group"><label>First Name</label><input type="text" id="accFirstName"></div><div class="form-group"><label>Last Name</label><input type="text" id="accLastName"></div><div class="form-group"><label>Phone</label><input type="tel" id="accPhone"></div><hr><h4>Change Password</h4><div class="form-group"><label>Current Password</label><input type="password" id="accCurrentPwd"></div><div class="form-group"><label>New Password</label><input type="password" id="accNewPwd"></div><div class="form-actions"><button type="button" class="btn-secondary" onclick="closeModal('accountModal')">Cancel</button><button type="submit" class="btn-primary">Save</button></div></form></div></div></div>
+
+<!-- ADD MODULE USER MODAL -->
+<div class="modal-overlay" id="addModuleUserModal"><div class="modal modal-lg"><div class="modal-header"><h3>Add User to Project Management</h3><button class="close-btn" onclick="closeModal('addModuleUserModal')"><span class="material-icons-outlined">close</span></button></div><div class="modal-body"><form onsubmit="saveModuleUser(event)"><div class="form-group"><label>Search User (by name, email, or employee code) *</label><input type="text" id="muUserSearch" placeholder="Type to search employees..." oninput="searchEmployeesForProject(this.value)" autocomplete="off"><input type="hidden" id="muUserSelect"><div id="muUserResults" class="emp-search-results"></div><div id="muUserSelected" class="emp-selected-inline" style="display:none"><span id="muUserSelLabel"></span><button type="button" class="btn-icon" onclick="clearMuUser()"><span class="material-icons-outlined">close</span></button></div></div><div class="form-group"><label>Role *</label><select id="muRole" required onchange="onMuRoleChange()"><option value="viewer">Viewer (View only)</option><option value="editor">Editor (Create, edit, export)</option><option value="module_admin">Module Admin (Full control + manage users)</option></select></div><div class="form-group"><label>Allowed Sections <span class="form-hint-inline">(which sidebar items this user can see)</span></label><div class="section-checkboxes" id="muSectionCheckboxes"></div></div><div class="form-group"><label>Entity Permissions <span class="form-hint-inline">(what actions this user can perform)</span></label><div class="perm-matrix-wrap" id="muPermMatrix"></div></div><div class="form-actions"><button type="button" class="btn-secondary" onclick="closeModal('addModuleUserModal')">Cancel</button><button type="submit" class="btn-primary">Grant Access</button></div></form></div></div></div>
+
+<!-- EDIT MODULE USER MODAL -->
+<div class="modal-overlay" id="editModuleUserModal"><div class="modal modal-lg"><div class="modal-header"><h3>Edit User Access</h3><button class="close-btn" onclick="closeModal('editModuleUserModal')"><span class="material-icons-outlined">close</span></button></div><div class="modal-body"><form onsubmit="saveEditModuleUser(event)"><input type="hidden" id="emuAccessId"><div class="form-group"><label>User</label><div class="form-static" id="emuUserName">-</div></div><div class="form-group"><label>Role *</label><select id="emuRole" required onchange="onEmuRoleChange()"><option value="viewer">Viewer</option><option value="editor">Editor</option><option value="module_admin">Module Admin</option></select></div><div class="form-group"><label>Allowed Sections</label><div class="section-checkboxes" id="emuSectionCheckboxes"></div></div><div class="form-group"><label>Entity Permissions</label><div class="perm-matrix-wrap" id="emuPermMatrix"></div></div><div class="form-actions"><button type="button" class="btn-secondary" onclick="closeModal('editModuleUserModal')">Cancel</button><button type="submit" class="btn-primary">Save Changes</button></div></form></div></div></div>
+
+<script src="/static/js/header.js"></script>
+<script>requireAuth();</script>
+<script src="/static/js/project/overview.js"></script>
+<script src="/static/js/project/auditlogs.js"></script>
+<script src="/static/js/project/moduleusers.js"></script>
+<script src="/static/js/project/addproject.js"></script>
+<script src="/static/js/project/projects.js"></script>
+<script src="/static/js/project/organizations.js"></script>
+<script src="/static/js/project/projectdetail.js"></script>
+<script src="/static/js/project/common.js"></script>
+</body>
+</html>

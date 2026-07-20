@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supplier Evaluation - SUPERSYSTEMS</title>
+    <link rel="stylesheet" href="/static/css/header.css">
+    <link rel="stylesheet" href="/static/css/supplier/supplier.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+</head>
+<body>
+<header class="header">
+    <div class="header-left">
+        <div class="logo">
+            <img class="logo-light" src="/static/img/light_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <span class="logo-text">SUPERSYSTEMS</span>
+        </div>
+        <div class="nav-item services-trigger" onclick="toggleServices()">
+            <span class="material-icons-outlined">apps</span><span>Services</span>
+            <span class="material-icons-outlined arrow">expand_more</span>
+        </div>
+    </div>
+    <div class="header-center">
+        <div class="search-box">
+            <span class="material-icons-outlined">search</span>
+            <input type="text" placeholder="Search services..." id="globalSearch" oninput="handleSearch(this.value)">
+            <div class="search-results" id="searchResults"></div>
+        </div>
+    </div>
+    <div class="header-right">
+        <button class="header-icon-btn theme-toggle" onclick="toggleTheme()">
+            <span class="material-icons-outlined icon-light">dark_mode</span>
+            <span class="material-icons-outlined icon-dark">light_mode</span>
+        </button>
+        <div class="user-menu" id="userMenu">
+            <div class="user-avatar" onclick="toggleUserMenu()"><span class="material-icons-outlined">person</span></div>
+            <div class="user-dropdown" id="userDropdown">
+                <a href="#" onclick="logout()"><span class="material-icons-outlined">logout</span>Logout</a>
+            </div>
+        </div>
+    </div>
+</header>
+<div class="services-panel" id="servicesPanel">
+    <div class="services-panel-header">
+        <h3>All Services</h3>
+        <div style="display:flex;align-items:center;gap:10px">
+            <button class="btn-outline" id="toggleAllServicesBtn" onclick="toggleAllServices()"><span class="material-icons-outlined">unfold_less</span> Collapse All</button>
+            <button class="close-btn" onclick="toggleServices()"><span class="material-icons-outlined">close</span></button>
+        </div>
+    </div>
+    <div class="services-grid" id="servicesGrid"></div>
+</div>
+<div class="overlay" id="overlay" onclick="toggleServices()"></div>
+
+<div class="sup-layout">
+    <aside class="sup-sidebar">
+        <div class="sidebar-header">
+            <span class="material-icons-outlined">handshake</span>
+            <h3>Supplier Management</h3>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/" class="sidebar-link"><span class="material-icons-outlined">arrow_back</span>Home</a>
+            <div class="sidebar-divider"></div>
+            <a class="sidebar-link" href="/supplier"><span class="material-icons-outlined">storefront</span>All Suppliers</a>
+            <a class="sidebar-link active" href="/supplier/evaluation"><span class="material-icons-outlined">fact_check</span>Evaluation</a>
+            <a class="sidebar-link" href="/supplier/contracts"><span class="material-icons-outlined">description</span>Contracts</a>
+            <a class="sidebar-link" href="/supplier/performance"><span class="material-icons-outlined">leaderboard</span>Performance</a>
+        </nav>
+    </aside>
+    <main class="sup-content">
+        <div class="section-header">
+            <h2>Supplier Evaluation</h2>
+            <button class="btn-primary" onclick="openAddModal()"><span class="material-icons-outlined">add</span> New Evaluation</button>
+        </div>
+
+        <!-- Filters -->
+        <div class="sup-filter-bar">
+            <div class="sup-search-bar" style="flex:1;margin-bottom:0">
+                <span class="material-icons-outlined">search</span>
+                <input type="text" id="evalSearch" placeholder="Search by supplier name, period..." oninput="filterTable(this.value)">
+            </div>
+            <select id="evalStatusFilter" onchange="filterTable(document.getElementById('evalSearch').value)" style="padding:8px 12px;border:1px solid var(--border-color);border-radius:9px;font-size:13px;background:var(--bg-primary);color:var(--text-primary)">
+                <option value="">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="conditional">Conditional</option>
+                <option value="rejected">Rejected</option>
+            </select>
+            <select id="evalStageFilter" onchange="filterTable(document.getElementById('evalSearch').value)" style="padding:8px 12px;border:1px solid var(--border-color);border-radius:9px;font-size:13px;background:var(--bg-primary);color:var(--text-primary)">
+                <option value="">All Stages</option>
+                <option value="registration">Registration</option>
+                <option value="document_verification">Doc Verification</option>
+                <option value="evaluation">Evaluation</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+            </select>
+        </div>
+
+        <div class="table-container" style="margin-top:14px">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Supplier</th>
+                        <th>Period</th>
+                        <th>Stage</th>
+                        <th>Doc Status</th>
+                        <th>Overall</th>
+                        <th>Quality</th>
+                        <th>Price</th>
+                        <th>Delivery</th>
+                        <th>Capacity</th>
+                        <th>Finance</th>
+                        <th>Experience</th>
+                        <th>Support</th>
+                        <th>Approval</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="evalBody"><tr><td colspan="14" class="empty">Loading...</td></tr></tbody>
+            </table>
+        </div>
+    </main>
+</div>
+
+<!-- ADD EVALUATION MODAL -->
+<div class="modal-overlay" id="addEvalModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3 id="evalModalTitle">New Evaluation</h3>
+            <button class="close-btn" onclick="closeModal('addEvalModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="saveEval(event)">
+                <input type="hidden" id="evalId">
+                <input type="hidden" id="evalSupplierId">
+                <div class="form-row">
+                    <div class="form-group" style="position:relative">
+                        <label>Supplier *</label>
+                        <input type="text" id="evalSupplierSearch" placeholder="Type to search supplier..." autocomplete="off" oninput="searchSupplier(this.value)" required>
+                        <div id="evalSupplierDropdown" class="item-search-dropdown" style="display:none"></div>
+                        <div id="evalSupplierSelected" style="font-size:12px;color:var(--accent);margin-top:4px"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Period</label>
+                        <input type="text" id="evalPeriod" placeholder="Q1 2026">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Evaluation Date</label>
+                        <input type="date" id="evalDate">
+                    </div>
+                    <div class="form-group">
+                        <label>Workflow Stage</label>
+                        <select id="evalStage">
+                            <option value="registration">Registration</option>
+                            <option value="document_verification">Document Verification</option>
+                            <option value="evaluation" selected>Supplier Evaluation</option>
+                            <option value="approved">Approved</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Doc Verification</label>
+                        <select id="evalDocStatus">
+                            <option value="verified">Verified</option>
+                            <option value="pending">Pending</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Approval Status</label>
+                        <select id="evalApproval">
+                            <option value="pending">Pending</option>
+                            <option value="approved">Approved</option>
+                            <option value="conditional">Conditional</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="font-size:12px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Scores (0–100)</div>
+                <div class="form-row-3">
+                    <div class="form-group"><label>Quality</label><input type="number" id="evalQ" min="0" max="100" step="0.1" placeholder="0"></div>
+                    <div class="form-group"><label>Price</label><input type="number" id="evalP" min="0" max="100" step="0.1" placeholder="0"></div>
+                    <div class="form-group"><label>Delivery</label><input type="number" id="evalD" min="0" max="100" step="0.1" placeholder="0"></div>
+                </div>
+                <div class="form-row-3">
+                    <div class="form-group"><label>Capacity</label><input type="number" id="evalC" min="0" max="100" step="0.1" placeholder="0"></div>
+                    <div class="form-group"><label>Financial</label><input type="number" id="evalF" min="0" max="100" step="0.1" placeholder="0"></div>
+                    <div class="form-group"><label>Experience</label><input type="number" id="evalE" min="0" max="100" step="0.1" placeholder="0"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Technical Support</label><input type="number" id="evalT" min="0" max="100" step="0.1" placeholder="0"></div>
+                    <div class="form-group"><label>Overall Score <span style="color:var(--text-muted);font-weight:400">(auto if 0)</span></label><input type="number" id="evalOverall" min="0" max="100" step="0.1" placeholder="auto"></div>
+                </div>
+                <div class="form-group"><label>Comments</label><textarea id="evalComments" rows="2"></textarea></div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('addEvalModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Evaluation</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- DELETE CONFIRM -->
+<div class="modal-overlay" id="deleteModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Confirm Delete</h3><button class="close-btn" onclick="closeModal('deleteModal')"><span class="material-icons-outlined">close</span></button></div>
+        <div class="modal-body">
+            <p id="deleteMsg" style="font-size:13px;color:var(--text-secondary);margin-bottom:16px"></p>
+            <div class="form-actions">
+                <button class="btn-secondary" onclick="closeModal('deleteModal')">Cancel</button>
+                <button class="btn-primary" style="background:#e53935" id="deleteConfirmBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="sup-toast" id="supToast"></div>
+<script src="/static/js/header.js"></script>
+<script src="/static/js/supplier/common.js"></script>
+<script src="/static/js/supplier/supplier_evaluation.js"></script>
+</body>
+</html>

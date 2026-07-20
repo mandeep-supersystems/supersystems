@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procurement - SUPERSYSTEMS</title>
+    <link rel="stylesheet" href="/static/css/header.css">
+    <link rel="stylesheet" href="/static/css/procurement/procurement.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+</head>
+<body>
+<header class="header">
+    <div class="header-left">
+        <div class="logo"><img class="logo-light" src="/static/img/light_mode_logo.png" alt="SUPERSYSTEMS" height="36"><img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SUPERSYSTEMS" height="36"><span class="logo-text">SUPERSYSTEMS</span></div>
+        <div class="nav-item services-trigger" onclick="toggleServices()"><span class="material-icons-outlined">apps</span><span>Services</span><span class="material-icons-outlined arrow">expand_more</span></div>
+    </div>
+    <div class="header-center"><div class="search-box"><span class="material-icons-outlined">search</span><input type="text" placeholder="Search services, features..." id="globalSearch" oninput="handleSearch(this.value)"><div class="search-results" id="searchResults"></div></div></div>
+    <div class="header-right">
+        <button class="header-icon-btn" title="Notifications"><span class="material-icons-outlined">notifications</span></button>
+        <button class="header-icon-btn theme-toggle" title="Toggle Dark Mode" onclick="toggleTheme()"><span class="material-icons-outlined icon-light">dark_mode</span><span class="material-icons-outlined icon-dark">light_mode</span></button>
+        <div class="user-menu" id="userMenu"><div class="user-avatar" onclick="toggleUserMenu()"><span class="material-icons-outlined">person</span></div><div class="user-dropdown" id="userDropdown"><a href="#" onclick="openProfile()"><span class="material-icons-outlined">person</span>Profile</a><a href="#" onclick="openAccount()"><span class="material-icons-outlined">manage_accounts</span>Account</a><div class="dropdown-divider"></div><a href="#" onclick="logout()"><span class="material-icons-outlined">logout</span>Logout</a></div></div>
+    </div>
+</header>
+<div class="services-panel" id="servicesPanel"><div class="services-panel-header"><h3>All Services</h3><div style="display:flex;align-items:center;gap:10px"><button class="btn-outline" id="toggleAllServicesBtn" onclick="toggleAllServices()"><span class="material-icons-outlined">unfold_less</span> Collapse All</button><button class="close-btn" onclick="toggleServices()"><span class="material-icons-outlined">close</span></button></div></div><div class="services-grid" id="servicesGrid"></div></div>
+<div class="overlay" id="overlay" onclick="toggleServices()"></div>
+
+<div class="pm-layout">
+    <aside class="pm-sidebar">
+        <div class="sidebar-header"><span class="material-icons-outlined">shopping_cart</span><h3>Procurement</h3></div>
+        <nav class="sidebar-nav">
+            <a href="/" class="sidebar-link"><span class="material-icons-outlined">arrow_back</span>Home</a>
+            <div class="sidebar-divider"></div>
+            <a class="sidebar-link active" data-section="purchaseorders" onclick="showSection('purchaseorders')"><span class="material-icons-outlined">receipt_long</span>Purchase Orders</a>
+            <a class="sidebar-link" data-section="addpo" onclick="showSection('addpo')"><span class="material-icons-outlined">add_circle</span>Add Purchase Order</a>
+            <div class="sidebar-divider"></div>
+            <a class="sidebar-link disabled"><span class="material-icons-outlined">description</span>Requisitions<span class="soon-badge">Soon</span></a>
+            <a class="sidebar-link disabled"><span class="material-icons-outlined">inventory</span>Goods Receipt<span class="soon-badge">Soon</span></a>
+            <a class="sidebar-link disabled"><span class="material-icons-outlined">request_quote</span>Vendor Invoices<span class="soon-badge">Soon</span></a>
+        </nav>
+    </aside>
+
+    <main class="pm-content">
+        <!-- PURCHASE ORDERS LIST -->
+        <section class="content-section active" id="sec-purchaseorders">
+            <div class="section-header"><h2>Purchase Orders</h2></div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead><tr><th>PO #</th><th>Date</th><th>Project</th><th>Items</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody id="poTableBody"><tr><td colspan="7" class="empty">Loading...</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- PO DETAIL PAGE -->
+        <section class="content-section" id="sec-podetail">
+            <div class="section-header">
+                <div><button class="btn-outline btn-sm" onclick="showSection('purchaseorders')"><span class="material-icons-outlined">arrow_back</span> Back</button> <span id="pdPoTitle" style="font-size:18px;font-weight:600;margin-left:8px"></span></div>
+            </div>
+            <div class="po-detail-header" id="pdPoInfo"></div>
+            <h3 style="margin:20px 0 12px">Line Items</h3>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead><tr><th>#</th><th>Customer Part #</th><th>Part Code</th><th>Description</th><th>Qty</th><th>Unit</th><th>Price/Qty</th><th>Total</th><th>ETD</th><th>ETA</th><th>Deliver By</th><th>Location</th></tr></thead>
+                    <tbody id="pdPoLinesBody"><tr><td colspan="12" class="empty">No line items</td></tr></tbody>
+                </table>
+            </div>
+            <div class="po-total-row" id="pdPoTotal"></div>
+        </section>
+
+        <!-- ADD PO -->
+        <section class="content-section" id="sec-addpo">
+            <div class="section-header"><h2>Add Purchase Order</h2></div>
+            <div class="form-card form-card-wide">
+                <form onsubmit="savePO(event)">
+                    <div class="form-row">
+                        <div class="form-group"><label>PO Number *</label><input type="text" id="poNum" required></div>
+                        <div class="form-group"><label>PO Date</label><input type="date" id="poDate"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Project *</label>
+                        <div class="org-select-wrap">
+                            <input type="text" id="poProjSearch" placeholder="Search project..." oninput="searchProjectsForPO(this.value)" autocomplete="off">
+                        </div>
+                        <div class="org-search-results" id="poProjResults"></div>
+                        <div class="org-selected" id="poProjSelected" style="display:none">
+                            <span id="poProjSelLabel"></span>
+                            <button type="button" class="btn-clear" onclick="clearProjSelection()"><span class="material-icons-outlined">close</span></button>
+                        </div>
+                        <input type="hidden" id="poProjId">
+                        <input type="hidden" id="poOrgId">
+                    </div>
+                    <!-- LINE ITEMS -->
+                    <div class="line-items-section">
+                        <div class="tab-panel-header"><span>Line Items (Parts)</span><button type="button" class="btn-outline btn-sm" onclick="addLineItem()"><span class="material-icons-outlined">add</span> Add Part</button></div>
+                        <div id="poLineItems" class="repeater-list"></div>
+                        <div class="po-total-row"><strong>PO Total: ₹<span id="poGrandTotal">0.00</span></strong></div>
+                    </div>
+                    <div class="form-group"><label>Remarks</label><textarea id="poRemarks" rows="2"></textarea></div>
+                    <div class="form-actions"><button type="submit" class="btn-primary"><span class="material-icons-outlined">save</span> Create PO</button></div>
+                </form>
+            </div>
+        </section>
+    </main>
+</div>
+
+<!-- EDIT PO MODAL -->
+<div class="modal-overlay" id="editPOModal">
+    <div class="modal modal-xl">
+        <div class="modal-header"><h3>Edit Purchase Order</h3><button class="close-btn" onclick="closeModal('editPOModal')"><span class="material-icons-outlined">close</span></button></div>
+        <div class="modal-body">
+            <form onsubmit="updatePO(event)">
+                <input type="hidden" id="epId">
+                <div class="form-row"><div class="form-group"><label>PO Number</label><input type="text" id="epNum" readonly></div><div class="form-group"><label>PO Date</label><input type="date" id="epDate"></div></div>
+                <div class="line-items-section">
+                    <div class="tab-panel-header"><span>Line Items</span><button type="button" class="btn-outline btn-sm" onclick="addEditLineItem()"><span class="material-icons-outlined">add</span> Add Part</button></div>
+                    <div id="epLineItems" class="repeater-list"></div>
+                    <div class="po-total-row"><strong>Total: ₹<span id="epGrandTotal">0.00</span></strong></div>
+                </div>
+                <div class="form-group"><label>Status</label><select id="epStatus"><option value="open">Open</option><option value="confirmed">Confirmed</option><option value="shipped">Shipped</option><option value="delivered">Delivered</option><option value="closed">Closed</option><option value="cancelled">Cancelled</option></select></div>
+                <div class="form-group"><label>Remarks</label><textarea id="epRemarks" rows="2"></textarea></div>
+                <div class="form-actions"><button type="button" class="btn-secondary" onclick="closeModal('editPOModal')">Cancel</button><button type="submit" class="btn-primary">Save Changes</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- VIEW PO MODAL -->
+<div class="modal-overlay" id="viewPOModal">
+    <div class="modal modal-xl">
+        <div class="modal-header"><h3>Purchase Order Details</h3><button class="close-btn" onclick="closeModal('viewPOModal')"><span class="material-icons-outlined">close</span></button></div>
+        <div class="modal-body" id="viewPOBody"></div>
+    </div>
+</div>
+
+<!-- PROFILE / ACCOUNT MODALS -->
+<div class="modal-overlay" id="profileModal"><div class="modal"><div class="modal-header"><h3>Profile</h3><button class="close-btn" onclick="closeModal('profileModal')"><span class="material-icons-outlined">close</span></button></div><div class="modal-body"><div class="profile-info"><div class="profile-avatar"><span class="material-icons-outlined">person</span></div><div class="profile-fields"><p><strong>Name:</strong> <span id="profileName">-</span></p><p><strong>Email:</strong> <span id="profileEmail">-</span></p><p><strong>Role:</strong> <span id="profileRole">-</span></p><p><strong>Organization:</strong> <span id="profileOrg">-</span></p></div></div></div></div></div>
+<div class="modal-overlay" id="accountModal"><div class="modal"><div class="modal-header"><h3>Account Settings</h3><button class="close-btn" onclick="closeModal('accountModal')"><span class="material-icons-outlined">close</span></button></div><div class="modal-body"><form id="accountForm" onsubmit="updateAccount(event)"><div class="form-group"><label>First Name</label><input type="text" id="accFirstName"></div><div class="form-group"><label>Last Name</label><input type="text" id="accLastName"></div><div class="form-group"><label>Phone</label><input type="tel" id="accPhone"></div><hr><h4>Change Password</h4><div class="form-group"><label>Current Password</label><input type="password" id="accCurrentPwd"></div><div class="form-group"><label>New Password</label><input type="password" id="accNewPwd"></div><div class="form-actions"><button type="button" class="btn-secondary" onclick="closeModal('accountModal')">Cancel</button><button type="submit" class="btn-primary">Save</button></div></form></div></div></div>
+
+<script src="/static/js/header.js"></script>
+<script>requireAuth();</script>
+<script src="/static/js/procurement/purchaseorders.js"></script>
+<script src="/static/js/procurement/common.js"></script>
+</body>
+</html>
