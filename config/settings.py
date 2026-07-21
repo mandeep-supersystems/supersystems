@@ -1,5 +1,7 @@
 import os
 from datetime import timedelta
+from dotenv import load_dotenv
+load_dotenv()
 
 
 class BaseConfig:
@@ -16,7 +18,7 @@ class BaseConfig:
 class DevelopmentConfig(BaseConfig):
     DEBUG = True
     SQLALCHEMY_DATABASE_URI = os.getenv(
-        "DATABASE_URL", "postgresql://postgres:Rewari%40123@localhost:5432/SUPERSYSTEM"
+        "DATABASE_URL", "postgresql://postgres:Manesar123@localhost:5432/supersystem"
     )
     CACHE_TYPE = "SimpleCache"
     RATELIMIT_STORAGE_URI = "memory://"
