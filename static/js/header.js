@@ -55,33 +55,41 @@ const services = [
     {
         name: "Inventory Management",
         icon: "inventory_2",
-        comingSoon: true,
+        comingSoon: false,
+        route: "/inventory",
         items: [
-            "Stock Levels",
-            "Stock Movements",
-            "Stock Transfers",
-            "Stock Adjustments",
-            "Stock Counts",
-            "Batch Tracking",
-            "Serial Number Tracking",
-            "Reorder Management",
-            "Inventory Valuation",
-            "Inventory Reports"
+            { label: "Overview", route: "/inventory/overview" },
+            { label: "Stock Check-In", route: "/inventory/checkin" },
+            { label: "Stock Levels", route: "/inventory/stocklevels" },
+            { label: "Hierarchical Locations", route: "/inventory/locations" },
+            { label: "Stock Movements", route: "/inventory/stockmovements" },
+            { label: "Stock Transfers", route: "/inventory/transfers" },
+            { label: "Stock Adjustments", route: "/inventory/adjustments" },
+            { label: "Stock Counts", route: "/inventory/counts" },
+            { label: "Batch Tracking", route: "/inventory/batches" },
+            { label: "Serial Numbers", route: "/inventory/serials" },
+            { label: "Reorder Rules", route: "/inventory/reorder" },
+            { label: "Valuation & Reports", route: "/inventory/reports" },
+            { label: "Audit Logs", route: "/inventory/auditlogs" },
+            { label: "Module Users", route: "/inventory/moduleusers" }
         ]
     },
     {
         name: "Warehouse Management",
         icon: "warehouse",
-        comingSoon: true,
+        comingSoon: false,
+        route: "/warehouse",
         items: [
-            "Warehouse Zones",
-            "Bin Management",
-            "Pick Lists",
-            "Putaway",
-            "Packing",
-            "Shipping",
-            "Receiving",
-            "Warehouse Reports"
+            { label: "Overview", route: "/warehouse/overview" },
+            { label: "Warehouse Zones", route: "/warehouse/zones" },
+            { label: "Bin Management", route: "/warehouse/bins" },
+            { label: "Pick Lists", route: "/warehouse/picklists" },
+            { label: "Putaway", route: "/warehouse/putaway" },
+            { label: "Packing", route: "/warehouse/packing" },
+            { label: "Shipping", route: "/warehouse/shipping" },
+            { label: "Receiving", route: "/warehouse/receiving" },
+            { label: "Audit Logs", route: "/warehouse/auditlogs" },
+            { label: "Module Users", route: "/warehouse/moduleusers" }
         ]
     },
     {
@@ -119,16 +127,48 @@ const services = [
     {
         name: "Manufacturing",
         icon: "factory",
-        comingSoon: true,
+        comingSoon: false,
+        route: "/manufacturing",
         items: [
-            "Bill of Materials",
-            "Production Orders",
-            "Work Centers",
-            "Routing",
-            "Shop Floor Control",
-            "Production Planning",
-            "Capacity Planning",
-            "Manufacturing Reports"
+            { label: "Overview", route: "/manufacturing/overview" },
+            { label: "Bill of Materials", route: "/manufacturing/bom" },
+            { label: "Production Orders", route: "/manufacturing/productionorders" },
+            { label: "Work Centers", route: "/manufacturing/workcenters" },
+            { label: "Process Routings", route: "/manufacturing/routing" },
+            { label: "Shop Floor Control", route: "/manufacturing/shopfloor" },
+            { label: "Production Planning", route: "/manufacturing/planning" },
+            { label: "Capacity Planning", route: "/manufacturing/capacity" },
+            { label: "Audit Logs", route: "/manufacturing/auditlogs" },
+            { label: "Module Users", route: "/manufacturing/moduleusers" }
+        ]
+    },
+    {
+        name: "Quality Management",
+        icon: "verified",
+        comingSoon: false,
+        route: "/quality",
+        items: [
+            { label: "Overview", route: "/quality/overview" },
+            { label: "Incoming Quality Control (IQC)", route: "/quality/iqc" },
+            { label: "IQC Criteria Master", route: "/quality/criteria" },
+            { label: "Non-Conformance Reports (NCR)", route: "/quality/ncr" },
+            { label: "Audit Logs", route: "/quality/auditlogs" },
+            { label: "Module Users", route: "/quality/moduleusers" }
+        ]
+    },
+    {
+        name: "Purchase Management",
+        icon: "shopping_cart",
+        comingSoon: false,
+        route: "/purchase",
+        items: [
+            { label: "Overview", route: "/purchase/overview" },
+            { label: "Demand & Stock", route: "/purchase/demand" },
+            { label: "Supplier SOP & SQP", route: "/purchase/suppliers" },
+            { label: "Req Orders (Requisitions)", route: "/purchase/requisitions" },
+            { label: "Purchase Orders & Lead Time", route: "/purchase/orders" },
+            { label: "Audit Logs", route: "/purchase/auditlogs" },
+            { label: "Module Users", route: "/purchase/moduleusers" }
         ]
     },
     {
@@ -177,15 +217,15 @@ const services = [
     {
         name: "Quality Management",
         icon: "verified",
-        comingSoon: true,
+        comingSoon: false,
+        route: "/quality",
         items: [
-            "Quality Inspections",
-            "Non-Conformances",
-            "CAPA",
-            "Quality Plans",
-            "Inspection Lots",
-            "Quality Certificates",
-            "Quality Reports"
+            { label: "Overview", route: "/quality/overview" },
+            { label: "Incoming Quality Control (IQC)", route: "/quality/iqc" },
+            { label: "IQC Criteria Master", route: "/quality/criteria" },
+            { label: "Non-Conformance Reports (NCR)", route: "/quality/ncr" },
+            { label: "Audit Logs", route: "/quality/auditlogs" },
+            { label: "Module Users", route: "/quality/moduleusers" }
         ]
     },
     {
@@ -286,16 +326,18 @@ const services = [
     },
     // ─── ROW 4+ ───
     {
-        name: "Procurement",
+        name: "Procurement / Purchase",
         icon: "shopping_cart",
         comingSoon: false,
-        route: "/procurement",
+        route: "/purchase",
         items: [
-            { label: "Purchase Orders", route: "/procurement/purchaseorders" },
-            { label: "Add Purchase Order", route: "/procurement/addpo" },
-            "Requisitions",
-            "Goods Receipt",
-            "Vendor Invoices"
+            { label: "Overview", route: "/purchase/overview" },
+            { label: "Demand & Stock", route: "/purchase/demand" },
+            { label: "Supplier SOP & SQP", route: "/purchase/suppliers" },
+            { label: "Req Orders (Requisitions)", route: "/purchase/requisitions" },
+            { label: "Purchase Orders & Lead Time", route: "/purchase/orders" },
+            { label: "Audit Logs", route: "/purchase/auditlogs" },
+            { label: "Module Users", route: "/purchase/moduleusers" }
         ]
     },
     {
@@ -390,7 +432,12 @@ async function renderServices() {
     } catch (e) { /* fail open */ }
 
     const visibleServices = allowedModules === null ? services : services.filter(svc => {
-        return allowedModules.has(svc.name);
+        if (allowedModules.has(svc.name)) return true;
+        if ((svc.name.includes('Purchase') || svc.name.includes('Procurement')) && 
+            (allowedModules.has('Purchase Management') || allowedModules.has('Purchase') || allowedModules.has('Procurement') || allowedModules.has('Procurement / Purchase'))) {
+            return true;
+        }
+        return false;
     });
 
     grid.innerHTML = visibleServices.map((service, i) => `
@@ -442,15 +489,17 @@ function toggleAllServices() {
 }
 
 // Toggle services panel
+// Toggle services panel
 function toggleServices() {
-    const panel = document.getElementById('servicesPanel');
+    const panel = document.getElementById('servicesPanel') || document.getElementById('servicesDrawer');
     const overlay = document.getElementById('overlay');
-    const trigger = document.querySelector('.services-trigger');
-    const isActive = panel.classList.contains('active');
+    const trigger = document.querySelector('.services-trigger') || document.querySelector('.services-btn');
+
+    if (!panel) return;
 
     panel.classList.toggle('active');
-    overlay.classList.toggle('active');
-    trigger.classList.toggle('active');
+    if (overlay) overlay.classList.toggle('active');
+    if (trigger) trigger.classList.toggle('active');
 }
 
 // Global search
@@ -512,8 +561,8 @@ function handleSearch(query) {
 document.addEventListener('click', function (e) {
     const searchBox = document.querySelector('.search-box');
     const resultsEl = document.getElementById('searchResults');
-    if (!searchBox.contains(e.target)) {
-        resultsEl.classList.remove('active');
+    if (searchBox && searchBox.contains && !searchBox.contains(e.target)) {
+        if (resultsEl) resultsEl.classList.remove('active');
     }
 });
 
@@ -528,21 +577,22 @@ function toggleTheme() {
 
 // ─── USER MENU ───
 function toggleUserMenu() {
-    document.getElementById('userDropdown').classList.toggle('active');
+    const d = document.getElementById('userDropdown');
+    if (d) d.classList.toggle('active');
 }
 
 // Close dropdown on outside click
 document.addEventListener('click', function(e) {
     const menu = document.getElementById('userMenu');
     const dropdown = document.getElementById('userDropdown');
-    if (menu && !menu.contains(e.target)) {
+    if (menu && !menu.contains(e.target) && dropdown) {
         dropdown.classList.remove('active');
     }
 });
 
 // ─── MODAL HELPERS ───
-function openModal(id) { document.getElementById(id).classList.add('active'); }
-function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+function openModal(id) { const el = document.getElementById(id); if (el) el.classList.add('active'); }
+function closeModal(id) { const el = document.getElementById(id); if (el) el.classList.remove('active'); }
 
 // ─── PROFILE ───
 function openProfile() {
@@ -635,7 +685,8 @@ async function logout() {
 }
 
 function closeUserDropdown() {
-    document.getElementById('userDropdown').classList.remove('active');
+    const d = document.getElementById('userDropdown');
+    if (d) d.classList.remove('active');
 }
 
 // ─── USER STORAGE KEY HELPER ───

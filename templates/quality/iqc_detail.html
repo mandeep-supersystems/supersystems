@@ -174,12 +174,13 @@
 
 <script src="/static/js/header.js"></script>
 <script>requireAuth();</script>
+<script src="/static/js/quality/common.js"></script>
 <script>
 const CID = "{{ checkin_id }}";
 
 async function loadIqcDetail() {
     try {
-        const res = await fetch('/api/v1/quality/iqc/' + CID);
+        const res = await fetch('/api/v1/quality/iqc/' + CID, { headers: HEADERS });
         const json = await res.json();
         if (json.success && json.data) {
             const d = json.data;
@@ -230,7 +231,7 @@ async function submitIqcInspectionPage(e) {
     try {
         const res = await fetch(`/api/v1/quality/iqc/${CID}/inspect`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: HEADERS,
             body: JSON.stringify(payload)
         });
         const json = await res.json();

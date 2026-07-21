@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manufacturing Management - SUPERSYSTEMS</title>
+    <link rel="stylesheet" href="/static/css/header.css">
+    <link rel="stylesheet" href="/static/css/inventory/inventory.css">
+    <link rel="stylesheet" href="/static/css/manufacturing/manufacturing.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+</head>
+<body>
+
+<!-- FIXED HEADER -->
+<header class="header">
+    <div class="header-left">
+        <div class="logo">
+            <img class="logo-light" src="/static/img/light_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <span class="logo-text">SUPERSYSTEMS</span>
+        </div>
+        <div class="nav-item services-trigger" onclick="toggleServices()">
+            <span class="material-icons-outlined">apps</span>
+            <span>Services</span>
+            <span class="material-icons-outlined arrow">expand_more</span>
+        </div>
+    </div>
+    <div class="header-center">
+        <div class="search-box">
+            <span class="material-icons-outlined">search</span>
+            <input type="text" placeholder="Search production orders, BOMs, routings..." id="globalSearch">
+        </div>
+    </div>
+    <div class="header-right">
+        <button class="header-icon-btn theme-toggle" title="Toggle Dark Mode" onclick="toggleTheme()">
+            <span class="material-icons-outlined icon-light">dark_mode</span>
+            <span class="material-icons-outlined icon-dark">light_mode</span>
+        </button>
+        <div class="user-menu" id="userMenu">
+            <div class="user-avatar" onclick="toggleUserMenu()">
+                <span class="material-icons-outlined">person</span>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- MAIN LAYOUT -->
+<div class="manufacturing-layout">
+    <!-- SIDEBAR -->
+    <aside class="manufacturing-sidebar">
+        <div class="sidebar-header">
+            <span class="material-icons-outlined">precision_manufacturing</span>
+            <h3>Manufacturing</h3>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/" class="sidebar-link">
+                <span class="material-icons-outlined">arrow_back</span>Home
+            </a>
+            <div class="sidebar-divider"></div>
+            <a class="sidebar-link" data-section="overview" onclick="showSection('overview')">
+                <span class="material-icons-outlined">dashboard</span>Overview
+            </a>
+            <a class="sidebar-link" data-section="bom" onclick="showSection('bom')">
+                <span class="material-icons-outlined">account_tree</span>Bill of Materials (BOM)
+            </a>
+            <a class="sidebar-link" data-section="productionorders" onclick="showSection('productionorders')">
+                <span class="material-icons-outlined">assignment</span>Production Orders
+            </a>
+            <a class="sidebar-link" data-section="workcenters" onclick="showSection('workcenters')">
+                <span class="material-icons-outlined">build_circle</span>Work Centers & MHR
+            </a>
+            <a class="sidebar-link" data-section="routing" onclick="showSection('routing')">
+                <span class="material-icons-outlined">alt_route</span>Routings (-01 to -80)
+            </a>
+            <a class="sidebar-link" data-section="shopfloor" onclick="showSection('shopfloor')">
+                <span class="material-icons-outlined">precision_manufacturing</span>Shop Floor Control
+            </a>
+            <a class="sidebar-link" data-section="planning" onclick="showSection('planning')">
+                <span class="material-icons-outlined">calendar_today</span>Production Planning
+            </a>
+            <a class="sidebar-link" data-section="capacity" onclick="showSection('capacity')">
+                <span class="material-icons-outlined">speed</span>Capacity Planning
+            </a>
+            <a class="sidebar-link" data-section="reports" onclick="showSection('reports')">
+                <span class="material-icons-outlined">bar_chart</span>Manufacturing Reports
+            </a>
+            <div class="sidebar-divider"></div>
+            <a class="sidebar-link" data-section="auditlogs" onclick="showSection('auditlogs')">
+                <span class="material-icons-outlined">history</span>Audit Logs
+            </a>
+            <a class="sidebar-link" data-section="moduleusers" onclick="showSection('moduleusers')">
+                <span class="material-icons-outlined">people</span>Module Users
+            </a>
+        </nav>
+    </aside>
+
+    <!-- CONTENT -->
+    <main class="manufacturing-content">
+<section id="sec-productionorders" class="content-section active">
+
+            <div class="section-header">
+                <h2>Production Orders</h2>
+                <button class="btn-primary" onclick="openNewProductionOrderModal()"><span class="material-icons-outlined">add</span>Create Production Order</button>
+            </div>
+            <div class="card">
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Order No</th>
+                                <th>FG Part (-99)</th>
+                                <th>Planned Qty</th>
+                                <th>Produced Qty</th>
+                                <th>Rejected (NG)</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ordersBody">
+                            <tr><td colspan="7" style="text-align:center;">Loading production orders...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        
+</section>
+</main>
+</div>
+
+<!-- TOAST & MODAL -->
+<div id="toast" class="part-toast"></div>
+
+<div class="modal-overlay" id="manufacturingModalOverlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="modalTitle">Manufacturing Modal</h3>
+            <span class="material-icons-outlined modal-close" onclick="closeModal()">close</span>
+        </div>
+        <div class="modal-body" id="modalBody"></div>
+    </div>
+</div>
+
+<!-- ADD MODULE USER MODAL -->
+<div class="modal-overlay" id="addModuleUserModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3>Add User Access to Manufacturing Management</h3>
+            <button class="close-btn" onclick="closeModal('addModuleUserModal')">
+                <span class="material-icons-outlined">close</span>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="saveModuleUser(event)">
+                <div class="form-group">
+                    <label>Search User (by name, email, or employee code) *</label>
+                    <input type="text" id="muUserSearch" placeholder="Type to search employees..." oninput="searchEmployeesForModule(this.value)" autocomplete="off">
+                    <input type="hidden" id="muUserSelect">
+                    <div id="muUserResults" class="emp-search-results"></div>
+                    <div id="muUserSelected" class="emp-selected-inline" style="display:none"><span id="muUserSelLabel"></span><button type="button" class="btn-icon" onclick="clearMuUser()"><span class="material-icons-outlined">close</span></button></div>
+                </div>
+                <div class="form-group">
+                    <label>Role *</label>
+                    <select id="muRole" required onchange="onMuRoleChange()">
+                        <option value="viewer">Viewer (View & export only)</option>
+                        <option value="editor">Editor (Create, edit, export, import)</option>
+                        <option value="module_admin">Module Admin (Full control + manage users)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Allowed Sections <span class="form-hint-inline">(sidebar items visible to user)</span></label>
+                    <div class="section-checkboxes" id="muSectionCheckboxes"></div>
+                </div>
+                <div class="form-group">
+                    <label>Entity Permissions <span class="form-hint-inline">(actions user can perform)</span></label>
+                    <div class="perm-matrix-wrap" id="muPermMatrix"></div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-outline" onclick="closeModal('addModuleUserModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Grant Access</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- EDIT MODULE USER MODAL -->
+<div class="modal-overlay" id="editModuleUserModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3>Edit User Access & Permissions</h3>
+            <button class="close-btn" onclick="closeModal('editModuleUserModal')">
+                <span class="material-icons-outlined">close</span>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="saveEditModuleUser(event)">
+                <input type="hidden" id="emuAccessId">
+                <div class="form-group">
+                    <label>User</label>
+                    <div class="form-static" id="emuUserName">-</div>
+                </div>
+                <div class="form-group">
+                    <label>Role *</label>
+                    <select id="emuRole" required onchange="onEmuRoleChange()">
+                        <option value="viewer">Viewer</option>
+                        <option value="editor">Editor</option>
+                        <option value="module_admin">Module Admin</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Allowed Sections</label>
+                    <div class="section-checkboxes" id="emuSectionCheckboxes"></div>
+                </div>
+                <div class="form-group">
+                    <label>Entity Permissions</label>
+                    <div class="perm-matrix-wrap" id="emuPermMatrix"></div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-outline" onclick="closeModal('editModuleUserModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/header.js"></script>
+<script src="/static/js/manufacturing/common.js"></script>
+<script src="/static/js/manufacturing/overview.js"></script>
+<script src="/static/js/manufacturing/bom.js"></script>
+<script src="/static/js/manufacturing/productionorders.js"></script>
+<script src="/static/js/manufacturing/workcenters.js"></script>
+<script src="/static/js/manufacturing/routing.js"></script>
+<script src="/static/js/manufacturing/shopfloor.js"></script>
+<script src="/static/js/manufacturing/planning.js"></script>
+<script src="/static/js/manufacturing/capacity.js"></script>
+<script src="/static/js/manufacturing/auditlogs.js"></script>
+<script src="/static/js/manufacturing/moduleusers.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supplier SOP & SQP Rule Detail - SUPERSYSTEMS</title>
+    <link rel="stylesheet" href="/static/css/header.css">
+    <link rel="stylesheet" href="/static/css/inventory/inventory.css">
+    <link rel="stylesheet" href="/static/css/purchase/purchase.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+</head>
+<body>
+
+<header class="header">
+    <div class="header-left">
+        <div class="logo">
+            <img class="logo-light" src="/static/img/light_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <span class="logo-text">SUPERSYSTEMS</span>
+        </div>
+    </div>
+    <div class="header-right">
+        <button class="header-icon-btn" onclick="toggleTheme()"><span class="material-icons-outlined">dark_mode</span></button>
+    </div>
+</header>
+
+<div class="purchase-layout">
+    <aside class="purchase-sidebar">
+        <div class="sidebar-header">
+            <span class="material-icons-outlined">shopping_cart</span>
+            <h3>Purchase</h3>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/purchase/suppliers" class="sidebar-link">
+                <span class="material-icons-outlined">arrow_back</span>Back to Supplier Rules
+            </a>
+        </nav>
+    </aside>
+
+    <main class="purchase-content">
+        <div class="section-header">
+            <div>
+                <h2 id="sSupplierName">Supplier Rule Detail</h2>
+                <div style="font-size:13px; color:var(--text-muted);" id="sPartCode">Part / RM Code</div>
+            </div>
+            <div>
+                <a href="/purchase/suppliers" class="btn-outline"><span class="material-icons-outlined">arrow_back</span>Back</a>
+            </div>
+        </div>
+
+        <div class="overview-stats" style="margin-bottom:20px;">
+            <div class="stat-card">
+                <span class="material-icons-outlined">payments</span>
+                <div class="stat-info">
+                    <div class="value" id="sUnitPrice">₹0</div>
+                    <div class="label">Standard Order Price (SOP)</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <span class="material-icons-outlined">schedule</span>
+                <div class="stat-info">
+                    <div class="value" id="sLeadTime">0 Days</div>
+                    <div class="label">Lead Time</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <span class="material-icons-outlined">filter_list</span>
+                <div class="stat-info">
+                    <div class="value" id="sMOQ">0</div>
+                    <div class="label">Min Order Qty (MOQ)</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <span class="material-icons-outlined">widgets</span>
+                <div class="stat-info">
+                    <div class="value" id="sSQP">0</div>
+                    <div class="label">Standard Pack (SQP)</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-bottom:20px;">
+            <h3>Supplier Quotation Specification</h3>
+            <table class="data-table" style="margin-top:14px; max-width:700px;">
+                <tr><th style="width:200px;">Supplier Name</th><td id="stSupplierName">-</td></tr>
+                <tr><th>Supplier Code</th><td id="stSupplierCode">-</td></tr>
+                <tr><th>Part / RM Code</th><td id="stCode">-</td></tr>
+                <tr><th>Standard Order Price (SOP)</th><td id="stPrice">-</td></tr>
+                <tr><th>Lead Time (Days)</th><td id="stLead">-</td></tr>
+                <tr><th>Minimum Order Quantity (MOQ)</th><td id="stMoq">-</td></tr>
+                <tr><th>Standard Quantity Pack (SQP)</th><td id="stSqp">-</td></tr>
+                <tr><th>Active Status</th><td><span class="badge badge-success">Active Quotation</span></td></tr>
+            </table>
+        </div>
+    </main>
+</div>
+
+<script src="/static/js/header.js"></script>
+<script>
+const SID = "{{ supplier_id }}";
+
+async function loadSupplierDetail() {
+    try {
+        const res = await fetch('/api/v1/purchase/supplier-rules/' + SID);
+        const json = await res.json();
+        if (json.success && json.data) {
+            const s = json.data;
+            document.getElementById('sSupplierName').innerText = s.supplier_name;
+            document.getElementById('sPartCode').innerText = 'Part / RM: ' + s.part_or_rm_code;
+            document.getElementById('sUnitPrice').innerText = '₹' + s.unit_price;
+            document.getElementById('sLeadTime').innerText = s.lead_time_days + ' Days';
+            document.getElementById('sMOQ').innerText = s.min_order_qty + ' units';
+            document.getElementById('sSQP').innerText = s.sqp_pack + ' units';
+
+            document.getElementById('stSupplierName').innerText = s.supplier_name;
+            document.getElementById('stSupplierCode').innerText = s.supplier_code;
+            document.getElementById('stCode').innerText = s.part_or_rm_code;
+            document.getElementById('stPrice').innerText = '₹' + s.unit_price + ' per unit';
+            document.getElementById('stLead').innerText = s.lead_time_days + ' Days';
+            document.getElementById('stMoq').innerText = s.min_order_qty + ' units';
+            document.getElementById('stSqp').innerText = s.sqp_pack + ' units';
+        }
+    } catch(e) { console.error(e); }
+}
+
+document.addEventListener('DOMContentLoaded', loadSupplierDetail);
+</script>
+</body>
+</html>

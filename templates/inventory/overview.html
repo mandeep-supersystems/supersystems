@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Management - SUPERSYSTEMS</title>
+    <link rel="stylesheet" href="/static/css/header.css">
+    <link rel="stylesheet" href="/static/css/inventory/inventory.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+</head>
+<body>
+
+<!-- FIXED HEADER -->
+<header class="header">
+    <div class="header-left">
+        <div class="logo">
+            <img class="logo-light" src="/static/img/light_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <span class="logo-text">SUPERSYSTEMS</span>
+        </div>
+        <div class="nav-item services-trigger" onclick="toggleServices()">
+            <span class="material-icons-outlined">apps</span>
+            <span>Services</span>
+            <span class="material-icons-outlined arrow">expand_more</span>
+        </div>
+    </div>
+    <div class="header-center">
+        <div class="search-box">
+            <span class="material-icons-outlined">search</span>
+            <input type="text" placeholder="Search inventory parts, stock, movements..." id="globalSearch">
+        </div>
+    </div>
+    <div class="header-right">
+        <button class="header-icon-btn theme-toggle" title="Toggle Dark Mode" onclick="toggleTheme()">
+            <span class="material-icons-outlined icon-light">dark_mode</span>
+            <span class="material-icons-outlined icon-dark">light_mode</span>
+        </button>
+        <div class="user-menu" id="userMenu">
+            <div class="user-avatar" onclick="toggleUserMenu()">
+                <span class="material-icons-outlined">person</span>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- SERVICES PANEL -->
+<div class="services-panel" id="servicesPanel">
+    <div class="services-panel-header">
+        <h3>All Services</h3>
+        <button class="close-btn" onclick="toggleServices()">
+            <span class="material-icons-outlined">close</span>
+        </button>
+    </div>
+    <div class="services-grid" id="servicesGrid"></div>
+</div>
+<div class="overlay" id="overlay" onclick="toggleServices()"></div>
+
+<!-- MAIN LAYOUT -->
+<div class="inventory-layout">
+    <!-- SIDEBAR -->
+    <aside class="inventory-sidebar">
+        <div class="sidebar-header">
+            <span class="material-icons-outlined">inventory_2</span>
+            <h3>Inventory</h3>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/" class="sidebar-link">
+                <span class="material-icons-outlined">arrow_back</span>Home
+            </a>
+            <div class="sidebar-divider"></div>
+            <a class="sidebar-link" data-section="overview" onclick="showSection('overview')">
+                <span class="material-icons-outlined">dashboard</span>Overview
+            </a>
+            <a class="sidebar-link" data-section="checkin" onclick="showSection('checkin')">
+                <span class="material-icons-outlined">verified</span>Stock Check-In
+            </a>
+            <a class="sidebar-link" data-section="stocklevels" onclick="showSection('stocklevels')">
+                <span class="material-icons-outlined">view_module</span>Stock Levels
+            </a>
+            <a class="sidebar-link" data-section="locations" onclick="showSection('locations')">
+                <span class="material-icons-outlined">place</span>Hierarchical Locations
+            </a>
+            <a class="sidebar-link" data-section="stockmovements" onclick="showSection('stockmovements')">
+                <span class="material-icons-outlined">swap_horiz</span>Stock Movements
+            </a>
+            <a class="sidebar-link" data-section="transfers" onclick="showSection('transfers')">
+                <span class="material-icons-outlined">move_up</span>Stock Transfers
+            </a>
+            <a class="sidebar-link" data-section="adjustments" onclick="showSection('adjustments')">
+                <span class="material-icons-outlined">tune</span>Stock Adjustments
+            </a>
+            <a class="sidebar-link" data-section="counts" onclick="showSection('counts')">
+                <span class="material-icons-outlined">fact_check</span>Stock Counts
+            </a>
+            <a class="sidebar-link" data-section="batches" onclick="showSection('batches')">
+                <span class="material-icons-outlined">qr_code_2</span>Batch Tracking
+            </a>
+            <a class="sidebar-link" data-section="serials" onclick="showSection('serials')">
+                <span class="material-icons-outlined">tag</span>Serial Numbers
+            </a>
+            <a class="sidebar-link" data-section="reorder" onclick="showSection('reorder')">
+                <span class="material-icons-outlined">add_shopping_cart</span>Reorder Rules
+            </a>
+            <a class="sidebar-link" data-section="reports" onclick="showSection('reports')">
+                <span class="material-icons-outlined">analytics</span>Valuation & Reports
+            </a>
+            <div class="sidebar-divider"></div>
+            <a class="sidebar-link" data-section="auditlogs" onclick="showSection('auditlogs')">
+                <span class="material-icons-outlined">history</span>Audit Logs
+            </a>
+            <a class="sidebar-link" data-section="moduleusers" onclick="showSection('moduleusers')">
+                <span class="material-icons-outlined">people</span>Module Users
+            </a>
+        </nav>
+    </aside>
+
+    <!-- CONTENT -->
+    <main class="inventory-content">
+<section id="sec-overview" class="content-section active">
+
+            <div class="section-header">
+                <h2>Inventory Dashboard Overview</h2>
+                <div class="section-actions">
+                    <button class="btn-outline" onclick="loadOverviewStats()"><span class="material-icons-outlined">refresh</span>Refresh</button>
+                    <button class="btn-primary" onclick="openNewMovementModal()"><span class="material-icons-outlined">add</span>New Movement</button>
+                </div>
+            </div>
+
+            <div class="overview-stats">
+                <div class="stat-card">
+                    <span class="material-icons-outlined">inventory_2</span>
+                    <div class="stat-info">
+                        <div class="value" id="statTotalItems">0</div>
+                        <div class="label">Total Managed Parts</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <span class="material-icons-outlined">attach_money</span>
+                    <div class="stat-info">
+                        <div class="value" id="statTotalValue">₹0</div>
+                        <div class="label">Total Stock Value</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <span class="material-icons-outlined">warning</span>
+                    <div class="stat-info">
+                        <div class="value" id="statLowStock">0</div>
+                        <div class="label">Reorder Alerts</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <span class="material-icons-outlined">swap_calls</span>
+                    <div class="stat-info">
+                        <div class="value" id="statTotalMovements">0</div>
+                        <div class="label">Movement History</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Recent Stock Movements</h3>
+                <div class="table-responsive" style="margin-top: 12px;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Movement No</th>
+                                <th>Type</th>
+                                <th>Part Number</th>
+                                <th>Qty</th>
+                                <th>From -> To Location</th>
+                                <th>Date & Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="overviewRecentMovements">
+                            <tr><td colspan="6" style="text-align:center;">Loading movements...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        
+</section>
+</main>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="part-toast"></div>
+
+<!-- MODAL OVERLAY -->
+<div class="modal-overlay" id="inventoryModalOverlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="modalTitle">Inventory Modal</h3>
+            <span class="material-icons-outlined modal-close" onclick="closeModal()">close</span>
+        </div>
+        <div class="modal-body" id="modalBody"></div>
+    </div>
+</div>
+
+<!-- ADD MODULE USER MODAL -->
+<div class="modal-overlay" id="addModuleUserModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3>Add User Access to Inventory Management</h3>
+            <button class="close-btn" onclick="closeModal('addModuleUserModal')">
+                <span class="material-icons-outlined">close</span>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="saveModuleUser(event)">
+                <div class="form-group">
+                    <label>Search User (by name, email, or employee code) *</label>
+                    <input type="text" id="muUserSearch" placeholder="Type to search employees..." oninput="searchEmployeesForModule(this.value)" autocomplete="off">
+                    <input type="hidden" id="muUserSelect">
+                    <div id="muUserResults" class="emp-search-results"></div>
+                    <div id="muUserSelected" class="emp-selected-inline" style="display:none"><span id="muUserSelLabel"></span><button type="button" class="btn-icon" onclick="clearMuUser()"><span class="material-icons-outlined">close</span></button></div>
+                </div>
+                <div class="form-group">
+                    <label>Role *</label>
+                    <select id="muRole" required onchange="onMuRoleChange()">
+                        <option value="viewer">Viewer (View & export only)</option>
+                        <option value="editor">Editor (Create, edit, export, import)</option>
+                        <option value="module_admin">Module Admin (Full control + manage users)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Allowed Sections <span class="form-hint-inline">(sidebar items visible to user)</span></label>
+                    <div class="section-checkboxes" id="muSectionCheckboxes"></div>
+                </div>
+                <div class="form-group">
+                    <label>Entity Permissions <span class="form-hint-inline">(actions user can perform)</span></label>
+                    <div class="perm-matrix-wrap" id="muPermMatrix"></div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-outline" onclick="closeModal('addModuleUserModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Grant Access</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- EDIT MODULE USER MODAL -->
+<div class="modal-overlay" id="editModuleUserModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3>Edit User Access & Permissions</h3>
+            <button class="close-btn" onclick="closeModal('editModuleUserModal')">
+                <span class="material-icons-outlined">close</span>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="saveEditModuleUser(event)">
+                <input type="hidden" id="emuAccessId">
+                <div class="form-group">
+                    <label>User</label>
+                    <div class="form-static" id="emuUserName">-</div>
+                </div>
+                <div class="form-group">
+                    <label>Role *</label>
+                    <select id="emuRole" required onchange="onEmuRoleChange()">
+                        <option value="viewer">Viewer</option>
+                        <option value="editor">Editor</option>
+                        <option value="module_admin">Module Admin</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Allowed Sections</label>
+                    <div class="section-checkboxes" id="emuSectionCheckboxes"></div>
+                </div>
+                <div class="form-group">
+                    <label>Entity Permissions</label>
+                    <div class="perm-matrix-wrap" id="emuPermMatrix"></div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-outline" onclick="closeModal('editModuleUserModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/header.js"></script>
+<script src="/static/js/inventory/common.js"></script>
+<script src="/static/js/inventory/overview.js"></script>
+<script src="/static/js/inventory/checkin.js"></script>
+<script src="/static/js/inventory/stocklevels.js"></script>
+<script src="/static/js/inventory/locations.js"></script>
+<script src="/static/js/inventory/stockmovements.js"></script>
+<script src="/static/js/inventory/transfers.js"></script>
+<script src="/static/js/inventory/adjustments.js"></script>
+<script src="/static/js/inventory/counts.js"></script>
+<script src="/static/js/inventory/batches.js"></script>
+<script src="/static/js/inventory/serials.js"></script>
+<script src="/static/js/inventory/reorder.js"></script>
+<script src="/static/js/inventory/reports.js"></script>
+<script src="/static/js/inventory/auditlogs.js"></script>
+<script src="/static/js/inventory/moduleusers.js"></script>
+
+</body>
+</html>

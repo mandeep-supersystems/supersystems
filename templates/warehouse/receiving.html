@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Warehouse Management - SUPERSYSTEMS</title>
+    <link rel="stylesheet" href="/static/css/header.css">
+    <link rel="stylesheet" href="/static/css/inventory/inventory.css">
+    <link rel="stylesheet" href="/static/css/warehouse/warehouse.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+</head>
+<body>
+
+<!-- FIXED HEADER -->
+<header class="header">
+    <div class="header-left">
+        <div class="logo">
+            <img class="logo-light" src="/static/img/light_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <span class="logo-text">SUPERSYSTEMS</span>
+        </div>
+        <div class="nav-item services-trigger" onclick="toggleServices()">
+            <span class="material-icons-outlined">apps</span>
+            <span>Services</span>
+            <span class="material-icons-outlined arrow">expand_more</span>
+        </div>
+    </div>
+    <div class="header-center">
+        <div class="search-box">
+            <span class="material-icons-outlined">search</span>
+            <input type="text" placeholder="Search bins, zones, pick lists..." id="globalSearch">
+        </div>
+    </div>
+    <div class="header-right">
+        <button class="header-icon-btn theme-toggle" title="Toggle Dark Mode" onclick="toggleTheme()">
+            <span class="material-icons-outlined icon-light">dark_mode</span>
+            <span class="material-icons-outlined icon-dark">light_mode</span>
+        </button>
+        <div class="user-menu" id="userMenu">
+            <div class="user-avatar" onclick="toggleUserMenu()">
+                <span class="material-icons-outlined">person</span>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- MAIN LAYOUT -->
+<div class="warehouse-layout">
+    <!-- SIDEBAR -->
+    <aside class="warehouse-sidebar">
+        <div class="sidebar-header">
+            <span class="material-icons-outlined">warehouse</span>
+            <h3>Warehouse</h3>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/" class="sidebar-link">
+                <span class="material-icons-outlined">arrow_back</span>Home
+            </a>
+            <div class="sidebar-divider"></div>
+            <a class="sidebar-link" data-section="overview" onclick="showSection('overview')">
+                <span class="material-icons-outlined">dashboard</span>Overview
+            </a>
+            <a class="sidebar-link" data-section="zones" onclick="showSection('zones')">
+                <span class="material-icons-outlined">grid_view</span>Warehouse Zones
+            </a>
+            <a class="sidebar-link" data-section="bins" onclick="showSection('bins')">
+                <span class="material-icons-outlined">qr_code</span>Bin Management & QR
+            </a>
+            <a class="sidebar-link" data-section="picklists" onclick="showSection('picklists')">
+                <span class="material-icons-outlined">checklist</span>Pick Lists
+            </a>
+            <a class="sidebar-link" data-section="putaway" onclick="showSection('putaway')">
+                <span class="material-icons-outlined">move_to_inbox</span>Putaway
+            </a>
+            <a class="sidebar-link" data-section="receiving" onclick="showSection('receiving')">
+                <span class="material-icons-outlined">input</span>Goods Receiving
+            </a>
+            <a class="sidebar-link" data-section="packing" onclick="showSection('packing')">
+                <span class="material-icons-outlined">inventory</span>Packing
+            </a>
+            <a class="sidebar-link" data-section="shipping" onclick="showSection('shipping')">
+                <span class="material-icons-outlined">local_shipping</span>Shipping & Dispatch
+            </a>
+            <div class="sidebar-divider"></div>
+            <a class="sidebar-link" data-section="auditlogs" onclick="showSection('auditlogs')">
+                <span class="material-icons-outlined">history</span>Audit Logs
+            </a>
+            <a class="sidebar-link" data-section="moduleusers" onclick="showSection('moduleusers')">
+                <span class="material-icons-outlined">people</span>Module Users
+            </a>
+        </nav>
+    </aside>
+
+    <!-- CONTENT -->
+    <main class="warehouse-content">
+<section id="sec-receiving" class="content-section active">
+
+            <div class="section-header">
+                <h2>Goods Receiving (PO Receipt)</h2>
+                <button class="btn-primary" onclick="openNewReceiptModal()"><span class="material-icons-outlined">add</span>Receive PO Shipment</button>
+            </div>
+            <div class="card">
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Receipt No</th>
+                                <th>PO Number</th>
+                                <th>Supplier</th>
+                                <th>Receipt Date</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="receiptsBody">
+                            <tr><td colspan="5" style="text-align:center;">Loading receipts...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        
+</section>
+</main>
+</div>
+
+<!-- TOAST & MODAL -->
+<div id="toast" class="part-toast"></div>
+
+<div class="modal-overlay" id="warehouseModalOverlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="modalTitle">Warehouse Modal</h3>
+            <span class="material-icons-outlined modal-close" onclick="closeModal()">close</span>
+        </div>
+        <div class="modal-body" id="modalBody"></div>
+    </div>
+</div>
+
+<!-- ADD MODULE USER MODAL -->
+<div class="modal-overlay" id="addModuleUserModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3>Add User Access to Warehouse Management</h3>
+            <button class="close-btn" onclick="closeModal('addModuleUserModal')">
+                <span class="material-icons-outlined">close</span>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="saveModuleUser(event)">
+                <div class="form-group">
+                    <label>Search User (by name, email, or employee code) *</label>
+                    <input type="text" id="muUserSearch" placeholder="Type to search employees..." oninput="searchEmployeesForModule(this.value)" autocomplete="off">
+                    <input type="hidden" id="muUserSelect">
+                    <div id="muUserResults" class="emp-search-results"></div>
+                    <div id="muUserSelected" class="emp-selected-inline" style="display:none"><span id="muUserSelLabel"></span><button type="button" class="btn-icon" onclick="clearMuUser()"><span class="material-icons-outlined">close</span></button></div>
+                </div>
+                <div class="form-group">
+                    <label>Role *</label>
+                    <select id="muRole" required onchange="onMuRoleChange()">
+                        <option value="viewer">Viewer (View & export only)</option>
+                        <option value="editor">Editor (Create, edit, export, import)</option>
+                        <option value="module_admin">Module Admin (Full control + manage users)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Allowed Sections <span class="form-hint-inline">(sidebar items visible to user)</span></label>
+                    <div class="section-checkboxes" id="muSectionCheckboxes"></div>
+                </div>
+                <div class="form-group">
+                    <label>Entity Permissions <span class="form-hint-inline">(actions user can perform)</span></label>
+                    <div class="perm-matrix-wrap" id="muPermMatrix"></div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-outline" onclick="closeModal('addModuleUserModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Grant Access</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- EDIT MODULE USER MODAL -->
+<div class="modal-overlay" id="editModuleUserModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3>Edit User Access & Permissions</h3>
+            <button class="close-btn" onclick="closeModal('editModuleUserModal')">
+                <span class="material-icons-outlined">close</span>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="saveEditModuleUser(event)">
+                <input type="hidden" id="emuAccessId">
+                <div class="form-group">
+                    <label>User</label>
+                    <div class="form-static" id="emuUserName">-</div>
+                </div>
+                <div class="form-group">
+                    <label>Role *</label>
+                    <select id="emuRole" required onchange="onEmuRoleChange()">
+                        <option value="viewer">Viewer</option>
+                        <option value="editor">Editor</option>
+                        <option value="module_admin">Module Admin</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Allowed Sections</label>
+                    <div class="section-checkboxes" id="emuSectionCheckboxes"></div>
+                </div>
+                <div class="form-group">
+                    <label>Entity Permissions</label>
+                    <div class="perm-matrix-wrap" id="emuPermMatrix"></div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-outline" onclick="closeModal('editModuleUserModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/header.js"></script>
+<script src="/static/js/warehouse/common.js"></script>
+<script src="/static/js/warehouse/overview.js"></script>
+<script src="/static/js/warehouse/zones.js"></script>
+<script src="/static/js/warehouse/bins.js"></script>
+<script src="/static/js/warehouse/picklists.js"></script>
+<script src="/static/js/warehouse/putaway.js"></script>
+<script src="/static/js/warehouse/receiving.js"></script>
+<script src="/static/js/warehouse/packing.js"></script>
+<script src="/static/js/warehouse/shipping.js"></script>
+<script src="/static/js/warehouse/auditlogs.js"></script>
+<script src="/static/js/warehouse/moduleusers.js"></script>
+
+</body>
+</html>

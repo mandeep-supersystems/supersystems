@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Management - SUPERSYSTEMS</title>
+    <link rel="stylesheet" href="/static/css/header.css">
+    <link rel="stylesheet" href="/static/css/inventory/inventory.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+</head>
+<body>
+
+<!-- FIXED HEADER -->
+<header class="header">
+    <div class="header-left">
+        <div class="logo">
+            <img class="logo-light" src="/static/img/light_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <span class="logo-text">SUPERSYSTEMS</span>
+        </div>
+        <div class="nav-item services-trigger" onclick="toggleServices()">
+            <span class="material-icons-outlined">apps</span>
+            <span>Services</span>
+            <span class="material-icons-outlined arrow">expand_more</span>
+        </div>
+    </div>
+    <div class="header-center">
+        <div class="search-box">
+            <span class="material-icons-outlined">search</span>
+            <input type="text" placeholder="Search inventory parts, stock, movements..." id="globalSearch">
+        </div>
+    </div>
+    <div class="header-right">
+        <button class="header-icon-btn theme-toggle" title="Toggle Dark Mode" onclick="toggleTheme()">
+            <span class="material-icons-outlined icon-light">dark_mode</span>
+            <span class="material-icons-outlined icon-dark">light_mode</span>
+        </button>
+        <div class="user-menu" id="userMenu">
+            <div class="user-avatar" onclick="toggleUserMenu()">
+                <span class="material-icons-outlined">person</span>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- SERVICES PANEL -->
+<div class="services-panel" id="servicesPanel">
+    <div class="services-panel-header">
+        <h3>All Services</h3>
+        <button class="close-btn" onclick="toggleServices()">
+            <span class="material-icons-outlined">close</span>
+        </button>
+    </div>
+    <div class="services-grid" id="servicesGrid"></div>
+</div>
+<div class="overlay" id="overlay" onclick="toggleServices()"></div>
+
+<!-- MAIN LAYOUT -->
+<div class="inventory-layout">
+    <!-- SIDEBAR -->
+    <aside class="inventory-sidebar">
+        <div class="sidebar-header">
+            <span class="material-icons-outlined">inventory_2</span>
+            <h3>Inventory</h3>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/" class="sidebar-link">
+                <span class="material-icons-outlined">arrow_back</span>Home
+            </a>
+            <div class="sidebar-divider"></div>
+            <a class="sidebar-link active" data-section="overview" href="/inventory#overview">
+                <span class="material-icons-outlined">dashboard</span>Overview
+            </a>
+            <a class="sidebar-link" data-section="checkin" href="/inventory#checkin">
+                <span class="material-icons-outlined">verified</span>Stock Check-In
+            </a>
+            <a class="sidebar-link" data-section="stocklevels" href="/inventory#stocklevels">
+                <span class="material-icons-outlined">view_module</span>Stock Levels
+            </a>
+            <a class="sidebar-link" data-section="locations" href="/inventory#locations">
+                <span class="material-icons-outlined">place</span>Hierarchical Locations
+            </a>
+            <a class="sidebar-link" data-section="stockmovements" href="/inventory#stockmovements">
+                <span class="material-icons-outlined">swap_horiz</span>Stock Movements
+            </a>
+            <a class="sidebar-link" data-section="transfers" href="/inventory#transfers">
+                <span class="material-icons-outlined">move_up</span>Stock Transfers
+            </a>
+            <a class="sidebar-link" data-section="adjustments" href="/inventory#adjustments">
+                <span class="material-icons-outlined">tune</span>Stock Adjustments
+            </a>
+            <a class="sidebar-link" data-section="counts" href="/inventory#counts">
+                <span class="material-icons-outlined">fact_check</span>Stock Counts
+            </a>
+            <a class="sidebar-link" data-section="batches" href="/inventory#batches">
+                <span class="material-icons-outlined">qr_code_2</span>Batch Tracking
+            </a>
+            <a class="sidebar-link" data-section="serials" href="/inventory#serials">
+                <span class="material-icons-outlined">tag</span>Serial Numbers
+            </a>
+            <a class="sidebar-link" data-section="reorder" href="/inventory#reorder">
+                <span class="material-icons-outlined">add_shopping_cart</span>Reorder Rules
+            </a>
+            <a class="sidebar-link" data-section="reports" href="/inventory#reports">
+                <span class="material-icons-outlined">analytics</span>Valuation & Reports
+            </a>
+            <div class="sidebar-divider"></div>
+            <a class="sidebar-link" data-section="auditlogs" href="/inventory#auditlogs">
+                <span class="material-icons-outlined">history</span>Audit Logs
+            </a>
+            <a class="sidebar-link" data-section="moduleusers" href="/inventory#moduleusers">
+                <span class="material-icons-outlined">people</span>Module Users
+            </a>
+        </nav>
+    </aside>
+
+    <!-- CONTENT -->
+    <main class="inventory-content">
+        <!-- OVERVIEW SECTION -->
+        <section id="sec-overview" class="content-section active">
+            <div class="section-header">
+                <h2>Inventory Dashboard Overview</h2>
+                <div class="section-actions">
+                    <button class="btn-outline" onclick="loadOverviewStats()"><span class="material-icons-outlined">refresh</span>Refresh</button>
+                    <button class="btn-primary" onclick="openNewMovementModal()"><span class="material-icons-outlined">add</span>New Movement</button>
+                </div>
+            </div>
+
+            <div class="overview-stats">
+                <div class="stat-card">
+                    <span class="material-icons-outlined">inventory_2</span>
+                    <div class="stat-info">
+                        <div class="value" id="statTotalItems">0</div>
+                        <div class="label">Total Managed Parts</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <span class="material-icons-outlined">attach_money</span>
+                    <div class="stat-info">
+                        <div class="value" id="statTotalValue">₹0</div>
+                        <div class="label">Total Stock Value</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <span class="material-icons-outlined">warning</span>
+                    <div class="stat-info">
+                        <div class="value" id="statLowStock">0</div>
+                        <div class="label">Reorder Alerts</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <span class="material-icons-outlined">swap_calls</span>
+                    <div class="stat-info">
+                        <div class="value" id="statTotalMovements">0</div>
+                        <div class="label">Movement History</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Recent Stock Movements</h3>
+                <div class="table-responsive" style="margin-top: 12px;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Movement No</th>
+                                <th>Type</th>
+                                <th>Part Number</th>
+                                <th>Qty</th>
+                                <th>From -> To Location</th>
+                                <th>Date & Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="overviewRecentMovements">
+                            <tr><td colspan="6" style="text-align:center;">Loading movements...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- STOCK CHECK-IN SECTION -->
+        <section id="sec-checkin" class="content-section">
+            <div class="section-header">
+                <h2>Goods Receipt Check-In Stock</h2>
+                <button class="btn-primary" onclick="openNewCheckinModal()"><span class="material-icons-outlined">add</span>Verify & Check-In Stock</button>
+            </div>
+            <div class="card">
+                <p style="font-size:13px; color:var(--text-muted); margin-bottom:12px;">
+                    Verify incoming supplier deliveries from Purchase Orders. Every check-in is assigned a printable QR Tag and sent directly to Incoming Quality Control (IQC) for inspection.
+                </p>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Check-In No</th>
+                                <th>PO Ref</th>
+                                <th>Supplier Info</th>
+                                <th>Part / RM Code</th>
+                                <th>Rec Qty</th>
+                                <th>Checked-In By</th>
+                                <th>Check-In Time</th>
+                                <th>IQC Status</th>
+                                <th>OK Qty</th>
+                                <th>NG Qty</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="checkinBody">
+                            <tr><td colspan="11" style="text-align:center;">Loading check-in records...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- HIERARCHICAL LOCATIONS SECTION -->
+        <section id="sec-locations" class="content-section">
+            <div class="section-header">
+                <h2>Hierarchical Storage Locations</h2>
+                <button class="btn-primary" onclick="openNewLocationModal()"><span class="material-icons-outlined">add</span>Create Location (Plant/Floor/Shelf/Bin)</button>
+            </div>
+            <div class="card">
+                <p style="font-size:13px; color:var(--text-muted); margin-bottom:12px;">
+                    Define multi-tiered physical inventory locations: <strong>Plant ➔ Floor ➔ Shelf ➔ Row ➔ Column ➔ Bin</strong> for precise stock positioning.
+                </p>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Location Code</th>
+                                <th>Plant</th>
+                                <th>Floor</th>
+                                <th>Shelf</th>
+                                <th>Row / Col</th>
+                                <th>Bin Code</th>
+                                <th>Warehouse</th>
+                                <th>Capacity</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="locationsBody">
+                            <tr><td colspan="10" style="text-align:center;">Loading locations...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- STOCK LEVELS SECTION -->
+        <section id="sec-stocklevels" class="content-section">
+            <div class="section-header">
+                <h2>Stock Levels</h2>
+                <div class="section-actions">
+                    <input type="text" id="stockSearchInput" placeholder="Filter by part, bin..." onkeyup="loadStockLevels()" style="padding:7px 12px; border:1px solid var(--border-color); border-radius:6px;">
+                    <button class="btn-primary" onclick="openNewStockModal()"><span class="material-icons-outlined">add</span>Add Stock Record</button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Part Number</th>
+                                <th>Type</th>
+                                <th>Warehouse / Bin</th>
+                                <th>On Hand</th>
+                                <th>Reserved</th>
+                                <th>Available</th>
+                                <th>Unit Cost</th>
+                                <th>Total Value</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stockLevelsBody">
+                            <tr><td colspan="9" style="text-align:center;">Loading stock levels...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- STOCK MOVEMENTS SECTION -->
+        <section id="sec-stockmovements" class="content-section">
+            <div class="section-header">
+                <h2>Stock Movements</h2>
+                <button class="btn-primary" onclick="openNewMovementModal()"><span class="material-icons-outlined">add</span>Record Movement</button>
+            </div>
+            <div class="card">
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Movement No</th>
+                                <th>Type</th>
+                                <th>Part Number</th>
+                                <th>Qty</th>
+                                <th>From Bin</th>
+                                <th>To Bin</th>
+                                <th>Reference</th>
+                                <th>Performed By</th>
+                                <th>Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stockMovementsBody">
+                            <tr><td colspan="9" style="text-align:center;">Loading movements...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TRANSFERS SECTION -->
+        <section id="sec-transfers" class="content-section">
+            <div class="section-header">
+                <h2>Stock Transfers</h2>
+            </div>
+            <div class="card" style="max-width: 600px;">
+                <h3>Execute Bin / Warehouse Transfer</h3>
+                <div class="form-group" style="margin-top:14px;">
+                    <label>Part Number</label>
+                    <input type="text" id="trfPartNumber" placeholder="e.g. 601-0-000001">
+                </div>
+                <div style="display:flex; gap:12px;">
+                    <div class="form-group" style="flex:1;">
+                        <label>From Warehouse</label>
+                        <input type="text" id="trfFromWh" value="MAIN">
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>To Warehouse</label>
+                        <input type="text" id="trfToWh" value="FG-WH">
+                    </div>
+                </div>
+                <div style="display:flex; gap:12px;">
+                    <div class="form-group" style="flex:1;">
+                        <label>From Bin</label>
+                        <input type="text" id="trfFromBin" value="A-01-01">
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>To Bin</label>
+                        <input type="text" id="trfToBin" value="B-02-01">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Transfer Quantity</label>
+                    <input type="number" id="trfQty" value="10">
+                </div>
+                <button class="btn-primary" onclick="executeTransfer()">Transfer Stock</button>
+            </div>
+        </section>
+
+        <!-- ADJUSTMENTS SECTION -->
+        <section id="sec-adjustments" class="content-section">
+            <div class="section-header">
+                <h2>Stock Adjustments</h2>
+            </div>
+            <div class="card" style="max-width:600px;">
+                <h3>Post Stock Quantity Adjustment</h3>
+                <div class="form-group" style="margin-top:14px;">
+                    <label>Part Number</label>
+                    <input type="text" id="adjPartNumber" placeholder="e.g. 601-0-000001">
+                </div>
+                <div class="form-group">
+                    <label>Adjustment Qty (+ / -)</label>
+                    <input type="number" id="adjQty" placeholder="+5 or -3">
+                </div>
+                <div class="form-group">
+                    <label>Reason Code / Notes</label>
+                    <input type="text" id="adjReason" placeholder="Cycle count discrepancy">
+                </div>
+                <button class="btn-primary" onclick="executeAdjustment()">Submit Adjustment</button>
+            </div>
+        </section>
+
+        <!-- COUNTS SECTION -->
+        <section id="sec-counts" class="content-section">
+            <div class="section-header">
+                <h2>Physical Stock Counts</h2>
+                <button class="btn-primary" onclick="createStockCount()"><span class="material-icons-outlined">add</span>New Count Cycle</button>
+            </div>
+            <div class="card">
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Count No</th>
+                                <th>Warehouse</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th>Assigned To</th>
+                                <th>Items Counted</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stockCountsBody">
+                            <tr><td colspan="6" style="text-align:center;">Loading count cycles...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- BATCHES SECTION -->
+        <section id="sec-batches" class="content-section">
+            <div class="section-header">
+                <h2>Batch & Lot Control</h2>
+                <button class="btn-primary" onclick="openNewBatchModal()"><span class="material-icons-outlined">add</span>Create Batch</button>
+            </div>
+            <div class="card">
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Batch No</th>
+                                <th>Part Number</th>
+                                <th>Supplier Lot</th>
+                                <th>Mfg Date</th>
+                                <th>Expiry Date</th>
+                                <th>Qty Remaining</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="batchesBody">
+                            <tr><td colspan="7" style="text-align:center;">Loading batches...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- SERIALS SECTION -->
+        <section id="sec-serials" class="content-section">
+            <div class="section-header">
+                <h2>Serial Number Tracking</h2>
+            </div>
+            <div class="card">
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Serial No</th>
+                                <th>Part Number</th>
+                                <th>Batch No</th>
+                                <th>Warehouse / Bin</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="serialsBody">
+                            <tr><td colspan="5" style="text-align:center;">Loading serial numbers...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- REORDER SECTION -->
+        <section id="sec-reorder" class="content-section">
+            <div class="section-header">
+                <h2>Reorder Rules & Alerts</h2>
+            </div>
+            <div class="card">
+                <h3>Low Stock Reorder Alerts</h3>
+                <div class="table-responsive" style="margin-top:12px;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Part Number</th>
+                                <th>On Hand</th>
+                                <th>Available</th>
+                                <th>Reorder Point</th>
+                                <th>Suggested PO Qty</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reorderAlertsBody">
+                            <tr><td colspan="6" style="text-align:center;">Loading reorder alerts...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- REPORTS SECTION -->
+        <section id="sec-reports" class="content-section">
+            <div class="section-header">
+                <h2>Inventory Valuation & Reports</h2>
+            </div>
+            <div class="card">
+                <h3>Stock Valuation Summary</h3>
+                <div class="table-responsive" style="margin-top:12px;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Item Type</th>
+                                <th>Part Count</th>
+                                <th>Total Quantity</th>
+                                <th>Total Stock Value</th>
+                            </tr>
+                        </thead>
+                        <tbody id="valuationBody">
+                            <tr><td colspan="4" style="text-align:center;">Loading valuation...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- AUDIT LOGS SECTION -->
+        <section id="sec-auditlogs" class="content-section">
+            <div class="section-header">
+                <h2>Inventory Audit Logs</h2>
+                <button class="btn-outline" onclick="loadAuditLogs()"><span class="material-icons-outlined">refresh</span>Refresh</button>
+            </div>
+            <div class="card">
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Action</th>
+                                <th>Entity / ID</th>
+                                <th>User</th>
+                                <th>IP Address</th>
+                                <th>Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody id="auditLogsBody">
+                            <tr><td colspan="5" style="text-align:center;">Loading audit logs...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- MODULE USERS SECTION -->
+        <section id="sec-moduleusers" class="content-section">
+            <div class="section-header">
+                <h2>Inventory User Access Management</h2>
+                <button class="btn-primary" onclick="openAddUserModal()"><span class="material-icons-outlined">person_add</span>Add User Access</button>
+            </div>
+            <div class="card">
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Role</th>
+                                <th>Allowed Sections</th>
+                                <th>Status</th>
+                                <th>Granted Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="moduleUsersBody">
+                            <tr><td colspan="6" style="text-align:center;">Loading module users...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="part-toast"></div>
+
+<!-- MODAL OVERLAY -->
+<div class="modal-overlay" id="inventoryModalOverlay">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3 id="modalTitle">Inventory Modal</h3>
+            <span class="material-icons-outlined modal-close" onclick="closeModal()">close</span>
+        </div>
+        <div class="modal-body" id="modalBody"></div>
+    </div>
+</div>
+
+<!-- ADD MODULE USER MODAL -->
+<div class="modal-overlay" id="addModuleUserModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3>Add User Access to Inventory Management</h3>
+            <button class="close-btn" onclick="closeModal('addModuleUserModal')">
+                <span class="material-icons-outlined">close</span>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="saveModuleUser(event)">
+                <div class="form-group">
+                    <label>Search User (by name, email, or employee code) *</label>
+                    <input type="text" id="muUserSearch" placeholder="Type to search employees..." oninput="searchEmployeesForModule(this.value)" autocomplete="off">
+                    <input type="hidden" id="muUserSelect">
+                    <div id="muUserResults" class="emp-search-results"></div>
+                    <div id="muUserSelected" class="emp-selected-inline" style="display:none"><span id="muUserSelLabel"></span><button type="button" class="btn-icon" onclick="clearMuUser()"><span class="material-icons-outlined">close</span></button></div>
+                </div>
+                <div class="form-group">
+                    <label>Role *</label>
+                    <select id="muRole" required onchange="onMuRoleChange()">
+                        <option value="viewer">Viewer (View & export only)</option>
+                        <option value="editor">Editor (Create, edit, export, import)</option>
+                        <option value="module_admin">Module Admin (Full control + manage users)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Allowed Sections <span class="form-hint-inline">(sidebar items visible to user)</span></label>
+                    <div class="section-checkboxes" id="muSectionCheckboxes"></div>
+                </div>
+                <div class="form-group">
+                    <label>Entity Permissions <span class="form-hint-inline">(actions user can perform)</span></label>
+                    <div class="perm-matrix-wrap" id="muPermMatrix"></div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-outline" onclick="closeModal('addModuleUserModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Grant Access</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- EDIT MODULE USER MODAL -->
+<div class="modal-overlay" id="editModuleUserModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3>Edit User Access & Permissions</h3>
+            <button class="close-btn" onclick="closeModal('editModuleUserModal')">
+                <span class="material-icons-outlined">close</span>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="saveEditModuleUser(event)">
+                <input type="hidden" id="emuAccessId">
+                <div class="form-group">
+                    <label>User</label>
+                    <div class="form-static" id="emuUserName">-</div>
+                </div>
+                <div class="form-group">
+                    <label>Role *</label>
+                    <select id="emuRole" required onchange="onEmuRoleChange()">
+                        <option value="viewer">Viewer</option>
+                        <option value="editor">Editor</option>
+                        <option value="module_admin">Module Admin</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Allowed Sections</label>
+                    <div class="section-checkboxes" id="emuSectionCheckboxes"></div>
+                </div>
+                <div class="form-group">
+                    <label>Entity Permissions</label>
+                    <div class="perm-matrix-wrap" id="emuPermMatrix"></div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-outline" onclick="closeModal('editModuleUserModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/header.js"></script>
+<script>requireAuth();</script>
+<script src="/static/js/inventory/common.js"></script>
+<script src="/static/js/inventory/overview.js"></script>
+<script src="/static/js/inventory/checkin.js"></script>
+<script src="/static/js/inventory/stocklevels.js"></script>
+<script src="/static/js/inventory/locations.js"></script>
+<script src="/static/js/inventory/stockmovements.js"></script>
+<script src="/static/js/inventory/transfers.js"></script>
+<script src="/static/js/inventory/adjustments.js"></script>
+<script src="/static/js/inventory/counts.js"></script>
+<script src="/static/js/inventory/batches.js"></script>
+<script src="/static/js/inventory/serials.js"></script>
+<script src="/static/js/inventory/reorder.js"></script>
+<script src="/static/js/inventory/reports.js"></script>
+<script src="/static/js/inventory/auditlogs.js"></script>
+<script src="/static/js/inventory/moduleusers.js"></script>
+
+</body>
+</html>

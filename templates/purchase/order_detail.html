@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Purchase Order Detail - SUPERSYSTEMS</title>
+    <link rel="stylesheet" href="/static/css/header.css">
+    <link rel="stylesheet" href="/static/css/inventory/inventory.css">
+    <link rel="stylesheet" href="/static/css/purchase/purchase.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+</head>
+<body>
+
+<header class="header">
+    <div class="header-left">
+        <div class="logo">
+            <img class="logo-light" src="/static/img/light_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <span class="logo-text">SUPERSYSTEMS</span>
+        </div>
+    </div>
+    <div class="header-right">
+        <button class="header-icon-btn" onclick="toggleTheme()"><span class="material-icons-outlined">dark_mode</span></button>
+    </div>
+</header>
+
+<div class="purchase-layout">
+    <aside class="purchase-sidebar">
+        <div class="sidebar-header">
+            <span class="material-icons-outlined">shopping_cart</span>
+            <h3>Purchase</h3>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/purchase/orders" class="sidebar-link">
+                <span class="material-icons-outlined">arrow_back</span>Back to Purchase Orders
+            </a>
+        </nav>
+    </aside>
+
+    <main class="purchase-content">
+        <div class="section-header">
+            <div>
+                <h2 id="poNo">Purchase Order Detail</h2>
+                <div style="font-size:13px; color:var(--text-muted);" id="poSupplierName">Supplier</div>
+            </div>
+            <div>
+                <a href="/purchase/orders" class="btn-outline"><span class="material-icons-outlined">arrow_back</span>Back</a>
+            </div>
+        </div>
+
+        <div class="overview-stats" style="margin-bottom:20px;">
+            <div class="stat-card">
+                <span class="material-icons-outlined">shopping_bag</span>
+                <div class="stat-info">
+                    <div class="value" id="poQty">0</div>
+                    <div class="label">Order Quantity</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <span class="material-icons-outlined">account_balance_wallet</span>
+                <div class="stat-info">
+                    <div class="value" id="poTotalAmount">₹0</div>
+                    <div class="label">Total Amount</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <span class="material-icons-outlined">schedule</span>
+                <div class="stat-info">
+                    <div class="value" id="poLeadDays">0 Days</div>
+                    <div class="label">Current Lead Time</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <span class="material-icons-outlined">edit_calendar</span>
+                <div class="stat-info">
+                    <div class="value" id="poRevisionCount" style="color:#e65100;">0 Revisions</div>
+                    <div class="label">Lead Time Changes</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FULL PO SPECIFICATIONS -->
+        <div class="card" style="margin-bottom:20px;">
+            <h3>Purchase Order Specification</h3>
+            <table class="data-table" style="margin-top:14px; max-width:700px;">
+                <tr><th style="width:200px;">PO Number</th><td id="potPoNo">-</td></tr>
+                <tr><th>Req Order Ref</th><td id="potReqNo">-</td></tr>
+                <tr><th>Supplier Name</th><td id="potSupplierName">-</td></tr>
+                <tr><th>Supplier Code</th><td id="potSupplierCode">-</td></tr>
+                <tr><th>Part / RM Code</th><td id="potCode">-</td></tr>
+                <tr><th>Item Description</th><td id="potDesc">-</td></tr>
+                <tr><th>Unit Price</th><td id="potUnitPrice">-</td></tr>
+                <tr><th>Promised Delivery Date</th><td id="potDeliveryDate">-</td></tr>
+                <tr><th>Status</th><td><span class="badge badge-success" id="potStatus">Released</span></td></tr>
+                <tr><th>Latest Action Remarks</th><td id="potRemarks">-</td></tr>
+            </table>
+        </div>
+
+        <!-- UPDATE LEAD TIME FORM SECTION -->
+        <div class="card" style="margin-bottom:20px;">
+            <h3>Update Lead Time & Action Remarks</h3>
+            <p style="font-size:13px; color:var(--text-muted); margin-bottom:14px;">
+                Revise lead time days for this PO. Mandatory action remarks will be appended into the immutable revision history log.
+            </p>
+            <form onsubmit="submitLeadTimeUpdatePage(event)" style="max-width:600px;">
+                <div class="form-group">
+                    <label>New Revised Lead Time (Days) *</label>
+                    <input type="number" id="pgNewDays" required>
+                </div>
+                <div class="form-group">
+                    <label>Reason for Lead Time Change *</label>
+                    <select id="pgReason" required>
+                        <option value="Supplier shipment delay">Supplier shipment delay</option>
+                        <option value="Raw material shortage at supplier site">Raw material shortage at supplier site</option>
+                        <option value="Customs / Freight clearance delay">Customs / Freight clearance delay</option>
+                        <option value="Expedited priority production">Expedited priority production</option>
+                        <option value="Engineering change request">Engineering change request</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Action Remarks & Notes * (Mandatory history log)</label>
+                    <textarea id="pgRemarks" rows="3" placeholder="Enter detailed action remarks regarding lead time revision..." required></textarea>
+                </div>
+                <button type="submit" class="btn-primary"><span class="material-icons-outlined">save</span>Save Lead Time Revision</button>
+            </form>
+        </div>
+
+        <!-- IMMUTABLE LEAD TIME CHANGE HISTORY TIMELINE -->
+        <div class="card">
+            <h3>Lead Time Change History Timeline</h3>
+            <div class="table-responsive" style="margin-top:14px;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Revision</th>
+                            <th>Lead Time Change</th>
+                            <th>Reason</th>
+                            <th>Action Remarks</th>
+                            <th>Updated By</th>
+                            <th>Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTimelineBody">
+                        <tr><td colspan="6" style="text-align:center;">Loading lead time history...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script src="/static/js/header.js"></script>
+<script>
+const POID = "{{ po_id }}";
+
+async function loadOrderDetail() {
+    try {
+        const res = await fetch('/api/v1/purchase/orders/' + POID);
+        const json = await res.json();
+        if (json.success && json.data) {
+            const po = json.data;
+            document.getElementById('poNo').innerText = po.po_no;
+            document.getElementById('poSupplierName').innerText = 'Supplier: ' + po.supplier_name;
+            document.getElementById('poQty').innerText = po.order_qty + ' units';
+            document.getElementById('poTotalAmount').innerText = '₹' + po.total_amount.toLocaleString();
+            document.getElementById('poLeadDays').innerText = po.lead_time_days + ' Days';
+            document.getElementById('poRevisionCount').innerText = po.lead_time_change_count + ' Revisions';
+
+            document.getElementById('potPoNo').innerText = po.po_no;
+            document.getElementById('potReqNo').innerText = po.req_no;
+            document.getElementById('potSupplierName').innerText = po.supplier_name;
+            document.getElementById('potSupplierCode').innerText = po.supplier_code;
+            document.getElementById('potCode').innerText = po.part_or_rm_code;
+            document.getElementById('potDesc').innerText = po.item_description;
+            document.getElementById('potUnitPrice').innerText = '₹' + po.unit_price;
+            document.getElementById('potDeliveryDate').innerText = po.promised_delivery_date || '-';
+            document.getElementById('potStatus').innerText = po.status;
+            document.getElementById('potRemarks').innerText = po.remarks || 'None';
+
+            document.getElementById('pgNewDays').value = po.lead_time_days;
+            loadHistoryTimeline();
+        }
+    } catch(e) { console.error(e); }
+}
+
+async function loadHistoryTimeline() {
+    const tbody = document.getElementById('historyTimelineBody');
+    try {
+        const res = await fetch(`/api/v1/purchase/orders/${POID}/lead-time-history`);
+        const json = await res.json();
+        if (json.success && json.data && json.data.length > 0) {
+            tbody.innerHTML = json.data.map((h, i) => `
+                <tr>
+                    <td><strong>#${json.data.length - i}</strong></td>
+                    <td>${h.old_lead_time_days}d ➔ <strong style="color:#e65100;">${h.new_lead_time_days}d</strong></td>
+                    <td><span class="badge badge-warning">${h.change_reason}</span></td>
+                    <td>${h.remarks}</td>
+                    <td>${h.changed_by}</td>
+                    <td>${h.changed_at}</td>
+                </tr>
+            `).join('');
+        } else {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No lead time revisions recorded for this PO.</td></tr>';
+        }
+    } catch(e) { console.error(e); }
+}
+
+async function submitLeadTimeUpdatePage(e) {
+    e.preventDefault();
+    const newDays = parseInt(document.getElementById('pgNewDays').value || 0);
+    const reason = document.getElementById('pgReason').value;
+    const remarks = document.getElementById('pgRemarks').value;
+
+    if (newDays <= 0 || !remarks.trim()) { alert('Valid new lead time days and mandatory action remarks are required'); return; }
+
+    try {
+        const res = await fetch(`/api/v1/purchase/orders/${POID}/lead-time`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ new_lead_time_days: newDays, change_reason: reason, remarks: remarks })
+        });
+        const json = await res.json();
+        if (json.success) {
+            alert(json.message);
+            loadOrderDetail();
+        } else { alert(json.message); }
+    } catch(e) { alert('Error updating lead time'); }
+}
+
+document.addEventListener('DOMContentLoaded', loadOrderDetail);
+</script>
+</body>
+</html>

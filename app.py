@@ -1,3 +1,4 @@
+import os
 from flask import Flask, render_template, request, redirect
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_cors import CORS
@@ -90,9 +91,11 @@ def create_app(config_name="development"):
     from modules.rawmaterial.routes import rawmaterial_bp
     from modules.machine.routes import machine_bp
     from modules.workflow_costing.routes import workflow_bp
+    from modules.purchase.routes import purchase_bp
 
     app.register_blueprint(inventory_bp, url_prefix="/api/v1/inventory")
     app.register_blueprint(procurement_bp, url_prefix="/api/v1/procurement")
+    app.register_blueprint(purchase_bp, url_prefix="/api/v1/purchase")
     app.register_blueprint(finance_bp, url_prefix="/api/v1/finance")
     app.register_blueprint(hr_bp, url_prefix="/api/v1/hr")
     app.register_blueprint(manufacturing_bp, url_prefix="/api/v1/manufacturing")
@@ -208,6 +211,71 @@ def create_app(config_name="development"):
     @app.route("/workflow/routing/<rid>")
     def workflow_routing_detail(rid):
         return render_template("workflow/routing_detail.html", routing_id=rid)
+
+    def _render_section(module_name, section):
+        sec = section or "overview"
+        rel_path = f"{module_name}/{sec}.html"
+        abs_path = os.path.join(app.template_folder, module_name, f"{sec}.html")
+        if os.path.exists(abs_path):
+            return render_template(rel_path, section=sec)
+        return render_template(f"{module_name}/{module_name}.html", section=sec)
+
+    @app.route("/inventory")
+    @app.route("/inventory/<section>")
+    def inventory_portal(section=None):
+        return render_template("inventory/inventory.html")
+
+    @app.route("/inventory/checkin/<cid>")
+    def inventory_checkin_detail(cid):
+        return render_template("inventory/checkin_detail.html", checkin_id=cid)
+
+    @app.route("/inventory/stock-level/<slid>")
+    def inventory_stocklevel_detail(slid):
+        return render_template("inventory/stocklevel_detail.html", stock_id=slid)
+
+    @app.route("/warehouse")
+    @app.route("/warehouse/<section>")
+    def warehouse_page(section=None):
+        return render_template("warehouse/warehouse.html")
+
+    @app.route("/warehouse/bin/<bin_code>")
+    def warehouse_bin_detail(bin_code):
+        return render_template("warehouse/bin_detail.html", bin_code=bin_code)
+
+    @app.route("/manufacturing")
+    @app.route("/manufacturing/<section>")
+    def manufacturing_page(section=None):
+        return render_template("manufacturing/manufacturing.html")
+
+    @app.route("/purchase")
+    @app.route("/purchase/<section>")
+    def purchase_page(section=None):
+        return render_template("purchase/purchase.html", section=section)
+
+    @app.route("/purchase/demand/<did>")
+    def purchase_demand_detail(did):
+        return render_template("purchase/demand_detail.html", demand_id=did)
+
+    @app.route("/purchase/supplier/<sid>")
+    def purchase_supplier_detail(sid):
+        return render_template("purchase/supplier_detail.html", supplier_id=sid)
+
+    @app.route("/purchase/requisition/<rid>")
+    def purchase_requisition_detail(rid):
+        return render_template("purchase/requisition_detail.html", req_id=rid)
+
+    @app.route("/purchase/order/<poid>")
+    def purchase_order_detail(poid):
+        return render_template("purchase/order_detail.html", po_id=poid)
+
+    @app.route("/quality")
+    @app.route("/quality/<section>")
+    def quality_page(section=None):
+        return render_template("quality/quality.html", section=section)
+
+    @app.route("/quality/iqc/<cid>")
+    def quality_iqc_detail(cid):
+        return render_template("quality/iqc_detail.html", checkin_id=cid)
 
     @app.route("/superadmin")
     @app.route("/superadmin/<section>")

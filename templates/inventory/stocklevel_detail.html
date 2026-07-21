@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Level Detail - SUPERSYSTEMS</title>
+    <link rel="stylesheet" href="/static/css/header.css">
+    <link rel="stylesheet" href="/static/css/inventory/inventory.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+</head>
+<body>
+
+<header class="header">
+    <div class="header-left">
+        <div class="logo">
+            <img class="logo-light" src="/static/img/light_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <span class="logo-text">SUPERSYSTEMS</span>
+        </div>
+        <div class="nav-item services-trigger" onclick="toggleServices()">
+            <span class="material-icons-outlined">apps</span>
+            <span>Services</span>
+            <span class="material-icons-outlined arrow">expand_more</span>
+        </div>
+    </div>
+    <div class="header-center">
+        <div class="search-box">
+            <span class="material-icons-outlined">search</span>
+            <input type="text" placeholder="Search inventory parts, stock, movements..." id="globalSearch">
+            <div class="search-results" id="searchResults"></div>
+        </div>
+    </div>
+    <div class="header-right">
+        <button class="header-icon-btn theme-toggle" title="Toggle Dark Mode" onclick="toggleTheme()">
+            <span class="material-icons-outlined icon-light">dark_mode</span>
+            <span class="material-icons-outlined icon-dark">light_mode</span>
+        </button>
+        <div class="user-menu" id="userMenu">
+            <div class="user-avatar" onclick="toggleUserMenu()">
+                <span class="material-icons-outlined">person</span>
+            </div>
+            <div class="user-dropdown" id="userDropdown">
+                <div class="dropdown-divider"></div>
+                <a href="#" onclick="logout()"><span class="material-icons-outlined">logout</span>Logout</a>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- SERVICES PANEL -->
+<div class="services-panel" id="servicesPanel">
+    <div class="services-panel-header">
+        <h3>All Services</h3>
+        <div style="display:flex;align-items:center;gap:10px">
+            <button class="btn-outline" id="toggleAllServicesBtn" onclick="toggleAllServices()">
+                <span class="material-icons-outlined">unfold_less</span> Collapse All
+            </button>
+            <button class="close-btn" onclick="toggleServices()"><span class="material-icons-outlined">close</span></button>
+        </div>
+    </div>
+    <div class="services-grid" id="servicesGrid"></div>
+</div>
+<div class="overlay" id="overlay" onclick="toggleServices()"></div>
+
+<div class="inventory-layout">
+    <aside class="inventory-sidebar">
+        <div class="sidebar-header">
+            <span class="material-icons-outlined">inventory_2</span>
+            <h3>Inventory</h3>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/inventory#stocklevels" class="sidebar-link">
+                <span class="material-icons-outlined">arrow_back</span>Back to Stock Levels
+            </a>
+            <div class="sidebar-divider"></div>
+            <a href="/inventory#overview" class="sidebar-link">
+                <span class="material-icons-outlined">dashboard</span>Overview
+            </a>
+            <a href="/inventory#checkin" class="sidebar-link">
+                <span class="material-icons-outlined">verified</span>Stock Check-In
+            </a>
+            <a href="/inventory#stocklevels" class="sidebar-link active">
+                <span class="material-icons-outlined">view_module</span>Stock Levels
+            </a>
+            <a href="/inventory#locations" class="sidebar-link">
+                <span class="material-icons-outlined">place</span>Hierarchical Locations
+            </a>
+            <a href="/inventory#stockmovements" class="sidebar-link">
+                <span class="material-icons-outlined">swap_horiz</span>Stock Movements
+            </a>
+            <a href="/inventory#transfers" class="sidebar-link">
+                <span class="material-icons-outlined">move_up</span>Stock Transfers
+            </a>
+            <a href="/inventory#adjustments" class="sidebar-link">
+                <span class="material-icons-outlined">tune</span>Stock Adjustments
+            </a>
+            <a href="/inventory#counts" class="sidebar-link">
+                <span class="material-icons-outlined">fact_check</span>Stock Counts
+            </a>
+            <a href="/inventory#batches" class="sidebar-link">
+                <span class="material-icons-outlined">qr_code_2</span>Batch Tracking
+            </a>
+            <a href="/inventory#serials" class="sidebar-link">
+                <span class="material-icons-outlined">tag</span>Serial Numbers
+            </a>
+            <a href="/inventory#reorder" class="sidebar-link">
+                <span class="material-icons-outlined">add_shopping_cart</span>Reorder Rules
+            </a>
+            <a href="/inventory#reports" class="sidebar-link">
+                <span class="material-icons-outlined">analytics</span>Valuation & Reports
+            </a>
+            <div class="sidebar-divider"></div>
+            <a href="/inventory#auditlogs" class="sidebar-link">
+                <span class="material-icons-outlined">history</span>Audit Logs
+            </a>
+            <a href="/inventory#moduleusers" class="sidebar-link">
+                <span class="material-icons-outlined">people</span>Module Users
+            </a>
+        </nav>
+    </aside>
+
+    <main class="inventory-content">
+        <div class="section-header">
+            <div>
+                <h2 id="slPartCode">Stock Level Detail</h2>
+                <div style="font-size:13px; color:var(--text-muted);" id="slPartDesc">Part / RM Description</div>
+            </div>
+            <div style="display:flex; gap:8px;">
+                <a href="/inventory#stocklevels" class="btn-outline">
+                    <span class="material-icons-outlined">arrow_back</span>Back
+                </a>
+            </div>
+        </div>
+
+        <div class="overview-stats" style="margin-bottom:20px;">
+            <div class="stat-card">
+                <span class="material-icons-outlined">inventory</span>
+                <div class="stat-info">
+                    <div class="value" id="slOnHand">0</div>
+                    <div class="label">Quantity On Hand</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <span class="material-icons-outlined">check_circle</span>
+                <div class="stat-info">
+                    <div class="value" id="slAvailable" style="color:#2e7d32;">0</div>
+                    <div class="label">Available Stock</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <span class="material-icons-outlined">lock</span>
+                <div class="stat-info">
+                    <div class="value" id="slReserved" style="color:#e65100;">0</div>
+                    <div class="label">Reserved Stock</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <span class="material-icons-outlined">monetization_on</span>
+                <div class="stat-info">
+                    <div class="value" id="slTotalValue">₹0</div>
+                    <div class="label">Total Stock Value</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SPECIFICATION TABLE -->
+        <div class="card" style="margin-bottom:20px;">
+            <h3>Stock Specification & Location Mapping</h3>
+            <table class="data-table" style="margin-top:14px; max-width:700px;">
+                <tr><th style="width:200px;">Part / RM Number</th><td id="sltCode">-</td></tr>
+                <tr><th>Description</th><td id="sltDesc">-</td></tr>
+                <tr><th>Item Type</th><td id="sltType">-</td></tr>
+                <tr><th>Unit</th><td id="sltUnit">-</td></tr>
+                <tr><th>Unit Cost</th><td id="sltUnitCost">-</td></tr>
+                <tr><th>Reorder Point</th><td id="sltReorder">-</td></tr>
+                <tr><th>Reorder Qty</th><td id="sltReorderQty">-</td></tr>
+                <tr><th>Warehouse Code</th><td id="sltWarehouse">-</td></tr>
+                <tr><th>Zone Code</th><td id="sltZone">-</td></tr>
+                <tr><th>Assigned Bin Code</th><td id="sltBin">-</td></tr>
+                <tr><th>Last Movement</th><td id="sltLastMov">-</td></tr>
+            </table>
+        </div>
+
+        <!-- MOVEMENT HISTORY -->
+        <div class="card">
+            <h3>Stock Movement History for this Part</h3>
+            <div class="table-responsive" style="margin-top:14px;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Movement No</th>
+                            <th>Type</th>
+                            <th>Qty</th>
+                            <th>From Bin</th>
+                            <th>To Bin</th>
+                            <th>Reference</th>
+                            <th>Performed By</th>
+                            <th>Date & Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="slMovementsBody">
+                        <tr><td colspan="8" style="text-align:center;">Loading movements...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script src="/static/js/header.js"></script>
+<script>requireAuth();</script>
+<script>
+const SLID = "{{ stock_id }}";
+const token = localStorage.getItem('access_token') || localStorage.getItem('token') || '';
+const HDRS = { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+
+async function loadStockLevelDetail() {
+    try {
+        const res = await fetch('/api/v1/inventory/stock-levels/' + SLID, { headers: HDRS });
+        const json = await res.json();
+        if (json.success && json.data) {
+            const s = json.data;
+            const unit = s.unit || 'units';
+            document.getElementById('slPartCode').innerText = s.part_number;
+            document.getElementById('slPartDesc').innerText = s.part_description || s.part_number;
+            document.getElementById('slOnHand').innerText = s.qty_on_hand + ' ' + unit;
+            document.getElementById('slAvailable').innerText = s.qty_available + ' ' + unit;
+            document.getElementById('slReserved').innerText = s.qty_reserved + ' ' + unit;
+            document.getElementById('slTotalValue').innerText = '₹' + Number(s.total_value || 0).toLocaleString();
+
+            document.getElementById('sltCode').innerText = s.part_number;
+            document.getElementById('sltDesc').innerText = s.part_description || '-';
+            document.getElementById('sltType').innerText = s.item_type || 'PART';
+            document.getElementById('sltUnit').innerText = unit;
+            document.getElementById('sltUnitCost').innerText = '₹' + s.unit_cost;
+            document.getElementById('sltReorder').innerText = s.reorder_point + ' ' + unit;
+            document.getElementById('sltReorderQty').innerText = s.reorder_qty + ' ' + unit;
+            document.getElementById('sltWarehouse').innerText = s.warehouse_code || 'MAIN';
+            document.getElementById('sltZone').innerText = s.zone_code || '-';
+            document.getElementById('sltBin').innerText = s.bin_code || '-';
+            document.getElementById('sltLastMov').innerText = s.last_movement_at || '-';
+        }
+    } catch(e) { console.error(e); }
+
+    loadPartMovements();
+}
+
+async function loadPartMovements() {
+    const tbody = document.getElementById('slMovementsBody');
+    try {
+        const res = await fetch('/api/v1/inventory/stock-movements?search=' + encodeURIComponent(
+            document.getElementById('slPartCode').innerText
+        ), { headers: HDRS });
+        const json = await res.json();
+        if (json.success && json.data && json.data.length > 0) {
+            tbody.innerHTML = json.data.map(m => `
+                <tr>
+                    <td><strong>${m.movement_no}</strong></td>
+                    <td><span class="badge ${m.movement_type === 'RECEIPT' ? 'badge-success' : m.movement_type === 'ISSUE' ? 'badge-danger' : 'badge-info'}">${m.movement_type}</span></td>
+                    <td><strong>${m.qty} ${m.unit}</strong></td>
+                    <td style="font-size:12px;">${m.from_bin_code || '-'}</td>
+                    <td style="font-size:12px;">${m.to_bin_code || '-'}</td>
+                    <td style="font-size:12px;">${m.reference_no || '-'}</td>
+                    <td style="font-size:12px;">${m.performed_by}</td>
+                    <td style="font-size:11px; color:var(--text-muted);">${m.created_at || '-'}</td>
+                </tr>
+            `).join('');
+        } else {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--text-muted);">No movement history found for this part.</td></tr>';
+        }
+    } catch(e) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:red;">Error loading movements.</td></tr>';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', loadStockLevelDetail);
+</script>
+</body>
+</html>

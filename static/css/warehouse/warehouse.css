@@ -1,0 +1,69 @@
+/* Warehouse Management Layout & Design System Match */
+.warehouse-layout {
+    display: flex;
+    margin-top: var(--header-height);
+    min-height: calc(100vh - var(--header-height));
+}
+
+.warehouse-sidebar {
+    width: 240px;
+    background: var(--bg-primary);
+    border-right: 1px solid var(--border-color);
+    padding: 16px 0;
+    position: fixed;
+    top: var(--header-height);
+    bottom: 0;
+    overflow-y: auto;
+    z-index: 10;
+}
+
+.warehouse-content {
+    flex: 1;
+    margin-left: 240px;
+    padding: 24px;
+    background: var(--bg-secondary);
+    min-height: calc(100vh - var(--header-height));
+}
+
+.bin-qr-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    text-align: center;
+}
+
+.bin-qr-card img {
+    width: 120px;
+    height: 120px;
+    margin-bottom: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 4px;
+}
+
+.bin-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.label-sheet-container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    padding: 16px;
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+}
+
+.label-item {
+    border: 1px dashed #666;
+    padding: 10px;
+    text-align: center;
+    font-family: monospace;
+}

@@ -1,0 +1,49 @@
+/* Manufacturing Management Layout & Design System Match */
+.manufacturing-layout {
+    display: flex;
+    margin-top: var(--header-height);
+    min-height: calc(100vh - var(--header-height));
+}
+
+.manufacturing-sidebar {
+    width: 240px;
+    background: var(--bg-primary);
+    border-right: 1px solid var(--border-color);
+    padding: 16px 0;
+    position: fixed;
+    top: var(--header-height);
+    bottom: 0;
+    overflow-y: auto;
+    z-index: 10;
+}
+
+.manufacturing-content {
+    flex: 1;
+    margin-left: 240px;
+    padding: 24px;
+    background: var(--bg-secondary);
+    min-height: calc(100vh - var(--header-height));
+}
+
+.timeline-bar {
+    height: 12px;
+    border-radius: 6px;
+    background: var(--accent-light);
+    overflow: hidden;
+    position: relative;
+    margin-top: 4px;
+}
+
+.timeline-progress {
+    height: 100%;
+    background: var(--accent);
+}
+
+.mhr-badge {
+    background: #e0f2fe;
+    color: #0369a1;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+}

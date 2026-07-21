@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Requisition Order Detail - SUPERSYSTEMS</title>
+    <link rel="stylesheet" href="/static/css/header.css">
+    <link rel="stylesheet" href="/static/css/inventory/inventory.css">
+    <link rel="stylesheet" href="/static/css/purchase/purchase.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+</head>
+<body>
+
+<header class="header">
+    <div class="header-left">
+        <div class="logo">
+            <img class="logo-light" src="/static/img/light_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <span class="logo-text">SUPERSYSTEMS</span>
+        </div>
+    </div>
+    <div class="header-right">
+        <button class="header-icon-btn" onclick="toggleTheme()"><span class="material-icons-outlined">dark_mode</span></button>
+    </div>
+</header>
+
+<div class="purchase-layout">
+    <aside class="purchase-sidebar">
+        <div class="sidebar-header">
+            <span class="material-icons-outlined">shopping_cart</span>
+            <h3>Purchase</h3>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/purchase/requisitions" class="sidebar-link">
+                <span class="material-icons-outlined">arrow_back</span>Back to Requisition Orders
+            </a>
+        </nav>
+    </aside>
+
+    <main class="purchase-content">
+        <div class="section-header">
+            <div>
+                <h2 id="rReqNo">Requisition Order Detail</h2>
+                <div style="font-size:13px; color:var(--text-muted);" id="rSupplierName">Supplier Name</div>
+            </div>
+            <div>
+                <a href="/purchase/requisitions" class="btn-outline"><span class="material-icons-outlined">arrow_back</span>Back</a>
+            </div>
+        </div>
+
+        <div class="overview-stats" style="margin-bottom:20px;">
+            <div class="stat-card">
+                <span class="material-icons-outlined">shopping_bag</span>
+                <div class="stat-info">
+                    <div class="value" id="rQty">0</div>
+                    <div class="label">Effective Order Qty (MOQ/SQP)</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <span class="material-icons-outlined">payments</span>
+                <div class="stat-info">
+                    <div class="value" id="rUnitPrice">₹0</div>
+                    <div class="label">Unit Price</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <span class="material-icons-outlined">account_balance_wallet</span>
+                <div class="stat-info">
+                    <div class="value" id="rTotalAmount">₹0</div>
+                    <div class="label">Total Requisition Amount</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <span class="material-icons-outlined">verified</span>
+                <div class="stat-info">
+                    <div class="value" id="rStatus">-</div>
+                    <div class="label">Requisition Status</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-bottom:20px;">
+            <h3>Requisition Specification & Rules Applied</h3>
+            <table class="data-table" style="margin-top:14px; max-width:700px;">
+                <tr><th style="width:200px;">Req Order No</th><td id="rtReqNo">-</td></tr>
+                <tr><th>Customer Demand Ref</th><td id="rtDemandNo">-</td></tr>
+                <tr><th>Part / RM Code</th><td id="rtCode">-</td></tr>
+                <tr><th>Description</th><td id="rtDesc">-</td></tr>
+                <tr><th>Supplier Name</th><td id="rtSupplierName">-</td></tr>
+                <tr><th>Supplier Code</th><td id="rtSupplierCode">-</td></tr>
+                <tr><th>Min Order Qty (MOQ)</th><td id="rtMoq">-</td></tr>
+                <tr><th>Standard Pack (SQP)</th><td id="rtSqp">-</td></tr>
+                <tr><th>Requested By</th><td id="rtReqBy">-</td></tr>
+                <tr><th>Created Timestamp</th><td id="rtCreatedAt">-</td></tr>
+            </table>
+        </div>
+    </main>
+</div>
+
+<script src="/static/js/header.js"></script>
+<script>
+const RID = "{{ req_id }}";
+
+async function loadRequisitionDetail() {
+    try {
+        const res = await fetch('/api/v1/purchase/requisitions/' + RID);
+        const json = await res.json();
+        if (json.success && json.data) {
+            const r = json.data;
+            document.getElementById('rReqNo').innerText = r.req_no;
+            document.getElementById('rSupplierName').innerText = 'Supplier: ' + r.supplier_name;
+            document.getElementById('rQty').innerText = r.required_qty + ' units';
+            document.getElementById('rUnitPrice').innerText = '₹' + r.unit_price;
+            document.getElementById('rTotalAmount').innerText = '₹' + r.total_amount.toLocaleString();
+            document.getElementById('rStatus').innerText = r.status;
+
+            document.getElementById('rtReqNo').innerText = r.req_no;
+            document.getElementById('rtDemandNo').innerText = r.demand_no;
+            document.getElementById('rtCode').innerText = r.part_or_rm_code;
+            document.getElementById('rtDesc').innerText = r.item_description;
+            document.getElementById('rtSupplierName').innerText = r.supplier_name;
+            document.getElementById('rtSupplierCode').innerText = r.supplier_code;
+            document.getElementById('rtMoq').innerText = r.moq + ' units';
+            document.getElementById('rtSqp').innerText = r.sqp + ' units';
+            document.getElementById('rtReqBy').innerText = r.requested_by;
+            document.getElementById('rtCreatedAt').innerText = r.created_at;
+        }
+    } catch(e) { console.error(e); }
+}
+
+document.addEventListener('DOMContentLoaded', loadRequisitionDetail);
+</script>
+</body>
+</html>

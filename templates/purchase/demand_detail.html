@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Demand Detail - SUPERSYSTEMS</title>
+    <link rel="stylesheet" href="/static/css/header.css">
+    <link rel="stylesheet" href="/static/css/inventory/inventory.css">
+    <link rel="stylesheet" href="/static/css/purchase/purchase.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+</head>
+<body>
+
+<header class="header">
+    <div class="header-left">
+        <div class="logo">
+            <img class="logo-light" src="/static/img/light_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <span class="logo-text">SUPERSYSTEMS</span>
+        </div>
+    </div>
+    <div class="header-right">
+        <button class="header-icon-btn" onclick="toggleTheme()"><span class="material-icons-outlined">dark_mode</span></button>
+    </div>
+</header>
+
+<div class="purchase-layout">
+    <aside class="purchase-sidebar">
+        <div class="sidebar-header">
+            <span class="material-icons-outlined">shopping_cart</span>
+            <h3>Purchase</h3>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/purchase/demand" class="sidebar-link">
+                <span class="material-icons-outlined">arrow_back</span>Back to Demand & Stock
+            </a>
+        </nav>
+    </aside>
+
+    <main class="purchase-content">
+        <div class="section-header">
+            <div>
+                <h2 id="dDemandNo">Demand Details</h2>
+                <div style="font-size:13px; color:var(--text-muted);" id="dCustomerName">Customer Order Demand</div>
+            </div>
+            <div>
+                <a href="/purchase/demand" class="btn-outline"><span class="material-icons-outlined">arrow_back</span>Back</a>
+            </div>
+        </div>
+
+        <!-- DEMAND SUMMARY CARDS -->
+        <div class="overview-stats" style="margin-bottom:20px;">
+            <div class="stat-card">
+                <span class="material-icons-outlined">shopping_bag</span>
+                <div class="stat-info">
+                    <div class="value" id="dOrderedQty">0</div>
+                    <div class="label">Ordered Quantity</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <span class="material-icons-outlined">inventory_2</span>
+                <div class="stat-info">
+                    <div class="value" id="dAvailableStock">0</div>
+                    <div class="label">Inventory Stock Available</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <span class="material-icons-outlined">lock</span>
+                <div class="stat-info">
+                    <div class="value" id="dOccupiedQty">0</div>
+                    <div class="label">Reserved / Occupied Stock</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <span class="material-icons-outlined">shopping_cart_checkout</span>
+                <div class="stat-info">
+                    <div class="value" id="dQtyToBuy" style="color:#c62828;">0</div>
+                    <div class="label">Net Shortage to Buy</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FULL DETAILS PANEL -->
+        <div class="card" style="margin-bottom:20px;">
+            <h3>Full Demand & Stock Calculation Breakdown</h3>
+            <table class="data-table" style="margin-top:14px; max-width:700px;">
+                <tr><th style="width:200px;">Demand No</th><td id="dtDemandNo">-</td></tr>
+                <tr><th>Customer Name</th><td id="dtCustomer">-</td></tr>
+                <tr><th>Ordered Part Code</th><td id="dtCode">-</td></tr>
+                <tr><th>Part Description</th><td id="dtDesc">-</td></tr>
+                <tr><th>Mapped Raw Material (RM)</th><td><span class="badge badge-warning" id="dtRmCode" style="background:#e8f5e9; color:#2e7d32; border:1px solid #a5d6a7;">-</span> <span id="dtRmDesc"></span></td></tr>
+                <tr><th>Stock Occupation Option</th><td id="dtOccupyOpt">-</td></tr>
+                <tr><th>Remaining Free Stock</th><td id="dtRemainingStock">-</td></tr>
+                <tr><th>Status</th><td id="dtStatus">-</td></tr>
+                <tr><th>Logged Date & Time</th><td id="dtCreatedAt">-</td></tr>
+                <tr><th>Notes & Remarks</th><td id="dtNotes">-</td></tr>
+            </table>
+        </div>
+
+        <!-- ACTIONS & REQUISITION CREATION -->
+        <div class="card">
+            <h3>Purchaser Actions</h3>
+            <p style="font-size:13px; color:var(--text-muted); margin-bottom:14px;">
+                Create a Requisition Order (Req Order) for the net shortage of raw material (RM) to buy directly from supplier.
+            </p>
+            <div id="actionArea">
+                <button class="btn-primary" onclick="proceedToReqOrder()"><span class="material-icons-outlined">request_quote</span>Create Requisition Order for Shortage</button>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script src="/static/js/header.js"></script>
+<script>
+const DID = "{{ demand_id }}";
+let demandData = null;
+
+async function loadDemandDetail() {
+    try {
+        const res = await fetch('/api/v1/purchase/customer-demands/' + DID);
+        const json = await res.json();
+        if (json.success && json.data) {
+            demandData = json.data;
+            const d = json.data;
+            document.getElementById('dDemandNo').innerText = d.demand_no;
+            document.getElementById('dCustomerName').innerText = 'Customer: ' + d.customer_name;
+            document.getElementById('dOrderedQty').innerText = d.ordered_qty;
+            document.getElementById('dAvailableStock').innerText = d.available_stock;
+            document.getElementById('dOccupiedQty').innerText = d.occupied_qty;
+            document.getElementById('dQtyToBuy').innerText = d.qty_to_buy;
+
+            document.getElementById('dtDemandNo').innerText = d.demand_no;
+            document.getElementById('dtCustomer').innerText = d.customer_name;
+            document.getElementById('dtCode').innerText = d.part_or_rm_code;
+            document.getElementById('dtDesc').innerText = d.item_description;
+            document.getElementById('dtRmCode').innerText = d.rm_code || 'RM-STEEL-316L';
+            document.getElementById('dtRmDesc').innerText = d.rm_description ? '(' + d.rm_description + ')' : '';
+            document.getElementById('dtOccupyOpt').innerHTML = `<span class="badge ${d.occupy_option === 'occupy' ? 'badge-success' : 'badge-warning'}">${d.occupy_option === 'occupy' ? 'Occupied Stock (Reserved)' : 'Do Not Occupy (Full Order Queued)'}</span>`;
+            document.getElementById('dtRemainingStock').innerText = d.remaining_stock;
+            document.getElementById('dtStatus').innerText = d.status;
+            document.getElementById('dtCreatedAt').innerText = d.created_at;
+            document.getElementById('dtNotes').innerText = d.notes || 'None';
+        }
+    } catch(e) { console.error(e); }
+}
+
+function proceedToReqOrder() {
+    if (!demandData) return;
+    window.location.href = '/purchase/requisitions';
+}
+
+document.addEventListener('DOMContentLoaded', loadDemandDetail);
+</script>
+</body>
+</html>

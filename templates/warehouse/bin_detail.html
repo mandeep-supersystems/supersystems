@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bin Detail - {{ bin_code }} | SUPERSYSTEMS</title>
+    <link rel="stylesheet" href="/static/css/header.css">
+    <link rel="stylesheet" href="/static/css/inventory/inventory.css">
+    <link rel="stylesheet" href="/static/css/warehouse/warehouse.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+    <style>
+        body { padding: 20px; max-width: 600px; margin: 0 auto; background: var(--bg-secondary); }
+        .bin-header { text-align: center; padding: 20px; background: var(--bg-primary); border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 20px; }
+        .bin-qr-img { width: 140px; height: 140px; margin-top: 10px; }
+        .stock-item { display: flex; justify-content: space-between; padding: 12px; border-bottom: 1px solid var(--border-color); }
+    </style>
+</head>
+<body>
+
+<div class="bin-header">
+    <span class="material-icons-outlined" style="font-size: 40px; color: var(--accent);">qr_code_2</span>
+    <h2 style="margin-top:6px;">Bin: {{ bin_code }}</h2>
+    <div id="binStatusBadge" class="badge badge-success" style="margin-top:6px;">Active Storage</div>
+    <div><img id="binQrImage" class="bin-qr-img" src="" alt="QR Code"></div>
+    <div style="margin-top:10px; font-size:13px; color:var(--text-muted);">
+        Warehouse: <strong id="binWh">MAIN</strong> | Zone: <strong id="binZone">Z1</strong>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Current Stock In Bin</h3>
+    <div id="binStockList" style="margin-top:12px;">
+        <div style="text-align:center; padding:10px; color:var(--text-muted);">Loading stock in bin...</div>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Recent Bin Movements</h3>
+    <div id="binMovementList" style="margin-top:12px;">
+        <div style="text-align:center; padding:10px; color:var(--text-muted);">Loading recent movements...</div>
+    </div>
+</div>
+
+<script>
+    const binCode = "{{ bin_code }}";
+
+    async function loadBinDetails() {
+        try {
+            const res = await fetch(`/api/v1/warehouse/bins/${binCode}/details`);
+            const json = await res.json();
+            if (json.success) {
+                const data = json.data;
+                document.getElementById('binWh').innerText = data.warehouse_code;
+                document.getElementById('binZone').innerText = data.zone_code;
+                document.getElementById('binQrImage').src = data.qr_code;
+
+                // Stock
+                const stockEl = document.getElementById('binStockList');
+                if (data.stock && data.stock.length > 0) {
+                    stockEl.innerHTML = data.stock.map(s => `
+                        <div class="stock-item">
+                            <div>
+                                <strong>${s.part_number}</strong>
+                                <div style="font-size:12px; color:var(--text-muted);">${s.description}</div>
+                            </div>
+                            <div style="font-weight:700; color:var(--accent);">${s.qty} ${s.unit}</div>
+                        </div>
+                    `).join('');
+                } else {
+                    stockEl.innerHTML = '<div style="text-align:center; padding:10px;">Bin is currently empty.</div>';
+                }
+
+                // Movements
+                const movEl = document.getElementById('binMovementList');
+                if (data.recent_movements && data.recent_movements.length > 0) {
+                    movEl.innerHTML = data.recent_movements.map(m => `
+                        <div class="stock-item">
+                            <div>
+                                <strong>${m.movement_no}</strong> (${m.type})
+                                <div style="font-size:11px; color:var(--text-muted);">${m.part_number} | ${m.time}</div>
+                            </div>
+                            <div style="font-weight:600;">${m.qty}</div>
+                        </div>
+                    `).join('');
+                } else {
+                    movEl.innerHTML = '<div style="text-align:center; padding:10px;">No recent movements recorded.</div>';
+                }
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    loadBinDetails();
+</script>
+
+</body>
+</html>
