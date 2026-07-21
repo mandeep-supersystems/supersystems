@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IQC Quality Inspection Detail - SUPERSYSTEMS</title>
+    <link rel="stylesheet" href="/static/css/header.css">
+    <link rel="stylesheet" href="/static/css/part/part.css">
+    <link rel="stylesheet" href="/static/css/quality/quality.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+</head>
+<body>
+
+<header class="header">
+    <div class="header-left">
+        <div class="logo">
+            <img class="logo-light" src="/static/img/light_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <span class="logo-text">SUPERSYSTEMS</span>
+        </div>
+        <div class="nav-item services-trigger" onclick="toggleServices()">
+            <span class="material-icons-outlined">apps</span>
+            <span>Services</span>
+            <span class="material-icons-outlined arrow">expand_more</span>
+        </div>
+    </div>
+    <div class="header-center">
+        <div class="search-box">
+            <span class="material-icons-outlined">search</span>
+            <input type="text" placeholder="Search services, features..." id="globalSearch" oninput="handleSearch(this.value)">
+            <div class="search-results" id="searchResults"></div>
+        </div>
+    </div>
+    <div class="header-right">
+        <button class="header-icon-btn" title="Notifications"><span class="material-icons-outlined">notifications</span></button>
+        <button class="header-icon-btn theme-toggle" title="Toggle Dark Mode" onclick="toggleTheme()">
+            <span class="material-icons-outlined icon-light">dark_mode</span>
+            <span class="material-icons-outlined icon-dark">light_mode</span>
+        </button>
+        <div class="user-menu" id="userMenu">
+            <div class="user-avatar" onclick="toggleUserMenu()"><span class="material-icons-outlined">person</span></div>
+            <div class="user-dropdown" id="userDropdown">
+                <a href="#" onclick="openProfile()"><span class="material-icons-outlined">person</span>Profile</a>
+                <a href="#" onclick="openAccount()"><span class="material-icons-outlined">manage_accounts</span>Account</a>
+                <div class="dropdown-divider"></div>
+                <a href="#" onclick="logout()"><span class="material-icons-outlined">logout</span>Logout</a>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- SERVICES PANEL -->
+<div class="services-panel" id="servicesPanel">
+    <div class="services-panel-header">
+        <h3>All Services</h3>
+        <div style="display:flex;align-items:center;gap:10px">
+            <button class="btn-outline" id="toggleAllServicesBtn" onclick="toggleAllServices()">
+                <span class="material-icons-outlined">unfold_less</span> Collapse All
+            </button>
+            <button class="close-btn" onclick="toggleServices()"><span class="material-icons-outlined">close</span></button>
+        </div>
+    </div>
+    <div class="services-grid" id="servicesGrid"></div>
+</div>
+<div class="overlay" id="overlay" onclick="toggleServices()"></div>
+<div class="quality-layout">
+    <aside class="quality-sidebar">
+        <div class="sidebar-header">
+            <span class="material-icons-outlined">verified</span>
+            <h3>Quality Control</h3>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/quality/iqc" class="sidebar-link">
+                <span class="material-icons-outlined">arrow_back</span>Back to IQC List
+            </a>
+        </nav>
+    </aside>
+
+    <main class="quality-content">
+        <div class="section-header">
+            <div>
+                <h2 id="iqcCheckinNo">IQC Quality Inspection</h2>
+                <div style="font-size:13px; color:var(--text-muted);" id="iqcSupplier">Supplier Delivery Evaluation</div>
+            </div>
+            <div>
+                <a href="/quality/iqc" class="btn-outline"><span class="material-icons-outlined">arrow_back</span>Back</a>
+            </div>
+        </div>
+
+        <div class="quality-overview-stats" style="margin-bottom:20px;">
+            <div class="quality-stat-card">
+                <span class="material-icons-outlined q-stat-icon">local_shipping</span>
+                <div>
+                    <div class="q-stat-value" id="iqcRecQty">0</div>
+                    <div class="q-stat-label">Received Quantity</div>
+                </div>
+            </div>
+            <div class="quality-stat-card">
+                <span class="material-icons-outlined q-stat-icon warning">verified</span>
+                <div>
+                    <div class="q-stat-value" id="iqcStatusTag">Pending</div>
+                    <div class="q-stat-label">Inspection Status</div>
+                </div>
+            </div>
+            <div class="quality-stat-card">
+                <span class="material-icons-outlined q-stat-icon success">check_circle</span>
+                <div>
+                    <div class="q-stat-value" id="iqcPassedQty">0</div>
+                    <div class="q-stat-label">Passed OK Quantity</div>
+                </div>
+            </div>
+            <div class="quality-stat-card">
+                <span class="material-icons-outlined q-stat-icon danger">cancel</span>
+                <div>
+                    <div class="q-stat-value" id="iqcRejectedQty">0</div>
+                    <div class="q-stat-label">Rejected NG Quantity</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- APPLICABLE INSPECTION CRITERIA -->
+        <div class="card" style="margin-bottom:20px;">
+            <h3>IQC Inspection Criteria Specifications for <span id="iqcCodeLabel"></span></h3>
+            <div class="table-responsive" style="margin-top:14px;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Parameter / Criterion</th>
+                            <th>Target Specification</th>
+                            <th>Tolerance Boundaries</th>
+                            <th>Inspection Gauge / Method</th>
+                            <th>Mandatory</th>
+                            <th>Evaluation Result</th>
+                        </tr>
+                    </thead>
+                    <tbody id="criteriaEvaluationBody">
+                        <tr><td colspan="6" style="text-align:center;">Loading criteria...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- PERFORM INSPECTION FORM -->
+        <div class="card">
+            <h3>Perform IQC Inspection & Disposition</h3>
+            <form onsubmit="submitIqcInspectionPage(event)" style="max-width:650px;">
+                <div style="display:flex; gap:10px;">
+                    <div class="form-group" style="flex:1;">
+                        <label>Passed OK Quantity *</label>
+                        <input type="number" id="qPassed" value="0" required>
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>Rejected NG Quantity *</label>
+                        <input type="number" id="qRejected" value="0" required>
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>Scrap Quantity</label>
+                        <input type="number" id="qScrap" value="0">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Inspection Elapsed Time (Minutes)</label>
+                    <input type="number" id="qElapsed" value="15">
+                </div>
+                <div class="form-group">
+                    <label>Inspector Defect Remarks & Analysis *</label>
+                    <textarea id="qRemarks" rows="3" placeholder="Enter detailed inspection findings..." required></textarea>
+                </div>
+                <button type="submit" class="btn-primary"><span class="material-icons-outlined">verified</span>Save IQC Inspection Result</button>
+            </form>
+        </div>
+    </main>
+</div>
+
+<script src="/static/js/header.js"></script>
+<script>requireAuth();</script>
+<script>
+const CID = "{{ checkin_id }}";
+
+async function loadIqcDetail() {
+    try {
+        const res = await fetch('/api/v1/quality/iqc/' + CID);
+        const json = await res.json();
+        if (json.success && json.data) {
+            const d = json.data;
+            document.getElementById('iqcCheckinNo').innerText = d.checkin_no;
+            document.getElementById('iqcSupplier').innerText = 'Supplier: ' + d.supplier_name + ' | PO: ' + d.po_no;
+            document.getElementById('iqcRecQty').innerText = d.received_qty + ' units';
+            document.getElementById('iqcStatusTag').innerText = d.iqc_status;
+            document.getElementById('iqcPassedQty').innerText = d.iqc_passed_qty + ' units';
+            document.getElementById('iqcRejectedQty').innerText = d.iqc_rejected_qty + ' units';
+            document.getElementById('iqcCodeLabel').innerText = d.part_or_rm_code;
+
+            document.getElementById('qPassed').value = d.iqc_passed_qty || d.received_qty;
+            document.getElementById('qRejected').value = d.iqc_rejected_qty;
+            document.getElementById('qScrap').value = d.iqc_scrap_qty;
+            document.getElementById('qElapsed').value = d.iqc_elapsed_min || 15;
+            document.getElementById('qRemarks').value = d.iqc_remarks;
+
+            // Render Criteria evaluation
+            const tbody = document.getElementById('criteriaEvaluationBody');
+            if (d.applicable_criteria && d.applicable_criteria.length > 0) {
+                tbody.innerHTML = d.applicable_criteria.map(c => `
+                    <tr>
+                        <td><strong>${c.criterion_name}</strong></td>
+                        <td>${c.spec_target}</td>
+                        <td>${c.tolerance_min} - ${c.tolerance_max}</td>
+                        <td>${c.inspection_method}</td>
+                        <td><span class="badge ${c.is_mandatory ? 'badge-danger' : 'badge-info'}">${c.is_mandatory ? 'Mandatory' : 'Optional'}</span></td>
+                        <td><span class="badge badge-success">OK (Within Spec)</span></td>
+                    </tr>
+                `).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No criteria master records defined for this material. Standard visual & dimensional check applies.</td></tr>';
+            }
+        }
+    } catch(e) { console.error(e); }
+}
+
+async function submitIqcInspectionPage(e) {
+    e.preventDefault();
+    const payload = {
+        passed_qty: parseFloat(document.getElementById('qPassed').value || 0),
+        rejected_qty: parseFloat(document.getElementById('qRejected').value || 0),
+        scrap_qty: parseFloat(document.getElementById('qScrap').value || 0),
+        elapsed_min: parseInt(document.getElementById('qElapsed').value || 15),
+        remarks: document.getElementById('qRemarks').value
+    };
+
+    try {
+        const res = await fetch(`/api/v1/quality/iqc/${CID}/inspect`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const json = await res.json();
+        if (json.success) {
+            alert(json.message);
+            loadIqcDetail();
+        } else { alert(json.message); }
+    } catch(e) { alert('Error saving inspection'); }
+}
+
+document.addEventListener('DOMContentLoaded', loadIqcDetail);
+</script>
+</body>
+</html>

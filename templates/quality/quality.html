@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quality Management - SUPERSYSTEMS</title>
+    <link rel="stylesheet" href="/static/css/header.css">
+    <link rel="stylesheet" href="/static/css/part/part.css">
+    <link rel="stylesheet" href="/static/css/quality/quality.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+</head>
+<body>
+
+<!-- FIXED HEADER -->
+<header class="header">
+    <div class="header-left">
+        <div class="logo">
+            <img class="logo-light" src="/static/img/light_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <span class="logo-text">SUPERSYSTEMS</span>
+        </div>
+        <div class="nav-item services-trigger" onclick="toggleServices()">
+            <span class="material-icons-outlined">apps</span>
+            <span>Services</span>
+            <span class="material-icons-outlined arrow">expand_more</span>
+        </div>
+    </div>
+    <div class="header-center">
+        <div class="search-box">
+            <span class="material-icons-outlined">search</span>
+            <input type="text" placeholder="Search services, features..." id="globalSearch" oninput="handleSearch(this.value)">
+            <div class="search-results" id="searchResults"></div>
+        </div>
+    </div>
+    <div class="header-right">
+        <button class="header-icon-btn" title="Notifications">
+            <span class="material-icons-outlined">notifications</span>
+        </button>
+        <button class="header-icon-btn theme-toggle" title="Toggle Dark Mode" onclick="toggleTheme()">
+            <span class="material-icons-outlined icon-light">dark_mode</span>
+            <span class="material-icons-outlined icon-dark">light_mode</span>
+        </button>
+        <div class="user-menu" id="userMenu">
+            <div class="user-avatar" onclick="toggleUserMenu()">
+                <span class="material-icons-outlined">person</span>
+            </div>
+            <div class="user-dropdown" id="userDropdown">
+                <a href="#" onclick="openProfile()"><span class="material-icons-outlined">person</span>Profile</a>
+                <a href="#" onclick="openAccount()"><span class="material-icons-outlined">manage_accounts</span>Account</a>
+                <div class="dropdown-divider"></div>
+                <a href="#" onclick="logout()"><span class="material-icons-outlined">logout</span>Logout</a>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- SERVICES PANEL -->
+<div class="services-panel" id="servicesPanel">
+    <div class="services-panel-header">
+        <h3>All Services</h3>
+        <div style="display:flex;align-items:center;gap:10px">
+            <button class="btn-outline" id="toggleAllServicesBtn" onclick="toggleAllServices()">
+                <span class="material-icons-outlined">unfold_less</span> Collapse All
+            </button>
+            <button class="close-btn" onclick="toggleServices()">
+                <span class="material-icons-outlined">close</span>
+            </button>
+        </div>
+    </div>
+    <div class="services-grid" id="servicesGrid"></div>
+</div>
+<div class="overlay" id="overlay" onclick="toggleServices()"></div>
+
+<!-- MAIN LAYOUT -->
+<div class="quality-layout">
+    <aside class="quality-sidebar">
+        <div class="sidebar-header">
+            <span class="material-icons-outlined">verified</span>
+            <h3>Quality Control</h3>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/" class="sidebar-link">
+                <span class="material-icons-outlined">arrow_back</span>Home
+            </a>
+            <div class="sidebar-divider"></div>
+            <a class="sidebar-link active" data-section="overview" onclick="showSection('overview')">
+                <span class="material-icons-outlined">dashboard</span>Overview
+            </a>
+            <a class="sidebar-link" data-section="iqc" onclick="showSection('iqc')">
+                <span class="material-icons-outlined">fact_check</span>Incoming Quality Control (IQC)
+            </a>
+            <a class="sidebar-link" data-section="criteria" onclick="showSection('criteria')">
+                <span class="material-icons-outlined">tune</span>IQC Inspection Criteria Master
+            </a>
+            <a class="sidebar-link" data-section="ipqc" onclick="showSection('ipqc')">
+                <span class="material-icons-outlined">precision_manufacturing</span>In-Process Quality (IPQC)
+            </a>
+            <a class="sidebar-link" data-section="fqa" onclick="showSection('fqa')">
+                <span class="material-icons-outlined">verified_user</span>Final Quality Assurance (FQA)
+            </a>
+            <a class="sidebar-link" data-section="ncr" onclick="showSection('ncr')">
+                <span class="material-icons-outlined">report_problem</span>Non-Conformance Reports (NCR)
+            </a>
+            <div class="sidebar-divider"></div>
+            <a class="sidebar-link" data-section="auditlogs" onclick="showSection('auditlogs')">
+                <span class="material-icons-outlined">history</span>Audit Logs
+            </a>
+            <a class="sidebar-link" data-section="moduleusers" onclick="showSection('moduleusers')">
+                <span class="material-icons-outlined">people</span>Module Users
+            </a>
+        </nav>
+    </aside>
+
+    <main class="quality-content" id="qualityMain">
+        <!-- OVERVIEW -->
+        <section id="sec-overview" class="content-section active">
+            <div class="section-header">
+                <h2>Quality Control Overview</h2>
+            </div>
+            <div class="quality-overview-stats">
+                <div class="quality-stat-card">
+                    <span class="material-icons-outlined q-stat-icon warning">pending_actions</span>
+                    <div>
+                        <div class="q-stat-value" id="qPendingIqc">0</div>
+                        <div class="q-stat-label">Pending IQC</div>
+                    </div>
+                </div>
+                <div class="quality-stat-card">
+                    <span class="material-icons-outlined q-stat-icon success">verified</span>
+                    <div>
+                        <div class="q-stat-value" id="qPassedIqc">0</div>
+                        <div class="q-stat-label">Passed Deliveries</div>
+                    </div>
+                </div>
+                <div class="quality-stat-card">
+                    <span class="material-icons-outlined q-stat-icon danger">report_problem</span>
+                    <div>
+                        <div class="q-stat-value" id="qTotalNcrs">0</div>
+                        <div class="q-stat-label">Open NCRs</div>
+                    </div>
+                </div>
+                <div class="quality-stat-card">
+                    <span class="material-icons-outlined q-stat-icon">rule</span>
+                    <div>
+                        <div class="q-stat-value" id="qActiveCriteria">0</div>
+                        <div class="q-stat-label">Active Criteria</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- INCOMING QUALITY CONTROL (IQC) -->
+        <section id="sec-iqc" class="content-section">
+            <div class="section-header">
+                <h2>Incoming Quality Control (IQC)</h2>
+            </div>
+            <div class="card">
+                <p style="font-size:13px; color:var(--text-muted); margin-bottom:12px;">
+                    Inspect checked-in stock from Inventory against defined <strong>IQC Inspection Criteria Master</strong> specifications (Tolerances, Hardness, Surface Finish).
+                </p>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Check-In No</th>
+                                <th>PO Ref</th>
+                                <th>Supplier Info</th>
+                                <th>Part / RM Code</th>
+                                <th>Rec Qty</th>
+                                <th>Checked In Time</th>
+                                <th>IQC Status</th>
+                                <th>OK Qty</th>
+                                <th>NG Qty</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="iqcBody">
+                            <tr><td colspan="10" style="text-align:center;">Loading IQC records...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- IQC INSPECTION CRITERIA MASTER -->
+        <section id="sec-criteria" class="content-section">
+            <div class="section-header">
+                <h2>IQC Inspection Criteria Master</h2>
+                <button class="btn-primary" onclick="openNewCriterionModal()"><span class="material-icons-outlined">add</span>Add Inspection Criterion</button>
+            </div>
+            <div class="card">
+                <p style="font-size:13px; color:var(--text-muted); margin-bottom:12px;">
+                    Configure quality parameters, target specs, and tolerance boundaries per Part / Raw Material code.
+                </p>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Part / RM Code</th>
+                                <th>Criterion Name</th>
+                                <th>Target Specification</th>
+                                <th>Min / Max Tolerance</th>
+                                <th>Inspection Method / Gauge</th>
+                                <th>Mandatory Check</th>
+                            </tr>
+                        </thead>
+                        <tbody id="criteriaBody">
+                            <tr><td colspan="6" style="text-align:center;">Loading inspection criteria...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- IN-PROCESS QUALITY CONTROL (IPQC) -->
+        <section id="sec-ipqc" class="content-section">
+            <div class="section-header">
+                <h2>In-Process Quality Control (IPQC)</h2>
+            </div>
+            <div class="card">
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Inspection No</th>
+                                <th>Production Order</th>
+                                <th>Part Number</th>
+                                <th>Work Center</th>
+                                <th>Operation Sequence</th>
+                                <th>Sample Qty</th>
+                                <th>Status</th>
+                                <th>Inspector</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ipqcBody">
+                            <tr><td colspan="8" style="text-align:center;">Loading IPQC records...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- FINAL QUALITY ASSURANCE (FQA) -->
+        <section id="sec-fqa" class="content-section">
+            <div class="section-header">
+                <h2>Final Quality Assurance (FQA)</h2>
+            </div>
+            <div class="card">
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>FQA No</th>
+                                <th>Production Order</th>
+                                <th>Part Number</th>
+                                <th>Inspected Qty</th>
+                                <th>OK Passed</th>
+                                <th>NG Rejected</th>
+                                <th>Status</th>
+                                <th>Quality Certificate</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fqaBody">
+                            <tr><td colspan="8" style="text-align:center;">Loading FQA records...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- NON-CONFORMANCE REPORTS (NCR) -->
+        <section id="sec-ncr" class="content-section">
+            <div class="section-header">
+                <h2>Non-Conformance Reports (NCR)</h2>
+            </div>
+            <div class="card">
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>NCR No</th>
+                                <th>Check-In Ref</th>
+                                <th>Part / RM Code</th>
+                                <th>Supplier Name</th>
+                                <th>Rejected Qty</th>
+                                <th>Defect Description</th>
+                                <th>Severity</th>
+                                <th>Disposition</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ncrBody">
+                            <tr><td colspan="9" style="text-align:center;">Loading NCR records...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- AUDIT LOGS -->
+        <section id="sec-auditlogs" class="content-section">
+            <div class="section-header"><h2>Audit Logs</h2></div>
+            <div class="card"><tbody id="auditLogsBody"></tbody></div>
+        </section>
+
+        <!-- MODULE USERS -->
+        <section id="sec-moduleusers" class="content-section">
+            <div class="section-header">
+                <h2>Module Users & Permission Matrix</h2>
+                <button class="btn-primary" onclick="openAddModuleUserModal()"><span class="material-icons-outlined">add</span>Add User Access</button>
+            </div>
+            <div class="card">
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Allowed Sections</th>
+                                <th>Granted Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="moduleUsersBody">
+                            <tr><td colspan="6" style="text-align:center;">Loading module users...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<!-- GLOBAL MODAL -->
+<div class="modal-overlay" id="globalModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3 id="modalTitle">Modal Title</h3>
+            <button class="close-btn" onclick="closeModal()"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body" id="modalBody"></div>
+    </div>
+</div>
+
+<!-- PROFILE MODAL -->
+<div class="modal-overlay" id="profileModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Profile</h3>
+            <button class="close-btn" onclick="qCloseModal('profileModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <div class="profile-info">
+                <div class="profile-avatar"><span class="material-icons-outlined">person</span></div>
+                <div class="profile-fields">
+                    <p><strong>Name:</strong> <span id="profileName">-</span></p>
+                    <p><strong>Email:</strong> <span id="profileEmail">-</span></p>
+                    <p><strong>Role:</strong> <span id="profileRole">-</span></p>
+                    <p><strong>Organization:</strong> <span id="profileOrg">-</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ACCOUNT MODAL -->
+<div class="modal-overlay" id="accountModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Account Settings</h3>
+            <button class="close-btn" onclick="qCloseModal('accountModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <form id="accountForm" onsubmit="updateAccount(event)">
+                <div class="form-group"><label>First Name</label><input type="text" id="accFirstName"></div>
+                <div class="form-group"><label>Last Name</label><input type="text" id="accLastName"></div>
+                <div class="form-group"><label>Phone</label><input type="tel" id="accPhone"></div>
+                <hr>
+                <h4>Change Password</h4>
+                <div class="form-group"><label>Current Password</label><input type="password" id="accCurrentPwd"></div>
+                <div class="form-group"><label>New Password</label><input type="password" id="accNewPwd"></div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="qCloseModal('accountModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/header.js"></script>
+<script>requireAuth();</script>
+<script src="/static/js/quality/common.js"></script>
+<script src="/static/js/quality/overview.js"></script>
+<script src="/static/js/quality/iqc.js"></script>
+<script src="/static/js/quality/criteria.js"></script>
+<script src="/static/js/quality/ipqc.js"></script>
+<script src="/static/js/quality/fqa.js"></script>
+<script src="/static/js/quality/ncr.js"></script>
+<script src="/static/js/quality/moduleusers.js"></script>
+</body>
+</html>
