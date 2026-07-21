@@ -167,29 +167,34 @@ def update_category(cat_id):
 
 @part_bp.route("/categories/<cat_id>", methods=["DELETE"])
 def delete_category(cat_id):
-    # Get all subcategories under this category to drop their tables
-    subs = db.session.execute(db.text(
-        "SELECT s.id, s.name, s.series_prefix, c.name as cat_name, c.series_prefix as cat_series "
+    # Block if any subcategories exist
+    sub_count = db.session.execute(db.text(
+        "SELECT COUNT(*) FROM part.subcategories WHERE category_id = :cid AND is_deleted = false"
+    ), {"cid": cat_id}).scalar() or 0
+    if sub_count > 0:
+        return {"success": False, "message": f"Cannot delete: {sub_count} subcategory(s) exist under this category. Delete all subcategories first."}, 409
+
+    # Block if any parts exist across subcategories (even soft-deleted subs that still have tables)
+    subs_all = db.session.execute(db.text(
+        "SELECT s.name, s.series_prefix, c.name as cat_name, c.series_prefix as cat_series "
         "FROM part.subcategories s JOIN part.categories c ON s.category_id = c.id "
-        "WHERE s.category_id = :cid AND s.is_deleted = false"
+        "WHERE s.category_id = :cid"
     ), {"cid": cat_id}).fetchall()
-    for sub in subs:
-        table_name = _safe_table_name(sub[3], sub[1], sub[4], sub[2])
+    for sub in subs_all:
+        table_name = _safe_table_name(sub[2], sub[0], sub[3], sub[1])
         try:
-            db.session.execute(db.text(f"DROP TABLE IF EXISTS {table_name}"))
+            part_count = db.session.execute(db.text(f"SELECT COUNT(*) FROM {table_name}")).scalar() or 0
+            if part_count > 0:
+                return {"success": False, "message": f"Cannot delete: parts exist in subcategory '{sub[0]}'. Delete all parts first."}, 409
         except Exception:
-            pass
-    # Soft delete subcategories
-    db.session.execute(db.text(
-        "UPDATE part.subcategories SET is_deleted=true WHERE category_id=:id"
-    ), {"id": cat_id})
-    # Soft delete category
+            db.session.rollback()
+
     db.session.execute(db.text(
         "UPDATE part.categories SET is_deleted=true WHERE id=:id"
     ), {"id": cat_id})
     _log_audit('DELETE', 'Category', cat_id)
     db.session.commit()
-    return {"success": True, "message": "Category and its subcategories deleted"}
+    return {"success": True, "message": "Category deleted"}
 
 
 # ─── SUBCATEGORIES ───
@@ -319,24 +324,29 @@ def update_subcategory(sub_id):
 
 @part_bp.route("/subcategories/<sub_id>", methods=["DELETE"])
 def delete_subcategory(sub_id):
-    # Get subcategory + category info to drop table
     row = db.session.execute(db.text(
         "SELECT s.name, s.series_prefix, c.name as cat_name, c.series_prefix as cat_series "
         "FROM part.subcategories s JOIN part.categories c ON s.category_id = c.id "
         "WHERE s.id = :id"
     ), {"id": sub_id}).first()
-    if row:
-        table_name = _safe_table_name(row[2], row[0], row[3], row[1])
-        try:
-            db.session.execute(db.text(f"DROP TABLE IF EXISTS {table_name}"))
-        except Exception:
-            pass
+    if not row:
+        return {"success": False, "message": "Subcategory not found"}, 404
+
+    # Block if any parts exist in the dynamic table
+    table_name = _safe_table_name(row[2], row[0], row[3], row[1])
+    try:
+        part_count = db.session.execute(db.text(f"SELECT COUNT(*) FROM {table_name}")).scalar() or 0
+        if part_count > 0:
+            return {"success": False, "message": f"Cannot delete: {part_count} part(s) exist in this subcategory. Delete or obsolete all parts first."}, 409
+    except Exception:
+        db.session.rollback()
+
     db.session.execute(db.text(
         "UPDATE part.subcategories SET is_deleted=true WHERE id=:id"
     ), {"id": sub_id})
     _log_audit('DELETE', 'Subcategory', sub_id)
     db.session.commit()
-    return {"success": True, "message": "Subcategory deleted and table dropped"}
+    return {"success": True, "message": "Subcategory deleted"}
 
 
 # ─── GENERATE PART CODE ───

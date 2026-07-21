@@ -76,7 +76,7 @@ function editCategory(id, name, desc) {
 
 async function deleteCategory(id, name) {
     pendingDelete = { type: 'category', id, name };
-    document.getElementById('deleteConfirmMsg').textContent = `Delete category "${name}"? This will also delete all subcategories and drop their database tables.`;
+    document.getElementById('deleteConfirmMsg').textContent = `Delete category "${name}"? This action cannot be undone.`;
     document.getElementById('deleteConfirmPassword').value = '';
     document.getElementById('deleteError').style.display = 'none';
     partOpenModal('deleteConfirmModal');

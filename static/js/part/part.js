@@ -529,12 +529,20 @@ async function executeDelete() {
             const res = await fetch(API + '/categories/' + pendingDelete.id, { method: 'DELETE', headers: HEADERS });
             const data = await res.json();
             if (data.success) { showToast('Category deleted'); loadCategories(); }
-            else showToast(data.message || 'Delete failed', 'error');
+            else {
+                btn.disabled = false; btn.textContent = 'Delete';
+                showDeleteError(data.message || 'Delete failed');
+                return;
+            }
         } else if (pendingDelete.type === 'subcategory') {
             const res = await fetch(API + '/subcategories/' + pendingDelete.id, { method: 'DELETE', headers: HEADERS });
             const data = await res.json();
             if (data.success) { showToast('Subcategory deleted'); loadSubcategories(); }
-            else showToast(data.message || 'Delete failed', 'error');
+            else {
+                btn.disabled = false; btn.textContent = 'Delete';
+                showDeleteError(data.message || 'Delete failed');
+                return;
+            }
         } else if (pendingDelete.type === 'obsolete') {
             const res = await fetch(API + '/obsolete', { method: 'POST', headers: HEADERS, body: JSON.stringify({ subcategory_id: pendingDelete.subId, part_number: pendingDelete.partNumber }) });
             const data = await res.json();

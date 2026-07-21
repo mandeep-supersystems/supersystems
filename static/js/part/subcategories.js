@@ -89,7 +89,7 @@ async function saveSubcategory(e) {
 
 async function deleteSubcategory(id, name) {
     pendingDelete = { type: 'subcategory', id, name };
-    document.getElementById('deleteConfirmMsg').textContent = `Delete subcategory "${name}"? This will permanently drop the database table.`;
+    document.getElementById('deleteConfirmMsg').textContent = `Delete subcategory "${name}"? This action cannot be undone.`;
     document.getElementById('deleteConfirmPassword').value = '';
     document.getElementById('deleteError').style.display = 'none';
     partOpenModal('deleteConfirmModal');
