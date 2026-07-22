@@ -167,8 +167,10 @@ def update_category(cat_id):
 
 @part_bp.route("/categories/<cat_id>", methods=["DELETE"])
 def delete_category(cat_id):
-    # Block if any subcategories exist
-    sub_count = db.session.execute(db.text(
+    cat = db.session.execute(db.text(
+        "SELECT name, series_prefix FROM part.categories WHERE id=:id"
+    ), {"id": cat_id}).first()
+    cat_label = f"{cat[0]} ({cat[1]})" if cat else cat_id = db.session.execute(db.text(
         "SELECT COUNT(*) FROM part.subcategories WHERE category_id = :cid AND is_deleted = false"
     ), {"cid": cat_id}).scalar() or 0
     if sub_count > 0:
@@ -192,7 +194,7 @@ def delete_category(cat_id):
     db.session.execute(db.text(
         "UPDATE part.categories SET is_deleted=true WHERE id=:id"
     ), {"id": cat_id})
-    _log_audit('DELETE', 'Category', cat_id)
+    _log_audit('DELETE', 'Category', cat_label, old_values={"name": cat[0], "series_prefix": cat[1]} if cat else {})
     db.session.commit()
     return {"success": True, "message": "Category deleted"}
 
@@ -331,6 +333,7 @@ def delete_subcategory(sub_id):
     ), {"id": sub_id}).first()
     if not row:
         return {"success": False, "message": "Subcategory not found"}, 404
+    sub_label = f"{row[2]}/{row[0]} ({row[3]}-{row[1]})"
 
     # Block if any parts exist in the dynamic table
     table_name = _safe_table_name(row[2], row[0], row[3], row[1])
@@ -344,7 +347,7 @@ def delete_subcategory(sub_id):
     db.session.execute(db.text(
         "UPDATE part.subcategories SET is_deleted=true WHERE id=:id"
     ), {"id": sub_id})
-    _log_audit('DELETE', 'Subcategory', sub_id)
+    _log_audit('DELETE', 'Subcategory', sub_label, old_values={"name": row[0], "category": row[2], "series_prefix": row[1]})
     db.session.commit()
     return {"success": True, "message": "Subcategory deleted"}
 
@@ -1254,19 +1257,34 @@ def unmapped_customer_parts():
 
 # ─── AUDIT HELPER ───
 
-def _log_audit(action, entity_type, entity_id, details=''):
-    """Log action to audit.logs table with user info."""
+def _log_audit(action, entity_type, entity_id, details='', old_values=None, new_values=None):
+    """Log action to audit.logs table with user info, real client IP, and change details."""
     try:
-        from flask import request as req
-        user_email = req.headers.get('X-User-Email', '')
-        user_name = req.headers.get('X-User-Name', '')
+        forwarded = request.headers.get('X-Forwarded-For', '')
+        ip = forwarded.split(',')[0].strip() if forwarded else (request.remote_addr or '')
+        extra = {}
+        if details:
+            extra['details'] = details
+        if old_values and new_values:
+            extra['changes'] = {k: {'old': old_values.get(k), 'new': v}
+                                for k, v in new_values.items() if old_values.get(k) != v}
+        if old_values:
+            extra['old'] = old_values
+        if new_values:
+            extra['new'] = new_values
         db.session.execute(db.text(
-            "INSERT INTO audit.logs (id, action, module, entity_type, entity_id, ip_address, tenant_id, user_email, user_name, created_at) "
-            "VALUES (gen_random_uuid(), :action, 'Part Management', :etype, :eid, :ip, :tid, :email, :name, NOW())"
+            "INSERT INTO audit.logs (id, action, module, entity_type, entity_id, ip_address, "
+            "tenant_id, user_email, user_name, old_values, new_values, extra_data, created_at) "
+            "VALUES (gen_random_uuid(), :action, 'Part Management', :etype, :eid, :ip, "
+            ":tid, :email, :name, :old_v, :new_v, :extra, NOW())"
         ), {
             "action": action, "etype": entity_type, "eid": str(entity_id),
-            "ip": req.remote_addr or '', "tid": req.headers.get('X-Tenant-ID', ''),
-            "email": user_email, "name": user_name
+            "ip": ip, "tid": request.headers.get('X-Tenant-ID', ''),
+            "email": request.headers.get('X-User-Email', ''),
+            "name": request.headers.get('X-User-Name', ''),
+            "old_v": json.dumps(old_values) if old_values else None,
+            "new_v": json.dumps(new_values) if new_values else None,
+            "extra": json.dumps(extra) if extra else None
         })
     except Exception:
         pass

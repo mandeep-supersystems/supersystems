@@ -60,23 +60,40 @@ def _get_tenant_id():
     return tid
 
 
+def _client_ip():
+    """Get real client IP from X-Forwarded-For (set by nginx/proxy) or fallback."""
+    forwarded = request.headers.get('X-Forwarded-For', '')
+    if forwarded:
+        return forwarded.split(',')[0].strip()
+    return request.remote_addr or ''
+
+
 def _log_audit(action, entity_type, entity_id, details='', old_values=None, new_values=None):
     try:
         user_email = request.headers.get('X-User-Email', '')
         user_name = request.headers.get('X-User-Name', '')
-        extra = json.dumps({"details": details}) if details else None
+        extra = {}
+        if details:
+            extra['details'] = details
+        if old_values and new_values:
+            extra['changes'] = {k: {'old': old_values.get(k), 'new': v}
+                                for k, v in new_values.items() if old_values.get(k) != v}
+        if old_values:
+            extra['old'] = old_values
+        if new_values:
+            extra['new'] = new_values
         old_v = json.dumps(old_values) if old_values is not None else None
         new_v = json.dumps(new_values) if new_values is not None else None
-
         db.session.execute(db.text(
             "INSERT INTO audit.logs (id, action, module, entity_type, entity_id, ip_address, tenant_id, user_email, user_name, old_values, new_values, extra_data, created_at) "
             "VALUES (:id, :action, 'Auth & Security', :etype, :eid, :ip, :tid, :email, :name, :old_v, :new_v, :extra, NOW())"
         ), {
             "id": str(uuid.uuid4()),
             "action": action, "etype": entity_type, "eid": str(entity_id),
-            "ip": request.remote_addr or '', "tid": _get_tenant_id(),
+            "ip": _client_ip(), "tid": _get_tenant_id(),
             "email": user_email, "name": user_name,
-            "old_v": old_v, "new_v": new_v, "extra": extra
+            "old_v": old_v, "new_v": new_v,
+            "extra": json.dumps(extra) if extra else None
         })
         db.session.commit()
     except Exception:
@@ -161,20 +178,20 @@ def create_user():
 @security_bp.route("/users/<user_id>", methods=["PUT"])
 def update_user(user_id):
     data = request.get_json()
-    updates = []
-    params = {"id": user_id}
+    old = db.session.execute(db.text(
+        "SELECT email, first_name, last_name, phone, is_active FROM iam.users WHERE id=:id"
+    ), {"id": user_id}).first()
+    old_values = {"email": old[0], "first_name": old[1], "last_name": old[2], "phone": old[3], "is_active": old[4]} if old else {}
+    email = old[0] if old else user_id
+    updates, params = [], {"id": user_id}
     if "first_name" in data:
-        updates.append("first_name=:fn")
-        params["fn"] = data["first_name"]
+        updates.append("first_name=:fn"); params["fn"] = data["first_name"]
     if "last_name" in data:
-        updates.append("last_name=:ln")
-        params["ln"] = data["last_name"]
+        updates.append("last_name=:ln"); params["ln"] = data["last_name"]
     if "phone" in data:
-        updates.append("phone=:phone")
-        params["phone"] = data["phone"]
+        updates.append("phone=:phone"); params["phone"] = data["phone"]
     if "is_active" in data:
-        updates.append("is_active=:active")
-        params["active"] = data["is_active"]
+        updates.append("is_active=:active"); params["active"] = data["is_active"]
     if "password" in data and data["password"]:
         updates.append("password_hash=:hash")
         params["hash"] = bcrypt.hashpw(data["password"].encode(), bcrypt.gensalt()).decode()
@@ -183,16 +200,22 @@ def update_user(user_id):
     updates.append("updated_at=NOW()")
     db.session.execute(db.text(f"UPDATE iam.users SET {', '.join(updates)} WHERE id=:id"), params)
     db.session.commit()
-    _log_audit('UPDATE', 'User', user_id)
+    new_values = {k: data[k] for k in ["first_name", "last_name", "phone", "is_active"] if k in data}
+    _log_audit('UPDATE', 'User', email, old_values=old_values, new_values=new_values)
     return {"success": True, "message": "User updated"}
 
 
 @security_bp.route("/users/<user_id>", methods=["DELETE"])
 def delete_user(user_id):
+    row = db.session.execute(db.text(
+        "SELECT email, first_name, last_name FROM iam.users WHERE id=:id"
+    ), {"id": user_id}).first()
+    email = row[0] if row else user_id
+    old_values = {"email": row[0], "name": f"{row[1] or ''} {row[2] or ''}".strip()} if row else {}
     db.session.execute(db.text("UPDATE iam.users SET is_deleted=true WHERE id=:id"), {"id": user_id})
     db.session.execute(db.text("DELETE FROM iam.module_access WHERE user_id=:id"), {"id": user_id})
     db.session.commit()
-    _log_audit('DELETE', 'User', user_id)
+    _log_audit('DELETE', 'User', email, old_values=old_values)
     return {"success": True, "message": "User deleted"}
 
 
@@ -278,9 +301,15 @@ def update_module_access(access_id):
 
 @security_bp.route("/module-access/<access_id>", methods=["DELETE"])
 def revoke_module_access(access_id):
+    row = db.session.execute(db.text(
+        "SELECT u.email, ma.module, ma.role FROM iam.module_access ma "
+        "JOIN iam.users u ON ma.user_id = u.id WHERE ma.id=:id"
+    ), {"id": access_id}).first()
+    label = f"{row[0]} -> {row[1]}" if row else access_id
+    old_values = {"email": row[0], "module": row[1], "role": row[2]} if row else {}
     db.session.execute(db.text("DELETE FROM iam.module_access WHERE id=:id"), {"id": access_id})
     db.session.commit()
-    _log_audit('REVOKE_ACCESS', 'Module Access', access_id)
+    _log_audit('REVOKE_ACCESS', 'Module Access', label, old_values=old_values)
     return {"success": True, "message": "Access revoked"}
 
 
@@ -345,35 +374,33 @@ def create_module_role():
 @security_bp.route("/roles/<role_id>", methods=["PUT"])
 def update_module_role(role_id):
     data = request.get_json()
-    # Don't allow editing system roles
-    row = db.session.execute(db.text("SELECT is_system FROM iam.module_roles WHERE id=:id"), {"id": role_id}).first()
+    row = db.session.execute(db.text("SELECT is_system, name, module FROM iam.module_roles WHERE id=:id"), {"id": role_id}).first()
     if row and row[0]:
         return {"success": False, "message": "Cannot edit system roles"}, 403
-    updates = []
-    params = {"id": role_id}
+    role_name = f"{row[1]} ({row[2]})" if row else role_id
+    updates, params = [], {"id": role_id}
     if "name" in data:
-        updates.append("name=:name")
-        params["name"] = data["name"]
+        updates.append("name=:name"); params["name"] = data["name"]
     if "permissions" in data:
-        updates.append("permissions=:perms")
-        params["perms"] = json.dumps(data["permissions"])
+        updates.append("permissions=:perms"); params["perms"] = json.dumps(data["permissions"])
     if not updates:
         return {"success": False, "message": "Nothing to update"}, 400
     updates.append("updated_at=NOW()")
     db.session.execute(db.text(f"UPDATE iam.module_roles SET {', '.join(updates)} WHERE id=:id"), params)
     db.session.commit()
-    _log_audit('UPDATE', 'Module Role', role_id)
+    _log_audit('UPDATE', 'Module Role', role_name, new_values={k: v for k, v in data.items() if k != 'permissions'})
     return {"success": True, "message": "Role updated"}
 
 
 @security_bp.route("/roles/<role_id>", methods=["DELETE"])
 def delete_module_role(role_id):
-    row = db.session.execute(db.text("SELECT is_system FROM iam.module_roles WHERE id=:id"), {"id": role_id}).first()
+    row = db.session.execute(db.text("SELECT is_system, name, module FROM iam.module_roles WHERE id=:id"), {"id": role_id}).first()
     if row and row[0]:
         return {"success": False, "message": "Cannot delete system roles"}, 403
+    role_name = f"{row[1]} ({row[2]})" if row else role_id
     db.session.execute(db.text("UPDATE iam.module_roles SET is_active=false WHERE id=:id"), {"id": role_id})
     db.session.commit()
-    _log_audit('DELETE', 'Module Role', role_id)
+    _log_audit('DELETE', 'Module Role', role_name, old_values={"name": row[1], "module": row[2]} if row else {})
     return {"success": True, "message": "Role deleted"}
 
 

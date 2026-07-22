@@ -9,6 +9,8 @@ hr_bp = Blueprint("hr", __name__)
 def _log_audit(action, entity_type, entity_id, old_values=None, new_values=None):
     """Write to audit.logs with user context, old/new values for full change tracking."""
     try:
+        forwarded = request.headers.get('X-Forwarded-For', '')
+        ip = forwarded.split(',')[0].strip() if forwarded else (request.remote_addr or '')
         extra = {}
         if old_values:
             extra['old'] = old_values
@@ -24,7 +26,7 @@ def _log_audit(action, entity_type, entity_id, old_values=None, new_values=None)
             ":ip, :tid, :email, :name, :extra, NOW())"
         ), {
             "action": action, "etype": entity_type, "eid": str(entity_id),
-            "ip": request.remote_addr or '',
+            "ip": ip,
             "tid": request.headers.get('X-Tenant-ID', ''),
             "email": request.headers.get('X-User-Email', ''),
             "name": request.headers.get('X-User-Name', ''),
