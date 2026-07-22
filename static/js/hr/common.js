@@ -20,7 +20,8 @@ function showSection(sec) {
     if (el) el.classList.add('active');
     const link = document.querySelector(`.sidebar-link[data-section="${sec}"]`);
     if (link) link.classList.add('active');
-    history.pushState(null, '', '/hr/' + sec);
+    if (location.hash !== '#' + sec) location.hash = sec;
+    if (sec === 'overview') loadHROverview();
     if (sec === 'codecriteria') loadCriteria();
     if (sec === 'employees') loadEmployees();
 }
@@ -37,9 +38,12 @@ function buildPreview(prefix, psep, num, ssep, suffix) {
 
 // ─── INIT ───
 (function() {
-    const path = window.location.pathname;
-    const section = path.split('/hr/')[1] || 'codecriteria';
-    const valid = ['codecriteria', 'employees'];
-    showSection(valid.includes(section) ? section : 'codecriteria');
+    const valid = ['overview', 'codecriteria', 'employees'];
+    const hash = location.hash.replace('#', '') || 'overview';
+    showSection(valid.includes(hash) ? hash : 'overview');
 })();
-window.addEventListener('popstate', () => { const section = window.location.pathname.split('/hr/')[1] || 'codecriteria'; showSection(section); });
+window.addEventListener('hashchange', () => {
+    const valid = ['overview', 'codecriteria', 'employees'];
+    const hash = location.hash.replace('#', '') || 'overview';
+    showSection(valid.includes(hash) ? hash : 'overview');
+});

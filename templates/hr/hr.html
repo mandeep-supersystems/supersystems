@@ -74,10 +74,13 @@
         <nav class="sidebar-nav">
             <a href="/" class="sidebar-link"><span class="material-icons-outlined">arrow_back</span>Home</a>
             <div class="sidebar-divider"></div>
-            <a class="sidebar-link active" data-section="codecriteria" onclick="showSection('codecriteria')">
+            <a class="sidebar-link" href="/hr#overview" data-section="overview">
+                <span class="material-icons-outlined">dashboard</span>Overview
+            </a>
+            <a class="sidebar-link" href="/hr#codecriteria" data-section="codecriteria">
                 <span class="material-icons-outlined">pin</span>Employee Code Criteria
             </a>
-            <a class="sidebar-link" data-section="employees" onclick="showSection('employees')">
+            <a class="sidebar-link" href="/hr#employees" data-section="employees">
                 <span class="material-icons-outlined">badge</span>Employee Management
             </a>
             <div class="sidebar-divider"></div>
@@ -92,6 +95,69 @@
     </aside>
 
     <main class="hr-content">
+
+        <!-- OVERVIEW -->
+        <section class="content-section" id="sec-overview">
+            <div class="section-header">
+                <h2>HR Overview</h2>
+                <div class="section-actions">
+                    <button class="btn-outline" onclick="loadHROverview()"><span class="material-icons-outlined">refresh</span> Refresh</button>
+                </div>
+            </div>
+
+            <!-- STAT CARDS -->
+            <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px; margin-bottom:24px;">
+                <div class="stat-card">
+                    <span class="material-icons-outlined" style="font-size:28px;color:var(--accent);">groups</span>
+                    <div class="stat-info"><div class="value" id="ovr-total">-</div><div class="label">Total Employees</div></div>
+                </div>
+                <div class="stat-card">
+                    <span class="material-icons-outlined" style="font-size:28px;color:#2e7d32;">check_circle</span>
+                    <div class="stat-info"><div class="value" id="ovr-active">-</div><div class="label">Active</div></div>
+                </div>
+                <div class="stat-card">
+                    <span class="material-icons-outlined" style="font-size:28px;color:#c62828;">cancel</span>
+                    <div class="stat-info"><div class="value" id="ovr-inactive">-</div><div class="label">Inactive</div></div>
+                </div>
+                <div class="stat-card">
+                    <span class="material-icons-outlined" style="font-size:28px;color:#f57f17;">corporate_fare</span>
+                    <div class="stat-info"><div class="value" id="ovr-depts">-</div><div class="label">Departments</div></div>
+                </div>
+                <div class="stat-card">
+                    <span class="material-icons-outlined" style="font-size:28px;color:var(--accent);">pin</span>
+                    <div class="stat-info"><div class="value" id="ovr-criteria">-</div><div class="label">Code Criteria</div></div>
+                </div>
+            </div>
+
+            <!-- BOTTOM GRID -->
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:24px;">
+                <!-- DEPT BREAKDOWN -->
+                <div class="table-container">
+                    <div style="padding:12px 16px; font-weight:600; border-bottom:1px solid var(--border-color);">Department Breakdown</div>
+                    <table class="data-table">
+                        <thead><tr><th>Department</th><th>Count</th><th>Share</th></tr></thead>
+                        <tbody id="ovr-dept-body"><tr><td colspan="3" style="text-align:center;">Loading...</td></tr></tbody>
+                    </table>
+                </div>
+                <!-- EMPLOYMENT TYPE -->
+                <div class="table-container">
+                    <div style="padding:12px 16px; font-weight:600; border-bottom:1px solid var(--border-color);">Employment Type</div>
+                    <table class="data-table">
+                        <thead><tr><th>Type</th><th>Count</th><th>%</th></tr></thead>
+                        <tbody id="ovr-type-body"><tr><td colspan="3" style="text-align:center;">Loading...</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- RECENT EMPLOYEES -->
+            <div class="table-container">
+                <div style="padding:12px 16px; font-weight:600; border-bottom:1px solid var(--border-color);">Recent Employees</div>
+                <table class="data-table">
+                    <thead><tr><th>Code</th><th>Name</th><th>Email</th><th>Designation</th><th>Department</th><th>DOJ</th><th>Status</th></tr></thead>
+                    <tbody id="ovr-recent-body"><tr><td colspan="7" style="text-align:center;">Loading...</td></tr></tbody>
+                </table>
+            </div>
+        </section>
 
         <!-- EMPLOYEE CODE CRITERIA -->
         <section class="content-section active" id="sec-codecriteria">
@@ -504,6 +570,7 @@
 <script src="/static/js/header.js"></script>
 <script>requireAuth();</script>
 <script src="/static/js/hr/common.js"></script>
+<script src="/static/js/hr/overview.js"></script>
 <script src="/static/js/hr/codecriteria.js"></script>
 <script src="/static/js/hr/employees.js"></script>
 </body>
