@@ -6,7 +6,33 @@ import json
 hr_bp = Blueprint("hr", __name__)
 
 
-# ─── EMPLOYEE CODE CRITERIA ───
+def _log_audit(action, entity_type, entity_id, old_values=None, new_values=None):
+    """Write to audit.logs with user context, old/new values for full change tracking."""
+    try:
+        extra = {}
+        if old_values:
+            extra['old'] = old_values
+        if new_values:
+            extra['new'] = new_values
+        if old_values and new_values:
+            extra['changes'] = {k: {'old': old_values.get(k), 'new': v}
+                                for k, v in new_values.items() if old_values.get(k) != v}
+        db.session.execute(db.text(
+            "INSERT INTO audit.logs (id, action, module, entity_type, entity_id, "
+            "ip_address, tenant_id, user_email, user_name, extra_data, created_at) "
+            "VALUES (gen_random_uuid(), :action, 'HR', :etype, :eid, "
+            ":ip, :tid, :email, :name, :extra, NOW())"
+        ), {
+            "action": action, "etype": entity_type, "eid": str(entity_id),
+            "ip": request.remote_addr or '',
+            "tid": request.headers.get('X-Tenant-ID', ''),
+            "email": request.headers.get('X-User-Email', ''),
+            "name": request.headers.get('X-User-Name', ''),
+            "extra": json.dumps(extra) if extra else None
+        })
+    except Exception:
+        pass
+
 
 @hr_bp.route("/code-criteria", methods=["GET"])
 def list_code_criteria():
@@ -49,12 +75,23 @@ def create_code_criteria():
         "tid": tenant_id
     })
     db.session.commit()
+    _log_audit('CREATE', 'Code Criteria', data['name'], new_values={
+        'name': data['name'], 'prefix': data.get('prefix', ''),
+        'code_start': data['code_start'], 'suffix': data.get('suffix', '')
+    })
     return {"success": True, "data": {"id": cid}, "message": "Code criteria created"}, 201
 
 
 @hr_bp.route("/code-criteria/<cid>", methods=["PUT"])
 def update_code_criteria(cid):
     data = request.get_json()
+    # Fetch old values before update
+    old = db.session.execute(db.text(
+        "SELECT name, prefix, prefix_separator, suffix_separator, suffix, code_start "
+        "FROM hr.employee_code_criteria WHERE id=:id"
+    ), {"id": cid}).first()
+    old_values = {"name": old[0], "prefix": old[1], "prefix_separator": old[2],
+                  "suffix_separator": old[3], "suffix": old[4], "code_start": old[5]} if old else {}
     updates, params = [], {"id": cid}
     for field in ["name", "prefix", "prefix_separator", "suffix_separator", "suffix"]:
         if field in data:
@@ -70,15 +107,22 @@ def update_code_criteria(cid):
         f"UPDATE hr.employee_code_criteria SET {', '.join(updates)} WHERE id=:id"
     ), params)
     db.session.commit()
+    new_values = {k: v for k, v in params.items() if k != 'id'}
+    _log_audit('UPDATE', 'Code Criteria', old_values.get('name', cid), old_values=old_values, new_values=new_values)
     return {"success": True, "message": "Code criteria updated"}
 
 
 @hr_bp.route("/code-criteria/<cid>", methods=["DELETE"])
 def delete_code_criteria(cid):
+    row = db.session.execute(db.text(
+        "SELECT name FROM hr.employee_code_criteria WHERE id=:id"
+    ), {"id": cid}).first()
+    name = row[0] if row else cid
     db.session.execute(db.text(
         "UPDATE hr.employee_code_criteria SET is_deleted=true, updated_at=NOW() WHERE id=:id"
     ), {"id": cid})
     db.session.commit()
+    _log_audit('DELETE', 'Code Criteria', name, old_values={'name': name, 'id': cid})
     return {"success": True, "message": "Code criteria deleted"}
 
 
@@ -205,12 +249,33 @@ def create_employee():
         "tid": tenant_id, "created_by": created_by
     })
     db.session.commit()
+    _log_audit('CREATE', 'Employee', emp_code, new_values={
+        'emp_code': emp_code, 'name': f"{data['first_name']} {data.get('last_name','')}".strip(),
+        'email': data.get('email', ''), 'designation': data.get('designation', ''),
+        'department': data.get('department', ''), 'employment_type': data.get('employment_type', '')
+    })
     return {"success": True, "data": {"id": emp_id, "emp_code": emp_code}, "message": f"Employee created: {emp_code}"}, 201
 
 
 @hr_bp.route("/employees/<emp_id>", methods=["PUT"])
 def update_employee(emp_id):
     data = request.get_json()
+    # Fetch old values
+    old_row = db.session.execute(db.text(
+        "SELECT emp_code, first_name, last_name, email, phone, designation, "
+        "department_id, employment_type, status, work_location "
+        "FROM hr.employees WHERE id=:id"
+    ), {"id": emp_id}).first()
+    old_values = {}
+    emp_code = emp_id
+    if old_row:
+        emp_code = old_row[0] or emp_id
+        old_values = {
+            'emp_code': old_row[0], 'first_name': old_row[1], 'last_name': old_row[2],
+            'email': old_row[3], 'phone': old_row[4], 'designation': old_row[5],
+            'department': old_row[6], 'employment_type': old_row[7],
+            'status': old_row[8], 'work_location': old_row[9]
+        }
     updates, params = [], {"id": emp_id}
     simple_fields = ["first_name", "last_name", "email", "phone", "date_of_birth",
                      "gender", "blood_group", "marital_status", "nationality",
@@ -237,6 +302,8 @@ def update_employee(emp_id):
         f"UPDATE hr.employees SET {', '.join(updates)} WHERE id=:id"
     ), params)
     db.session.commit()
+    new_values = {k: v for k, v in params.items() if k != 'id' and k in old_values}
+    _log_audit('UPDATE', 'Employee', emp_code, old_values=old_values, new_values=new_values)
     return {"success": True, "message": "Employee updated"}
 
 
@@ -318,8 +385,15 @@ def get_employee_detail(emp_id):
 
 @hr_bp.route("/employees/<emp_id>", methods=["DELETE"])
 def delete_employee(emp_id):
+    row = db.session.execute(db.text(
+        "SELECT emp_code, first_name, last_name, email, designation FROM hr.employees WHERE id=:id"
+    ), {"id": emp_id}).first()
+    emp_code = row[0] if row else emp_id
+    old_values = {'emp_code': row[0], 'name': f"{row[1]} {row[2]}".strip(),
+                  'email': row[3], 'designation': row[4]} if row else {}
     db.session.execute(db.text(
         "UPDATE hr.employees SET is_deleted=true, updated_at=NOW() WHERE id=:id"
     ), {"id": emp_id})
     db.session.commit()
+    _log_audit('DELETE', 'Employee', emp_code, old_values=old_values)
     return {"success": True, "message": "Employee deleted"}
