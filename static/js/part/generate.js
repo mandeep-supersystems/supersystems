@@ -1,10 +1,23 @@
 // ─── PART MODULE: GENERATE PART CODE ───
+
+// State
+let _gsdCatData = [];   // [{id, name, series_prefix, separator}]
+let _gsdSubData = [];   // [{id, name, series_prefix, columns_config}]
+let _selCat = null;     // selected category object
+let _selSub = null;     // selected subcategory object
+
+// ─── LOAD ───
 async function loadGenCategories() {
     try { const res = await fetch(API + '/categories', { headers: HEADERS }); categories = (await res.json()).data || []; } catch (e) {}
-    const sel = document.getElementById('genCategory');
-    sel.innerHTML = '<option value="">— Select Category —</option>' + categories.map(c => `<option value="${c.id}" data-series="${c.series_prefix}" data-sep="${c.separator || '-'}">${esc(c.name)} (${c.series_prefix})</option>`).join('');
-    document.getElementById('genSubcategory').innerHTML = '<option value="">— Select Subcategory —</option>';
+    try { const res = await fetch(API + '/subcategories', { headers: HEADERS }); subcategories = (await res.json()).data || []; } catch (e) {}
+    _gsdCatData = categories;
+    _selCat = null; _selSub = null;
+    _gsdReset('cat'); _gsdReset('sub');
+    _gsdSetDisabled('sub', true);
     document.getElementById('genColumnsForm').innerHTML = '';
+    if (document.getElementById('genManufacturers')) document.getElementById('genManufacturers').style.display = 'none';
+            document.getElementById('genManufacturers').style.display = 'none';
+            document.getElementById('genMpnMakeList').innerHTML = '';
     document.getElementById('genPreview').style.display = 'none';
     document.getElementById('btnGenerate').disabled = true;
     document.getElementById('genResult').innerHTML = '';
@@ -12,31 +25,149 @@ async function loadGenCategories() {
 }
 
 async function loadGenSubcategories() {
-    const catId = document.getElementById('genCategory').value;
-    const sel = document.getElementById('genSubcategory');
+    _selSub = null;
+    _gsdReset('sub');
     document.getElementById('genColumnsForm').innerHTML = '';
+    if (document.getElementById('genManufacturers')) document.getElementById('genManufacturers').style.display = 'none';
+            document.getElementById('genManufacturers').style.display = 'none';
+            document.getElementById('genMpnMakeList').innerHTML = '';
     document.getElementById('genPreview').style.display = 'none';
     document.getElementById('btnGenerate').disabled = true;
     document.getElementById('generatedPartsList').innerHTML = '<div class="empty">Select a subcategory</div>';
-    if (!catId) { sel.innerHTML = '<option value="">— Select Subcategory —</option>'; return; }
-    const res = await fetch(API + '/subcategories?category_id=' + catId, { headers: HEADERS });
-    const subs = (await res.json()).data || [];
-    sel.innerHTML = '<option value="">— Select Subcategory —</option>' + subs.map(s => {
-        const colsStr = JSON.stringify(s.columns_config || []).replace(/'/g, '&#39;');
-        return `<option value="${s.id}" data-series="${s.series_prefix}" data-cols='${colsStr}'>${esc(s.name)} (${s.series_prefix})</option>`;
+    if (!_selCat) { _gsdSetDisabled('sub', true); return; }
+    const res = await fetch(API + '/subcategories?category_id=' + _selCat.id, { headers: HEADERS });
+    _gsdSubData = (await res.json()).data || [];
+    _gsdSetDisabled('sub', false);
+}
+
+// ─── CUSTOM DROPDOWN ENGINE ───
+function _gsdItems(type) { return type === 'cat' ? _gsdCatData : _gsdSubData; }
+
+function _gsdLabel(type, item) {
+    if (type === 'cat') return `${item.name} <span class="gsd-series">${item.series_prefix}</span>`;
+    return `${item.name} <span class="gsd-series">${item.series_prefix}</span>`;
+}
+
+function _gsdReset(type) {
+    document.getElementById(`gen${type === 'cat' ? 'Cat' : 'Sub'}Text`).textContent = type === 'cat' ? 'Select category...' : 'Select subcategory...';
+    document.getElementById(`gen${type === 'cat' ? 'Cat' : 'Sub'}Text`).classList.remove('gsd-selected');
+    document.getElementById(`gen${type === 'cat' ? 'Cat' : 'Sub'}Clear`).style.display = 'none';
+    document.getElementById(`gen${type === 'cat' ? 'Cat' : 'Sub'}Search`).value = '';
+    _closeGsd(type);
+}
+
+function _gsdSetDisabled(type, disabled) {
+    const box = document.getElementById(`gen${type === 'cat' ? 'Cat' : 'Sub'}Box`);
+    if (disabled) box.classList.add('gsd-disabled'); else box.classList.remove('gsd-disabled');
+}
+
+function toggleGsd(type) {
+    if (type === 'sub' && !_selCat) return;
+    const dd = document.getElementById(`gen${type === 'cat' ? 'Cat' : 'Sub'}Dropdown`);
+    const isOpen = dd.classList.contains('gsd-open');
+    // close both first
+    document.getElementById('genCatDropdown').classList.remove('gsd-open');
+    document.getElementById('genSubDropdown').classList.remove('gsd-open');
+    document.getElementById('genCatArrow').textContent = 'expand_more';
+    document.getElementById('genSubArrow').textContent = 'expand_more';
+    if (!isOpen) {
+        dd.classList.add('gsd-open');
+        document.getElementById(`gen${type === 'cat' ? 'Cat' : 'Sub'}Arrow`).textContent = 'expand_less';
+        _renderGsdList(type, '');
+        setTimeout(() => document.getElementById(`gen${type === 'cat' ? 'Cat' : 'Sub'}Search`).focus(), 50);
+    }
+}
+
+function _closeGsd(type) {
+    const dd = document.getElementById(`gen${type === 'cat' ? 'Cat' : 'Sub'}Dropdown`);
+    dd.classList.remove('gsd-open');
+    document.getElementById(`gen${type === 'cat' ? 'Cat' : 'Sub'}Arrow`).textContent = 'expand_more';
+}
+
+function filterGsd(type, q) {
+    _renderGsdList(type, q);
+}
+
+function _renderGsdList(type, q) {
+    const list = document.getElementById(`gen${type === 'cat' ? 'Cat' : 'Sub'}List`);
+    const items = _gsdItems(type);
+    const filtered = q.trim() ? items.filter(i => i.name.toLowerCase().includes(q.toLowerCase()) || String(i.series_prefix).includes(q)) : items;
+    if (!filtered.length) {
+        list.innerHTML = '<div class="gsd-empty">No results found</div>';
+        return;
+    }
+    list.innerHTML = filtered.map(item => {
+        const selected = (type === 'cat' && _selCat?.id === item.id) || (type === 'sub' && _selSub?.id === item.id);
+        return `<div class="gsd-item${selected ? ' gsd-item-active' : ''}" onclick="selectGsd('${type}','${item.id}')">${_gsdLabel(type, item)}</div>`;
     }).join('');
 }
 
+function selectGsd(type, id) {
+    if (type === 'cat') {
+        _selCat = _gsdCatData.find(c => c.id === id);
+        const textEl = document.getElementById('genCatText');
+        textEl.innerHTML = `${_selCat.name} <span class="gsd-series">${_selCat.series_prefix}</span>`;
+        textEl.classList.add('gsd-selected');
+        document.getElementById('genCatClear').style.display = 'flex';
+        _closeGsd('cat');
+        loadGenSubcategories();
+    } else {
+        _selSub = _gsdSubData.find(s => s.id === id);
+        const textEl = document.getElementById('genSubText');
+        textEl.innerHTML = `${_selSub.name} <span class="gsd-series">${_selSub.series_prefix}</span>`;
+        textEl.classList.add('gsd-selected');
+        document.getElementById('genSubClear').style.display = 'flex';
+        _closeGsd('sub');
+        loadGenColumns();
+    }
+}
+
+function clearGsd(e, type) {
+    e.stopPropagation();
+    if (type === 'cat') {
+        _selCat = null; _selSub = null;
+        _gsdReset('cat'); _gsdReset('sub');
+        _gsdSetDisabled('sub', true);
+        document.getElementById('genColumnsForm').innerHTML = '';
+    if (document.getElementById('genManufacturers')) document.getElementById('genManufacturers').style.display = 'none';
+            document.getElementById('genManufacturers').style.display = 'none';
+            document.getElementById('genMpnMakeList').innerHTML = '';
+        document.getElementById('genPreview').style.display = 'none';
+        document.getElementById('btnGenerate').disabled = true;
+        document.getElementById('genResult').innerHTML = '';
+        document.getElementById('generatedPartsList').innerHTML = '<div class="empty">Select a subcategory to view parts</div>';
+    } else {
+        _selSub = null;
+        _gsdReset('sub');
+        document.getElementById('genColumnsForm').innerHTML = '';
+    if (document.getElementById('genManufacturers')) document.getElementById('genManufacturers').style.display = 'none';
+            document.getElementById('genManufacturers').style.display = 'none';
+            document.getElementById('genMpnMakeList').innerHTML = '';
+        document.getElementById('genPreview').style.display = 'none';
+        document.getElementById('btnGenerate').disabled = true;
+        document.getElementById('genResult').innerHTML = '';
+        document.getElementById('generatedPartsList').innerHTML = '<div class="empty">Select a subcategory</div>';
+    }
+}
+
+// Close on outside click
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('#genCatWrap')) _closeGsd('cat');
+    if (!e.target.closest('#genSubWrap')) _closeGsd('sub');
+});
+
+// ─── COLUMNS + GENERATE ───
 function loadGenColumns() {
-    const sel = document.getElementById('genSubcategory');
-    const opt = sel.options[sel.selectedIndex];
-    if (!opt || !opt.value) { document.getElementById('genColumnsForm').innerHTML = ''; document.getElementById('genPreview').style.display = 'none'; document.getElementById('btnGenerate').disabled = true; return; }
-    const cols = JSON.parse(opt.dataset.cols || '[]');
-    const catOpt = document.getElementById('genCategory').options[document.getElementById('genCategory').selectedIndex];
-    const catSeries = catOpt.dataset.series;
-    const sep = catOpt.dataset.sep || '-';
+    if (!_selSub || !_selCat) return;
+    const cols = parseCols(_selSub.columns_config);
+    const sep = _selCat.separator || '-';
     document.getElementById('genPreview').style.display = 'block';
-    document.getElementById('partPreviewText').textContent = `${catSeries}${sep}${opt.dataset.series}${sep}XXXXXX`;
+    document.getElementById('genManufacturers').style.display = 'block';
+    document.getElementById('genMpnMakeList').innerHTML = '';
+    addGenMpnMakeRow();
+    const padLen = _selSub.sequence_padding || 4;
+    const placeholderStr = 'X'.repeat(padLen);
+    document.getElementById('partPreviewText').textContent = `${_selCat.series_prefix}${sep}${_selSub.series_prefix}${sep}${placeholderStr}`;
     document.getElementById('genColumnsForm').innerHTML =
         `<div class="form-group">
             <label>Part Usage *</label>
@@ -53,19 +184,16 @@ function loadGenColumns() {
         (cols.length > 0 ? '<p class="gen-cols-title">Part Details</p>' + cols.map(c => `<div class="form-group"><label>${esc(c.label || c.name)}</label><input type="text" id="gen_col_${c.name}" placeholder="Enter ${esc(c.label || c.name)}"></div>`).join('') : '');
     document.getElementById('btnGenerate').disabled = false;
     document.getElementById('genResult').innerHTML = '';
-    loadGeneratedParts(opt.value);
+    loadGeneratedParts(_selSub.id);
 }
 
 function updatePartTypeSel() {
     const bo = document.getElementById('ptBought')?.checked;
     const mfg = document.getElementById('ptMfg')?.checked;
-    // enforce at least one
     if (!bo && !mfg) { document.getElementById('ptBought').checked = true; return updatePartTypeSel(); }
-    const boColor = bo ? 'var(--accent)' : 'var(--border-color)';
-    const mfgColor = mfg ? '#2e7d32' : 'var(--border-color)';
-    document.getElementById('ptBoughtLabel').style.borderColor = boColor;
+    document.getElementById('ptBoughtLabel').style.borderColor = bo ? 'var(--accent)' : 'var(--border-color)';
     document.getElementById('ptBoughtLabel').style.color = bo ? 'var(--accent)' : 'var(--text-secondary)';
-    document.getElementById('ptMfgLabel').style.borderColor = mfgColor;
+    document.getElementById('ptMfgLabel').style.borderColor = mfg ? '#2e7d32' : 'var(--border-color)';
     document.getElementById('ptMfgLabel').style.color = mfg ? '#2e7d32' : 'var(--text-secondary)';
     const hint = document.getElementById('ptHint');
     if (hint) hint.textContent = bo && mfg ? 'Both: can be purchased or manufactured depending on context.'
@@ -74,17 +202,23 @@ function updatePartTypeSel() {
 }
 
 async function generatePart() {
-    const subId = document.getElementById('genSubcategory').value;
-    if (!subId) return;
-    const opt = document.getElementById('genSubcategory').options[document.getElementById('genSubcategory').selectedIndex];
-    const cols = JSON.parse(opt.dataset.cols || '[]');
+    if (!_selSub) return;
+    const cols = parseCols(_selSub.columns_config);
     const values = {};
     cols.forEach(c => { const input = document.getElementById('gen_col_' + c.name); if (input && input.value.trim()) values[c.name] = input.value.trim(); });
     const is_bought_out = document.getElementById('ptBought')?.checked ?? true;
     const is_manufactured = document.getElementById('ptMfg')?.checked ?? false;
     document.getElementById('btnGenerate').disabled = true;
+
+    const manufacturers = [];
+    document.querySelectorAll('.gen-mpn-row').forEach(r => {
+        const mpn = r.querySelector('.gen-mpn').value.trim();
+        const make = r.querySelector('.gen-make').value.trim();
+        if(mpn || make) manufacturers.push({mpn, make});
+    });
+
     try {
-        const res = await fetch(API + '/generate', { method: 'POST', headers: HEADERS, body: JSON.stringify({ subcategory_id: subId, values, is_bought_out, is_manufactured }) });
+        const res = await fetch(API + '/generate', { method: 'POST', headers: HEADERS, body: JSON.stringify({ subcategory_id: _selSub.id, values, is_bought_out, is_manufactured, manufacturers }) });
         const data = await res.json();
         if (data.success) {
             const desc = data.data.description ? ` | ${data.data.description}` : '';
@@ -97,9 +231,11 @@ async function generatePart() {
             document.getElementById('genResult').innerHTML = `<div class="success-msg"><span class="material-icons-outlined">check_circle</span> Generated: <strong>${data.data.part_number}</strong>${typeLabel}${desc}</div>`;
             document.getElementById('partPreviewText').textContent = data.data.part_number;
             cols.forEach(c => { const input = document.getElementById('gen_col_' + c.name); if (input) input.value = ''; });
-            loadGeneratedParts(subId);
+            document.getElementById('genMpnMakeList').innerHTML = '';
+            addGenMpnMakeRow();
+            loadGeneratedParts(_selSub.id);
         } else {
-            if (res.status === 409 && data.data && data.data.existing_part) {
+            if ((res.status === 409 || data.already_exists) && data.data && data.data.existing_part) {
                 document.getElementById('genResult').innerHTML = `<div class="error-msg"><span class="material-icons-outlined">error</span> Part already exists: <strong>${data.data.existing_part}</strong><br><small>Description: "${esc(data.data.description)}"</small></div>`;
             } else { showToast(data.message || 'Generation failed', 'error'); }
         }
@@ -129,4 +265,20 @@ async function loadGeneratedParts(subId) {
             </div>`;
         }).join('');
     } catch (e) { container.innerHTML = '<div class="empty">Error loading parts</div>'; }
+}
+
+// No downloadTemplate override needed here. Use the global multi-sheet template generator in common.js
+
+function addGenMpnMakeRow() {
+    const list = document.getElementById('genMpnMakeList');
+    const div = document.createElement('div');
+    div.style.display = 'flex';
+    div.style.gap = '8px';
+    div.className = 'gen-mpn-row';
+    div.innerHTML = `
+        <input type="text" class="gen-mpn" placeholder="MPN (e.g. CR0402)" style="flex:1; padding: 6px; border: 1px solid var(--border-color); border-radius: 4px;">
+        <input type="text" class="gen-make" placeholder="Make (e.g. Yageo)" style="flex:1; padding: 6px; border: 1px solid var(--border-color); border-radius: 4px;">
+        <button type="button" class="btn-outline btn-sm" onclick="this.parentElement.remove()" title="Remove" style="padding: 4px 8px;"><span class="material-icons-outlined">close</span></button>
+    `;
+    list.appendChild(div);
 }

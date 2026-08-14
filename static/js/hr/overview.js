@@ -10,61 +10,89 @@ async function loadHROverview() {
         const emps = empJson.success ? empJson.data : [];
         const total = emps.length;
         const active = emps.filter(e => e.status === 'active').length;
-        const inactive = emps.filter(e => e.status !== 'active').length;
+        const inactive = total - active;
         const depts = [...new Set(emps.map(e => e.department).filter(Boolean))].length;
         const criteria = critJson.success ? critJson.data.length : 0;
+        const activePct = total ? Math.round((active / total) * 100) : 0;
 
+        // KPI cards
         const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
         set('ovr-total', total);
         set('ovr-active', active);
         set('ovr-inactive', inactive);
         set('ovr-depts', depts);
         set('ovr-criteria', criteria);
+        set('ovr-active-pct', total ? `${activePct}% of workforce` : '');
+        set('ovr-subtitle', `${total} employee${total !== 1 ? 's' : ''} across ${depts} department${depts !== 1 ? 's' : ''}`);
 
-        // Dept breakdown
+        const BAR_COLORS = ['#1a73e8','#2e7d32','#e65100','#6a1b9a','#00838f','#c62828','#f9a825','#37474f'];
+
+        function renderBars(containerId, map, total) {
+            const el = document.getElementById(containerId);
+            if (!el) return;
+            const entries = Object.entries(map).sort((a, b) => b[1] - a[1]);
+            if (!entries.length) { el.innerHTML = '<div class="ovr-empty">No data available</div>'; return; }
+            el.innerHTML = entries.map(([label, count], i) => `
+                <div class="ovr-bar-row">
+                    <div class="ovr-bar-label" title="${label}">${label}</div>
+                    <div class="ovr-bar-track">
+                        <div class="ovr-bar-fill" style="width:${total ? Math.round((count/total)*100) : 0}%;background:${BAR_COLORS[i % BAR_COLORS.length]};"></div>
+                    </div>
+                    <div class="ovr-bar-count">${count}</div>
+                    <div class="ovr-bar-pct">${total ? Math.round((count/total)*100) : 0}%</div>
+                </div>`).join('');
+        }
+
+        // Department breakdown
         const deptMap = {};
         emps.forEach(e => { const d = e.department || 'Unassigned'; deptMap[d] = (deptMap[d] || 0) + 1; });
-        const deptBody = document.getElementById('ovr-dept-body');
-        if (deptBody) {
-            deptBody.innerHTML = Object.entries(deptMap).sort((a,b) => b[1]-a[1]).map(([d, c]) => `
-                <tr>
-                    <td>${d}</td>
-                    <td><strong>${c}</strong></td>
-                    <td>
-                        <div style="background:var(--border-color);border-radius:4px;height:6px;width:120px;">
-                            <div style="background:var(--accent);width:${Math.round((c/total)*100)}%;height:6px;border-radius:4px;"></div>
-                        </div>
-                    </td>
-                </tr>`).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--text-muted);">No data</td></tr>';
-        }
+        renderBars('ovr-dept-list', deptMap, total);
+
+        // Employment type
+        const typeLabels = { full_time: 'Full Time', part_time: 'Part Time', contract: 'Contract', intern: 'Intern' };
+        const typeMap = {};
+        emps.forEach(e => { const t = typeLabels[e.employment_type] || e.employment_type || 'Unknown'; typeMap[t] = (typeMap[t] || 0) + 1; });
+        renderBars('ovr-type-list', typeMap, total);
+
+        // Gender distribution
+        const genderLabels = { male: 'Male', female: 'Female', other: 'Other' };
+        const genderMap = {};
+        emps.forEach(e => { const g = genderLabels[e.gender] || (e.gender ? e.gender : 'Not Specified'); genderMap[g] = (genderMap[g] || 0) + 1; });
+        renderBars('ovr-gender-list', genderMap, total);
 
         // Recent employees
-        const recentBody = document.getElementById('ovr-recent-body');
-        if (recentBody) {
-            recentBody.innerHTML = emps.slice(0, 8).map(e => `
-                <tr>
-                    <td><strong>${e.emp_code || '-'}</strong></td>
-                    <td>${e.first_name} ${e.last_name}</td>
-                    <td style="font-size:12px;">${e.email || '-'}</td>
-                    <td>${e.designation || '-'}</td>
-                    <td>${e.department || '-'}</td>
-                    <td>${e.date_of_joining || '-'}</td>
-                    <td><span class="badge ${e.status === 'active' ? 'badge-success' : 'badge-danger'}">${e.status}</span></td>
-                </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);">No employees yet</td></tr>';
-        }
-
-        // Employment type breakdown
-        const typeMap = {};
-        emps.forEach(e => { const t = e.employment_type || 'Unknown'; typeMap[t] = (typeMap[t] || 0) + 1; });
-        const typeBody = document.getElementById('ovr-type-body');
-        if (typeBody) {
-            const labels = { full_time: 'Full Time', part_time: 'Part Time', contract: 'Contract', intern: 'Intern' };
-            typeBody.innerHTML = Object.entries(typeMap).map(([t, c]) => `
-                <tr>
-                    <td>${labels[t] || t}</td>
-                    <td><strong>${c}</strong></td>
-                    <td><span class="badge badge-info">${Math.round((c/total)*100)}%</span></td>
-                </tr>`).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--text-muted);">No data</td></tr>';
+        const recentEl = document.getElementById('ovr-recent-list');
+        if (recentEl) {
+            const sorted = [...emps].sort((a, b) => (b.date_of_joining || '').localeCompare(a.date_of_joining || '')).slice(0, 8);
+            if (!sorted.length) {
+                recentEl.innerHTML = '<div class="ovr-empty">No employees yet</div>';
+            } else {
+                const avatarColors = ['#1a73e8','#2e7d32','#e65100','#6a1b9a','#00838f','#c62828','#f9a825'];
+                recentEl.innerHTML = sorted.map((e, i) => {
+                    const initials = `${(e.first_name || '?')[0]}${(e.last_name || '')[0] || ''}`.toUpperCase();
+                    const color = avatarColors[i % avatarColors.length];
+                    const doj = e.date_of_joining ? new Date(e.date_of_joining).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+                    const isActive = e.status === 'active';
+                    return `
+                    <div class="ovr-recent-row">
+                        <div class="ovr-recent-avatar" style="background:${color};">${initials}</div>
+                        <div class="ovr-recent-info">
+                            <div class="ovr-recent-name">${e.first_name || ''} ${e.last_name || ''}</div>
+                            <div class="ovr-recent-meta">
+                                ${e.designation || 'No Designation'}
+                                ${e.department ? ` &middot; ${e.department}` : ''}
+                            </div>
+                        </div>
+                        <div class="ovr-recent-right">
+                            <div class="ovr-recent-code">${e.emp_code || '—'}</div>
+                            <div class="ovr-recent-doj">
+                                <span class="ovr-status-dot ${isActive ? 'active' : 'inactive'}"></span>
+                                Joined ${doj}
+                            </div>
+                        </div>
+                    </div>`;
+                }).join('');
+            }
         }
 
     } catch (e) {

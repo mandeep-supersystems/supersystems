@@ -16,9 +16,23 @@ async function loadCheckins() {
                     <td>${c.checked_in_by}</td>
                     <td>${c.checkin_time}</td>
                     <td>
-                        <span class="badge ${c.iqc_status === 'passed' ? 'badge-success' : c.iqc_status === 'rejected' ? 'badge-danger' : 'badge-warning'}">
-                            ${c.iqc_status === 'passed' ? 'Approved by IQC (' + (c.iqc_elapsed_min || 15) + ' mins)' : c.iqc_status === 'rejected' ? 'Rejected by IQC' : 'Pending IQC Inspection'}
-                        </span>
+                        ${(() => {
+                            let badgeClass = 'badge-info';
+                            let badgeLabel = 'Pending IQC Inspection';
+                            const s = (c.iqc_status || '').toLowerCase().trim();
+                            
+                            if (s === 'passed') {
+                                badgeClass = 'badge-success';
+                                badgeLabel = 'Approved by IQC (' + (c.iqc_elapsed_min || 15) + ' mins)';
+                            } else if (s === 'rejected' || s === 'failed') {
+                                badgeClass = 'badge-danger';
+                                badgeLabel = 'Rejected by IQC';
+                            } else if (s === 'partial' || s === 'partial_pass') {
+                                badgeClass = 'badge-warning';
+                                badgeLabel = 'Partial Pass';
+                            }
+                            return `<span class="badge ${badgeClass}">${badgeLabel}</span>`;
+                        })()}
                     </td>
                     <td><strong style="color:#2e7d32;">${c.iqc_passed_qty}</strong></td>
                     <td><strong style="color:#c62828;">${c.iqc_rejected_qty}</strong></td>

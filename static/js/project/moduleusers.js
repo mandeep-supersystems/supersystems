@@ -14,7 +14,6 @@ const PROJ_ROLE_SECTIONS = {
 };
 const PROJ_ENTITIES = [
     { id: 'projects', label: 'Projects' },
-    { id: 'tasks', label: 'Tasks' },
     { id: 'organizations', label: 'Organizations' },
     { id: 'purchase_orders', label: 'Purchase Orders' },
     { id: 'audit_logs', label: 'Audit Logs' },
@@ -46,17 +45,37 @@ async function loadModuleUsers() {
     try {
         const res = await fetch(API + '/users', { headers: HEADERS });
         const data = await res.json();
-        if (!data.success || !data.data || data.data.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="empty">No users assigned yet.</td></tr>'; return; }
-        tbody.innerHTML = data.data.map(u => {
-            const name = (u.first_name + ' ' + u.last_name).trim() || u.email;
-            const roleLabel = u.role === 'module_admin' ? 'Module Admin' : u.role === 'editor' ? 'Editor' : 'Viewer';
-            const perms = typeof u.permissions === 'string' ? JSON.parse(u.permissions || '{}') : (u.permissions || {});
-            const sections = (perms && perms.sections) ? perms.sections : PROJ_ROLE_SECTIONS[u.role] || [];
-            const sectionTags = sections.map(s => { const sec = PROJECT_SECTIONS.find(ps => ps.id === s); return sec ? `<span class="section-tag">${sec.label}</span>` : ''; }).join('');
-            const uData = encodeURIComponent(JSON.stringify({ id: u.id, email: u.email, first_name: u.first_name, last_name: u.last_name, role: u.role, permissions: perms }));
-            return `<tr><td><strong>${esc(name)}</strong><div class="cell-sub">${esc(u.email)}</div></td><td><span class="role-badge role-${u.role === 'module_admin' ? 'admin' : u.role}">${roleLabel}</span></td><td><div class="section-tags-cell">${sectionTags}</div></td><td><span class="status-badge ${u.is_active?'status-active':'status-obsolete'}">${u.is_active?'Active':'Inactive'}</span></td><td>${formatTime(u.created_at)}</td><td class="actions-cell"><button class="btn-icon" onclick="openEditModuleUser('${uData}')"><span class="material-icons-outlined">edit</span></button><button class="btn-icon danger" onclick="revokeModuleUser('${u.id}','${esc(u.email)}')"><span class="material-icons-outlined">person_remove</span></button></td></tr>`;
-        }).join('');
+        if (!data.success || !data.data || data.data.length === 0) {
+            window._allModuleUsers = [];
+            tbody.innerHTML = '<tr><td colspan="6" class="empty">No users assigned yet.</td></tr>';
+            return;
+        }
+        window._allModuleUsers = data.data;
+        _renderModuleUsersTable(data.data);
     } catch (e) { tbody.innerHTML = '<tr><td colspan="6" class="empty">Error loading users</td></tr>'; }
+}
+
+function _renderModuleUsersTable(users) {
+    const tbody = document.getElementById('moduleUsersBody');
+    if (!users.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">No matching users</td></tr>'; return; }
+    tbody.innerHTML = users.map(u => {
+        const name = (u.first_name + ' ' + u.last_name).trim() || u.email;
+        const roleLabel = u.role === 'module_admin' ? 'Module Admin' : u.role === 'editor' ? 'Editor' : 'Viewer';
+        const perms = typeof u.permissions === 'string' ? JSON.parse(u.permissions || '{}') : (u.permissions || {});
+        const sections = (perms && perms.sections) ? perms.sections : PROJ_ROLE_SECTIONS[u.role] || [];
+        const sectionTags = sections.map(s => { const sec = PROJECT_SECTIONS.find(ps => ps.id === s); return sec ? `<span class="section-tag">${sec.label}</span>` : ''; }).join('');
+        const uData = encodeURIComponent(JSON.stringify({ id: u.id, email: u.email, first_name: u.first_name, last_name: u.last_name, role: u.role, permissions: perms }));
+        return `<tr><td><strong>${esc(name)}</strong><div class="cell-sub">${esc(u.email)}</div></td><td><span class="role-badge role-${u.role === 'module_admin' ? 'admin' : u.role}">${roleLabel}</span></td><td><div class="section-tags-cell">${sectionTags}</div></td><td><span class="status-badge ${u.is_active?'status-active':'status-obsolete'}">${u.is_active?'Active':'Inactive'}</span></td><td>${formatTime(u.created_at)}</td><td class="actions-cell"><button class="btn-icon" onclick="openEditModuleUser('${uData}')"><span class="material-icons-outlined">edit</span></button><button class="btn-icon danger" onclick="revokeModuleUser('${u.id}','${esc(u.email)}')"><span class="material-icons-outlined">person_remove</span></button></td></tr>`;
+    }).join('');
+}
+
+function filterModuleUsers(val) {
+    const q = val.trim().toLowerCase();
+    _renderModuleUsersTable(q ? (window._allModuleUsers||[]).filter(u =>
+        ((u.first_name||'')+' '+(u.last_name||'')).toLowerCase().includes(q) ||
+        (u.email||'').toLowerCase().includes(q) ||
+        (u.role||'').toLowerCase().includes(q)
+    ) : (window._allModuleUsers||[]));
 }
 
 function openAddUserModal() { document.getElementById('muUserSearch').value = ''; document.getElementById('muUserSelect').value = ''; document.getElementById('muUserResults').innerHTML = ''; document.getElementById('muUserSelected').style.display = 'none'; document.getElementById('muRole').value = 'viewer'; onMuRoleChange(); openModal('addModuleUserModal'); }

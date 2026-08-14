@@ -2,6 +2,7 @@
 <html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Part Management - SUPERSYSTEMS</title>
     <link rel="stylesheet" href="/static/css/header.css">
@@ -119,80 +120,132 @@
     <!-- CONTENT -->
     <main class="part-content">
 
-        <!-- OVERVIEW SECTION -->
+        <!-- OVERVIEW — Power BI Dashboard -->
         <section class="content-section active" id="sec-overview">
-            <div class="section-header">
-                <h2>Overview</h2>
-            </div>
-            <div class="overview-stats" id="overviewStats">
-                <div class="stat-card">
-                    <span class="material-icons-outlined stat-icon">folder</span>
-                    <div class="stat-info">
-                        <div class="stat-value" id="statCategories">-</div>
-                        <div class="stat-label">Categories</div>
-                    </div>
+            <!-- Banner with period filter -->
+            <div class="ov-banner banner-part">
+                <div class="ov-banner-text">
+                    <h2><span class="material-icons-outlined">extension</span> Part Management Overview</h2>
+                    <p id="ovDate"></p>
                 </div>
-                <div class="stat-card">
-                    <span class="material-icons-outlined stat-icon">folder_open</span>
-                    <div class="stat-info">
-                        <div class="stat-value" id="statSubcategories">-</div>
-                        <div class="stat-label">Subcategories</div>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <span class="material-icons-outlined stat-icon">precision_manufacturing</span>
-                    <div class="stat-info">
-                        <div class="stat-value" id="statTotalParts">-</div>
-                        <div class="stat-label">Total Parts</div>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <span class="material-icons-outlined stat-icon">check_circle</span>
-                    <div class="stat-info">
-                        <div class="stat-value" id="statActiveParts">-</div>
-                        <div class="stat-label">Active Parts</div>
-                    </div>
-                </div>
-                <div class="stat-card stat-warning">
-                    <span class="material-icons-outlined stat-icon">block</span>
-                    <div class="stat-info">
-                        <div class="stat-value" id="statObsolete">-</div>
-                        <div class="stat-label">Obsolete</div>
-                    </div>
+                <div class="ov-period-filter">
+                    <button class="ov-period-btn" data-period="day" onclick="setOvPeriod('day',this)">Today</button>
+                    <button class="ov-period-btn" data-period="week" onclick="setOvPeriod('week',this)">Week</button>
+                    <button class="ov-period-btn active" data-period="month" onclick="setOvPeriod('month',this)">Month</button>
+                    <button class="ov-period-btn" data-period="year" onclick="setOvPeriod('year',this)">Year</button>
+                    <button class="ov-period-btn" data-period="all" onclick="setOvPeriod('all',this)">All Time</button>
                 </div>
             </div>
-            <div class="overview-grid">
-                <div class="overview-card">
-                    <div class="overview-card-header">
-                        <h3>Recent Activity</h3>
+
+            <!-- KPI Cards -->
+            <div class="ov-kpi-grid" id="ovKpiGrid">
+                <div class="ov-kpi-card" data-color="blue">
+                    <div class="ov-kpi-header">
+                        <div class="ov-kpi-icon ic-blue"><span class="material-icons-outlined">folder</span></div>
                     </div>
-                    <div class="overview-card-body" id="overviewActivity">
-                        <div class="empty">Loading...</div>
-                    </div>
+                    <div class="ov-kpi-value" id="kpiCategories">-</div>
+                    <div class="ov-kpi-label">Categories</div>
                 </div>
-                <div class="overview-card">
-                    <div class="overview-card-header">
-                        <h3>Quick Actions</h3>
+                <div class="ov-kpi-card" data-color="teal">
+                    <div class="ov-kpi-header">
+                        <div class="ov-kpi-icon ic-teal"><span class="material-icons-outlined">folder_open</span></div>
                     </div>
-                    <div class="overview-card-body">
-                        <div class="quick-actions">
-                            <button class="quick-action-btn" onclick="showSection('generate')">
-                                <span class="material-icons-outlined">bolt</span>
-                                <span>Generate Part</span>
-                            </button>
-                            <button class="quick-action-btn" onclick="openCategoryModal()">
-                                <span class="material-icons-outlined">create_new_folder</span>
-                                <span>New Category</span>
-                            </button>
-                            <button class="quick-action-btn" onclick="showSection('subcategories'); setTimeout(openSubcategoryModal, 300)">
-                                <span class="material-icons-outlined">add_box</span>
-                                <span>New Subcategory</span>
-                            </button>
-                            <button class="quick-action-btn" onclick="showSection('allparts')">
-                                <span class="material-icons-outlined">view_list</span>
-                                <span>View All Parts</span>
-                            </button>
+                    <div class="ov-kpi-value" id="kpiSubcategories">-</div>
+                    <div class="ov-kpi-label">Subcategories</div>
+                </div>
+                <div class="ov-kpi-card" data-color="purple">
+                    <div class="ov-kpi-header">
+                        <div class="ov-kpi-icon ic-purple"><span class="material-icons-outlined">extension</span></div>
+                    </div>
+                    <div class="ov-kpi-value" id="kpiTotalParts">-</div>
+                    <div class="ov-kpi-label">Total Parts</div>
+                </div>
+                <div class="ov-kpi-card" data-color="green">
+                    <div class="ov-kpi-header">
+                        <div class="ov-kpi-icon ic-green"><span class="material-icons-outlined">verified</span></div>
+                    </div>
+                    <div class="ov-kpi-value" id="kpiActiveParts">-</div>
+                    <div class="ov-kpi-label">Active Parts</div>
+                </div>
+                <div class="ov-kpi-card" data-color="red">
+                    <div class="ov-kpi-header">
+                        <div class="ov-kpi-icon ic-red"><span class="material-icons-outlined">block</span></div>
+                    </div>
+                    <div class="ov-kpi-value" id="kpiObsoleteParts">-</div>
+                    <div class="ov-kpi-label">Obsolete Parts</div>
+                </div>
+                <div class="ov-kpi-card" data-color="orange">
+                    <div class="ov-kpi-header">
+                        <div class="ov-kpi-icon ic-orange"><span class="material-icons-outlined">swap_horiz</span></div>
+                    </div>
+                    <div class="ov-kpi-value" id="kpiPartMappings">-</div>
+                    <div class="ov-kpi-label">Mappings</div>
+                </div>
+            </div>
+
+            <!-- Charts Row: Health Donut + Category Distribution Bar -->
+            <div class="ov-charts-row2">
+                <div class="ov-chart-card2">
+                    <div class="ov-chart-card2-header">
+                        <h3><span class="material-icons-outlined">donut_large</span> Part Health</h3>
+                    </div>
+                    <div class="ov-chart-card2-body">
+                        <div class="ov-donut-container" id="ovHealthDonut">
+                            <div class="ov-donut-ring" id="ovDonutRing">
+                                <div class="ov-donut-center">
+                                    <div class="ov-donut-center-val" id="ovDonutTotal">0</div>
+                                    <div class="ov-donut-center-label">Parts</div>
+                                </div>
+                            </div>
+                            <div class="ov-donut-legend" id="ovDonutLegend"></div>
                         </div>
+                    </div>
+                </div>
+                <div class="ov-chart-card2">
+                    <div class="ov-chart-card2-header">
+                        <h3><span class="material-icons-outlined">bar_chart</span> Part Category Distribution</h3>
+                    </div>
+                    <div class="ov-chart-card2-body">
+                        <div class="ov-hbar-list" id="ovCatDistList">
+                            <div class="ov-empty">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Row: Part Health Bars + Activity Timeline + Quick Actions -->
+            <div class="ov-bottom-grid">
+                <div class="ov-card">
+                    <div class="ov-card-header">
+                        <h3><span class="material-icons-outlined">health_and_safety</span> Health Breakdown</h3>
+                    </div>
+                    <div class="ov-card-body">
+                        <div class="ov-health-row">
+                            <div class="ov-health-label"><div class="ov-dot dot-active"></div> Active</div>
+                            <div class="ov-bar-wrap"><div class="ov-bar-fill bar-active" id="barActive" style="width:0%"></div></div>
+                            <div class="ov-health-val" id="valActive">0</div>
+                        </div>
+                        <div class="ov-health-row mt-3">
+                            <div class="ov-health-label"><div class="ov-dot dot-obs"></div> Obsolete</div>
+                            <div class="ov-bar-wrap"><div class="ov-bar-fill bar-obs" id="barObs" style="width:0%"></div></div>
+                            <div class="ov-health-val" id="valObs">0</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ov-card">
+                    <div class="ov-card-header">
+                        <h3><span class="material-icons-outlined">timeline</span> Recent Activity</h3>
+                    </div>
+                    <div class="ov-card-body" id="overviewActivity">
+                        <div class="ov-empty">Loading...</div>
+                    </div>
+                </div>
+                <div class="ov-card">
+                    <div class="ov-card-header">
+                        <h3><span class="material-icons-outlined">flash_on</span> Quick Actions</h3>
+                    </div>
+                    <div class="ov-card-body">
+                        <div class="ov-quick-grid" id="quickActionsGrid"></div>
                     </div>
                 </div>
             </div>
@@ -200,9 +253,13 @@
 
         <!-- CATEGORIES SECTION -->
         <section class="content-section" id="sec-categories">
-            <div class="section-header">
+            <div class="section-header" style="flex-wrap: wrap; gap: 12px;">
                 <h2>Categories</h2>
-                <div class="section-actions">
+                <div style="display:flex; gap:12px; align-items:center; flex:1; justify-content:flex-end; min-width:300px;">
+                    <input type="search" id="categorySearchInput" placeholder="Search categories..." oninput="filterCategoriesTable(this.value)" style="max-width:240px; padding:6px 12px; border-radius:6px; border:1px solid var(--border-color); font-size:13px;">
+                    <button class="btn-outline" onclick="showHistoryModal('Category')" title="View History">
+                        <span class="material-icons-outlined">history</span> History
+                    </button>
                     <button class="btn-outline" onclick="exportData('categories')" title="Export CSV">
                         <span class="material-icons-outlined">download</span> Export
                     </button>
@@ -238,9 +295,13 @@
 
         <!-- SUBCATEGORIES SECTION -->
         <section class="content-section" id="sec-subcategories">
-            <div class="section-header">
+            <div class="section-header" style="flex-wrap: wrap; gap: 12px;">
                 <h2>Subcategories</h2>
-                <div class="section-actions">
+                <div style="display:flex; gap:12px; align-items:center; flex:1; justify-content:flex-end; min-width:300px;">
+                    <input type="search" id="subcategorySearchInput" placeholder="Search subcategories..." oninput="filterSubcategoriesTable(this.value)" style="max-width:240px; padding:6px 12px; border-radius:6px; border:1px solid var(--border-color); font-size:13px;">
+                    <button class="btn-outline" onclick="showHistoryModal('Subcategory')" title="View History">
+                        <span class="material-icons-outlined">history</span> History
+                    </button>
                     <button class="btn-outline" onclick="exportData('subcategories')" title="Export CSV">
                         <span class="material-icons-outlined">download</span> Export
                     </button>
@@ -279,6 +340,9 @@
             <div class="section-header">
                 <h2>Generate Part Code</h2>
                 <div class="section-actions">
+                    <button class="btn-outline" onclick="showHistoryModal('Part')" title="View History">
+                        <span class="material-icons-outlined">history</span> History
+                    </button>
                     <button class="btn-outline" onclick="exportData('parts')" title="Export CSV">
                         <span class="material-icons-outlined">download</span> Export
                     </button>
@@ -292,19 +356,50 @@
             </div>
             <div class="generate-layout">
                 <div class="generate-form-card">
+                    <!-- Category custom dropdown -->
                     <div class="form-group">
                         <label>Category</label>
-                        <select id="genCategory" onchange="loadGenSubcategories()">
-                            <option value="">Select Category</option>
-                        </select>
+                        <div class="gsd-wrap" id="genCatWrap">
+                            <div class="gsd-box" id="genCatBox" onclick="toggleGsd('cat')">
+                                <span class="material-icons-outlined gsd-icon">folder</span>
+                                <span class="gsd-text" id="genCatText">Select category...</span>
+                                <button class="gsd-clear" id="genCatClear" onclick="clearGsd(event,'cat')" style="display:none"><span class="material-icons-outlined">close</span></button>
+                                <span class="material-icons-outlined gsd-arrow" id="genCatArrow">expand_more</span>
+                            </div>
+                            <div class="gsd-dropdown" id="genCatDropdown">
+                                <div class="gsd-search-row">
+                                    <span class="material-icons-outlined">search</span>
+                                    <input type="text" id="genCatSearch" placeholder="Search category..." oninput="filterGsd('cat',this.value)" autocomplete="off">
+                                </div>
+                                <div class="gsd-list" id="genCatList"></div>
+                            </div>
+                        </div>
                     </div>
+                    <!-- Subcategory custom dropdown -->
                     <div class="form-group">
                         <label>Subcategory</label>
-                        <select id="genSubcategory" onchange="loadGenColumns()">
-                            <option value="">Select Subcategory</option>
-                        </select>
+                        <div class="gsd-wrap" id="genSubWrap">
+                            <div class="gsd-box gsd-disabled" id="genSubBox" onclick="toggleGsd('sub')">
+                                <span class="material-icons-outlined gsd-icon">folder_open</span>
+                                <span class="gsd-text" id="genSubText">Select subcategory...</span>
+                                <button class="gsd-clear" id="genSubClear" onclick="clearGsd(event,'sub')" style="display:none"><span class="material-icons-outlined">close</span></button>
+                                <span class="material-icons-outlined gsd-arrow" id="genSubArrow">expand_more</span>
+                            </div>
+                            <div class="gsd-dropdown" id="genSubDropdown">
+                                <div class="gsd-search-row">
+                                    <span class="material-icons-outlined">search</span>
+                                    <input type="text" id="genSubSearch" placeholder="Search subcategory..." oninput="filterGsd('sub',this.value)" autocomplete="off">
+                                </div>
+                                <div class="gsd-list" id="genSubList"></div>
+                            </div>
+                        </div>
                     </div>
                     <div id="genColumnsForm"></div>
+                    <div id="genManufacturers" style="display:none; margin-bottom:15px;">
+                        <p class="gen-cols-title">Manufacturer Combinations (Optional)</p>
+                        <div id="genMpnMakeList" style="display:flex; flex-direction:column; gap:8px;"></div>
+                        <button class="btn-outline btn-sm" style="margin-top:8px" onclick="addGenMpnMakeRow()"><span class="material-icons-outlined">add</span> Add MPN/Make</button>
+                    </div>
                     <div class="form-group" id="genPreview" style="display:none">
                         <label>Part Number Preview</label>
                         <div class="part-preview" id="partPreviewText">---</div>
@@ -328,6 +423,9 @@
             <div class="section-header">
                 <h2>All Parts</h2>
                 <div class="section-actions">
+                    <button class="btn-outline" onclick="showHistoryModal('Part')" title="View History">
+                        <span class="material-icons-outlined">history</span> History
+                    </button>
                     <button class="btn-outline" onclick="exportData('allparts')" title="Export CSV">
                         <span class="material-icons-outlined">download</span> Export
                     </button>
@@ -336,21 +434,52 @@
             <div class="allparts-filter">
                 <div class="form-group">
                     <label>Category</label>
-                    <select id="apCategory" onchange="loadApSubcategories()">
-                        <option value="">All Categories</option>
-                    </select>
+                    <div class="gsd-wrap" id="apCatWrap">
+                        <div class="gsd-box" id="apCatBox" onclick="toggleApGsd('cat')">
+                            <span class="material-icons-outlined gsd-icon">folder</span>
+                            <span class="gsd-text" id="apCatText">All Categories</span>
+                            <button class="gsd-clear" id="apCatClear" onclick="clearApGsd(event,'cat')" style="display:none"><span class="material-icons-outlined">close</span></button>
+                            <span class="material-icons-outlined gsd-arrow" id="apCatArrow">expand_more</span>
+                        </div>
+                        <div class="gsd-dropdown" id="apCatDropdown">
+                            <div class="gsd-search-row">
+                                <span class="material-icons-outlined">search</span>
+                                <input type="text" id="apCatSearch" placeholder="Search category..." oninput="filterApGsd('cat',this.value)" autocomplete="off">
+                            </div>
+                            <div class="gsd-list" id="apCatList"></div>
+                        </div>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>Subcategory</label>
-                    <select id="apSubcategory" onchange="loadAllParts()">
-                        <option value="">All Subcategories</option>
-                    </select>
+                    <div class="gsd-wrap" id="apSubWrap">
+                        <div class="gsd-box" id="apSubBox" onclick="toggleApGsd('sub')">
+                            <span class="material-icons-outlined gsd-icon">folder_open</span>
+                            <span class="gsd-text" id="apSubText">All Subcategories</span>
+                            <button class="gsd-clear" id="apSubClear" onclick="clearApGsd(event,'sub')" style="display:none"><span class="material-icons-outlined">close</span></button>
+                            <span class="material-icons-outlined gsd-arrow" id="apSubArrow">expand_more</span>
+                        </div>
+                        <div class="gsd-dropdown" id="apSubDropdown">
+                            <div class="gsd-search-row">
+                                <span class="material-icons-outlined">search</span>
+                                <input type="text" id="apSubSearch" placeholder="Search subcategory..." oninput="filterApGsd('sub',this.value)" autocomplete="off">
+                            </div>
+                            <div class="gsd-list" id="apSubList"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group" style="flex:2">
+                    <label>Search</label>
+                    <div class="search-box" style="height:38px">
+                        <span class="material-icons-outlined" style="font-size:16px">search</span>
+                        <input type="text" id="allPartsSearch" placeholder="Search by part number, description, category, status..." oninput="filterAllParts()" style="border:none;outline:none;width:100%;font-size:13px">
+                    </div>
                 </div>
             </div>
             <div class="table-container">
                 <table class="data-table">
                     <thead id="allPartsHead">
-                        <tr><th>Part Number</th><th>Description</th><th>Created By</th><th>Status</th><th>Created</th></tr>
+                        <tr><th>Part Number</th><th>Category</th><th>Subcategory</th><th>Value</th><th>Description</th><th>Status</th></tr>
                     </thead>
                     <tbody id="allPartsBody">
                         <tr><td colspan="7" class="empty">Loading...</td></tr>
@@ -364,38 +493,71 @@
             <div class="section-header">
                 <h2>Part Mapping (Cross-Reference)</h2>
                 <div class="section-actions">
+                    <button class="btn-outline" onclick="showHistoryModal('Part Mapping')" title="View History">
+                        <span class="material-icons-outlined">history</span> History
+                    </button>
                     <button class="btn-primary" onclick="openAddMappingModal()">
                         <span class="material-icons-outlined">add</span> Add Mapping
                     </button>
                 </div>
             </div>
+
             <!-- Unmapped customer parts from POs -->
-            <div class="unmapped-section" style="margin-bottom:24px">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-                    <h3 style="font-size:14px;color:var(--text-secondary);margin:0"><span class="material-icons-outlined" style="font-size:16px;vertical-align:middle;color:#e65100">warning</span> Remaining Unmapped — <span id="unmappedCount" style="color:#e65100;font-weight:700">0</span> parts left</h3>
-                    <div class="search-box" style="width:240px"><span class="material-icons-outlined" style="font-size:16px">search</span><input type="text" id="unmappedSearchInput" placeholder="Search unmapped..." oninput="filterUnmapped()" style="border:none;outline:none;width:100%;font-size:12px"></div>
+            <div class="pm-panel" id="unmappedPanel">
+                <div class="pm-panel-header">
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <span class="material-icons-outlined" style="font-size:16px;color:#e65100">warning</span>
+                        <span style="font-size:13px;font-weight:700;color:var(--text-primary)">Remaining Unmapped</span>
+                        <span class="pm-count-badge" id="unmappedCount">0</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <div class="search-box" style="width:220px;height:32px">
+                            <span class="material-icons-outlined" style="font-size:15px">search</span>
+                            <input type="text" id="unmappedSearchInput" placeholder="Search..." oninput="filterUnmapped()" style="border:none;outline:none;width:100%;font-size:12px">
+                        </div>
+                        <button class="btn-outline btn-sm" onclick="showHistoryModal('Part Mapping')" title="View History"><span class="material-icons-outlined">history</span> History</button>
+                        <button class="btn-outline btn-sm" onclick="exportUnmapped()" title="Export CSV"><span class="material-icons-outlined">download</span> Export</button>
+                        <button class="btn-outline btn-sm" onclick="importUnmappedCSV()" title="Import CSV"><span class="material-icons-outlined">upload</span> Import</button>
+                        <button class="btn-outline btn-sm" onclick="downloadUnmappedTemplate()" title="Download Template"><span class="material-icons-outlined">description</span> Template</button>
+                        <button class="btn-outline btn-sm fs-btn" onclick="toggleFullscreen('unmappedPanel')" title="Fullscreen"><span class="material-icons-outlined">fullscreen</span></button>
+                    </div>
                 </div>
-                <div id="unmappedPartsContainer" class="table-container" style="max-height:250px;overflow-y:auto"><div class="empty" style="padding:12px">Loading...</div></div>
+                <div id="unmappedPartsContainer" style="max-height:260px;overflow-y:auto"><div class="empty" style="padding:12px">Loading...</div></div>
             </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-                <h3 style="font-size:14px;color:var(--text-secondary);margin:0">All Mappings</h3>
-                <div class="search-box" style="width:260px"><span class="material-icons-outlined" style="font-size:16px">search</span><input type="text" id="mappingSearchInput" placeholder="Search mappings..." oninput="filterMappings()" style="border:none;outline:none;width:100%;font-size:12px"></div>
-            </div>
-            <div class="table-container">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Part Code</th>
-                            <th>Description</th>
-                            <th>Customer Part #</th>
-                            <th>Created</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="mappingsTableBody">
-                        <tr><td colspan="5" class="empty">Loading...</td></tr>
-                    </tbody>
-                </table>
+
+            <!-- All Mappings -->
+            <div class="pm-panel" id="mappingsPanel" style="margin-top:16px">
+                <div class="pm-panel-header">
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <span class="material-icons-outlined" style="font-size:16px;color:var(--accent)">swap_horiz</span>
+                        <span style="font-size:13px;font-weight:700;color:var(--text-primary)">All Mappings</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <div class="search-box" style="width:240px;height:32px">
+                            <span class="material-icons-outlined" style="font-size:15px">search</span>
+                            <input type="text" id="mappingSearchInput" placeholder="Search mappings..." oninput="filterMappings()" style="border:none;outline:none;width:100%;font-size:12px">
+                        </div>
+                        <button class="btn-outline btn-sm" onclick="showSection('auditlogs')" title="View History"><span class="material-icons-outlined">history</span> History</button>
+                        <button class="btn-outline btn-sm" onclick="exportMappings()" title="Export CSV"><span class="material-icons-outlined">download</span> Export</button>
+                        <button class="btn-outline btn-sm fs-btn" onclick="toggleFullscreen('mappingsPanel')" title="Fullscreen"><span class="material-icons-outlined">fullscreen</span></button>
+                    </div>
+                </div>
+                <div class="table-container" style="border:none;border-radius:0">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Part Code</th>
+                                <th>Description</th>
+                                <th>Customer Part #</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mappingsTableBody">
+                            <tr><td colspan="5" class="empty">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </section>
 
@@ -433,6 +595,9 @@
             <div class="section-header">
                 <h2>Obsolete Parts</h2>
                 <div class="section-actions">
+                    <button class="btn-outline" onclick="showHistoryModal('Part')" title="View History">
+                        <span class="material-icons-outlined">history</span> History
+                    </button>
                     <button class="btn-outline" onclick="exportData('obsolete')" title="Export CSV">
                         <span class="material-icons-outlined">download</span> Export
                     </button>
@@ -461,6 +626,9 @@
             <div class="section-header">
                 <h2>User Management</h2>
                 <div class="section-actions">
+                    <button class="btn-outline" onclick="showHistoryModal('Module User')" title="View History">
+                        <span class="material-icons-outlined">history</span> History
+                    </button>
                     <button class="btn-primary" onclick="openAddUserModal()">
                         <span class="material-icons-outlined">person_add</span> Add User
                     </button>
@@ -569,34 +737,28 @@
                         <label>Code</label>
                         <input type="text" id="subCatCode" placeholder="e.g. PR">
                     </div>
+                    <div class="form-group">
+                        <label>Sequence Length</label>
+                        <select id="subCatSequencePadding">
+                            <option value="4" selected>4 Digits (0001)</option>
+                            <option value="5">5 Digits (00001)</option>
+                            <option value="6">6 Digits (000001)</option>
+                            <option value="3">3 Digits (001)</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="columns-section">
                     <div class="columns-header">
-                        <label>Table Columns * (define fields for parts in this subcategory)</label>
-                        <button type="button" class="btn-sm" onclick="addColumnRow()">
-                            <span class="material-icons-outlined">add</span> Add Column
-                        </button>
+                        <label>Visible Columns * (select which category columns apply to this subcategory)</label>
                     </div>
-                    <div id="columnsContainer">
-                        <div class="column-row">
-                            <input type="text" placeholder="Column name (e.g. material)" class="col-name" required onblur="updateDescColsCheckboxes()">
-                            <select class="col-type">
-                                <option value="varchar">Text</option>
-                                <option value="integer">Number</option>
-                                <option value="numeric">Decimal</option>
-                                <option value="boolean">Yes/No</option>
-                                <option value="date">Date</option>
-                            </select>
-                            <button type="button" class="btn-icon-danger" onclick="removeColumnRow(this)">
-                                <span class="material-icons-outlined">close</span>
-                            </button>
-                        </div>
+                    <div id="columnsContainer" style="padding:10px; border:1px solid var(--border-color); border-radius:6px; max-height:200px; overflow-y:auto;">
+                        <span class="text-muted" style="font-size:12px">Select a category first</span>
                     </div>
                 </div>
                 <div class="desc-cols-section">
-                    <label>Description Columns <span class="form-hint-inline">(select columns to auto-concat as Description — duplicate check uses this)</span></label>
-                    <div id="descColsContainer" class="desc-cols-grid">
-                        <span class="text-muted">Add columns first</span>
+                    <label>Description Columns <span class="form-hint-inline">(select columns to auto-concat as Description)</span></label>
+                    <div id="descColsContainer" class="desc-cols-grid" style="padding:10px; border:1px solid var(--border-color); border-radius:6px; max-height:100px; overflow-y:auto;">
+                        <span class="text-muted" style="font-size:12px">Select a category first</span>
                     </div>
                 </div>
                 <div class="form-actions">
@@ -608,103 +770,12 @@
     </div>
 </div>
 
-<!-- PROFILE MODAL -->
-<div class="modal-overlay" id="profileModal">
-    <div class="modal">
-        <div class="modal-header">
-            <h3>Profile</h3>
-            <button class="close-btn" onclick="partCloseModal('profileModal')"><span class="material-icons-outlined">close</span></button>
-        </div>
-        <div class="modal-body">
-            <div class="profile-info">
-                <div class="profile-avatar"><span class="material-icons-outlined">person</span></div>
-                <div class="profile-fields">
-                    <p><strong>Name:</strong> <span id="profileName">-</span></p>
-                    <p><strong>Email:</strong> <span id="profileEmail">-</span></p>
-                    <p><strong>Role:</strong> <span id="profileRole">-</span></p>
-                    <p><strong>Organization:</strong> <span id="profileOrg">-</span></p>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- ACCOUNT MODAL -->
-<div class="modal-overlay" id="accountModal">
-    <div class="modal">
-        <div class="modal-header">
-            <h3>Account Settings</h3>
-            <button class="close-btn" onclick="partCloseModal('accountModal')"><span class="material-icons-outlined">close</span></button>
-        </div>
-        <div class="modal-body">
-            <form id="accountForm" onsubmit="updateAccount(event)">
-                <div class="form-group"><label>First Name</label><input type="text" id="accFirstName"></div>
-                <div class="form-group"><label>Last Name</label><input type="text" id="accLastName"></div>
-                <div class="form-group"><label>Phone</label><input type="tel" id="accPhone"></div>
-                <hr>
-                <h4>Change Password</h4>
-                <div class="form-group"><label>Current Password</label><input type="password" id="accCurrentPwd"></div>
-                <div class="form-group"><label>New Password</label><input type="password" id="accNewPwd"></div>
-                <div class="form-actions">
-                    <button type="button" class="btn-secondary" onclick="partCloseModal('accountModal')">Cancel</button>
-                    <button type="submit" class="btn-primary">Save Changes</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- ADD MODULE USER MODAL -->
-<div class="modal-overlay" id="addModuleUserModal">
-    <div class="modal modal-lg">
-        <div class="modal-header">
-            <h3>Add User to Part Management</h3>
-            <button class="close-btn" onclick="partCloseModal('addModuleUserModal')">
-                <span class="material-icons-outlined">close</span>
-            </button>
-        </div>
-        <div class="modal-body">
-            <form onsubmit="saveModuleUser(event)">
-                <div class="form-group">
-                    <label>Search User (by name, email, or employee code) *</label>
-                    <input type="text" id="muUserSearch" placeholder="Type to search employees..." oninput="searchEmployeesForPart(this.value)" autocomplete="off">
-                    <input type="hidden" id="muUserSelect">
-                    <div id="muUserResults" class="emp-search-results"></div>
-                    <div id="muUserSelected" class="emp-selected-inline" style="display:none"><span id="muUserSelLabel"></span><button type="button" class="btn-icon" onclick="clearMuUser()"><span class="material-icons-outlined">close</span></button></div>
-                </div>
-                <div class="form-group">
-                    <label>Role *</label>
-                    <select id="muRole" required onchange="onMuRoleChange()">
-                        <option value="viewer">Viewer (View & export only)</option>
-                        <option value="editor">Editor (Create, edit, export, import)</option>
-                        <option value="module_admin">Module Admin (Full control + manage users)</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Allowed Sections <span class="form-hint-inline">(which sidebar items this user can see)</span></label>
-                    <div class="section-checkboxes" id="muSectionCheckboxes"></div>
-                </div>
-                <div class="form-group">
-                    <label>Entity Permissions <span class="form-hint-inline">(what actions this user can perform)</span></label>
-                    <div class="perm-matrix-wrap" id="muPermMatrix"></div>
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="btn-secondary" onclick="partCloseModal('addModuleUserModal')">Cancel</button>
-                    <button type="submit" class="btn-primary">Grant Access</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- EDIT SUBCATEGORY MODAL -->
+<!-- EDIT MODULE USER MODAL -->
 <div class="modal-overlay" id="editModuleUserModal">
-    <div class="modal modal-lg">
+    <div class="modal">
         <div class="modal-header">
-            <h3>Edit User Access</h3>
-            <button class="close-btn" onclick="partCloseModal('editModuleUserModal')">
-                <span class="material-icons-outlined">close</span>
-            </button>
+            <h3>Edit Module Access</h3>
+            <button class="close-btn" onclick="partCloseModal('editModuleUserModal')"><span class="material-icons-outlined">close</span></button>
         </div>
         <div class="modal-body">
             <form onsubmit="saveEditModuleUser(event)">
@@ -771,20 +842,26 @@
                         <label>Code</label>
                         <input type="text" id="editSubCode">
                     </div>
+                    <div class="form-group">
+                        <label>Sequence Length</label>
+                        <select id="editSubSequencePadding">
+                            <option value="4" selected>4 Digits (0001)</option>
+                            <option value="5">5 Digits (00001)</option>
+                            <option value="6">6 Digits (000001)</option>
+                            <option value="3">3 Digits (001)</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="columns-section">
                     <div class="columns-header">
-                        <label>Table Columns</label>
-                        <button type="button" class="btn-sm" onclick="addEditColumnRow()">
-                            <span class="material-icons-outlined">add</span> Add Column
-                        </button>
+                        <label>Visible Columns (select which category columns apply)</label>
                     </div>
-                    <div id="editColumnsContainer"></div>
+                    <div id="editColumnsContainer" style="padding:10px; border:1px solid var(--border-color); border-radius:6px; max-height:200px; overflow-y:auto;">
+                    </div>
                 </div>
                 <div class="desc-cols-section">
                     <label>Description Columns <span class="form-hint-inline">(select columns to auto-concat as Description)</span></label>
-                    <div id="editDescColsContainer" class="desc-cols-grid">
-                        <span class="text-muted">No columns defined</span>
+                    <div id="editDescColsContainer" class="desc-cols-grid" style="padding:10px; border:1px solid var(--border-color); border-radius:6px; max-height:100px; overflow-y:auto;">
                     </div>
                 </div>
                 <div class="form-actions">
@@ -820,7 +897,7 @@
     </div>
 </div>
 
-<input type="file" id="importFileInput" accept=".csv" style="display:none" onchange="handleImportFile(this)">
+<input type="file" id="importFileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleImportFile(this)">
 
 <!-- ADD MAPPING MODAL -->
 <div class="modal-overlay" id="addMappingModal">
@@ -836,6 +913,7 @@
                     <input type="text" id="mapIntSearch" placeholder="Search your part number or description..." oninput="searchInternalParts(this.value)" autocomplete="off">
                     <div id="mapIntResults" class="emp-search-results"></div>
                     <div id="mapIntSelected" class="emp-selected-inline" style="display:none"><span id="mapIntSelLabel"></span><button type="button" class="btn-icon" onclick="clearMapInt()"><span class="material-icons-outlined">close</span></button></div>
+                    <div id="mapIntMappingNotice" style="display:none"></div>
                     <input type="hidden" id="mapIntPartNum">
                     <input type="hidden" id="mapIntDesc">
                 </div>
@@ -878,6 +956,43 @@
     </div>
 </div>
 
+<!-- GENERIC HISTORY MODAL -->
+<div class="modal-overlay" id="historyModal">
+    <div class="modal" style="max-width: 95%; width: 1300px;">
+        <div class="modal-header">
+            <h3 id="historyModalTitle">Entity History</h3>
+            <button class="close-btn" onclick="partCloseModal('historyModal')">
+                <span class="material-icons-outlined">close</span>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div style="display:flex; justify-content:flex-end; margin-bottom:12px;">
+                <div class="search-box" style="width:320px; height:36px;">
+                    <span class="material-icons-outlined" style="font-size:16px">search</span>
+                    <input type="text" id="historyModalSearch" placeholder="Search history..." oninput="filterHistoryModalTable(this.value)" style="border:none; outline:none; width:100%; font-size:13px;" autocomplete="off">
+                </div>
+            </div>
+            <div class="table-container" style="max-height: 600px; overflow-y: auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Action</th>
+                            <th>Entity Name / ID</th>
+                            <th>Performed By</th>
+                            <th>IP Address</th>
+                            <th>Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyModalTableBody">
+                        <tr><td colspan="5" class="empty">No history logs</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="/static/js/header.js"></script>
 <script>requireAuth();</script>
 <script src="/static/js/part/common.js"></script>

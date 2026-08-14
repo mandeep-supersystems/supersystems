@@ -15,10 +15,11 @@ function renderSubcategories() {
         const cols = parseCols(s.columns_config);
         const colTags = cols.map(c => `<span class="col-tag">${esc(c.name)}</span>`).join('');
         const sData = encodeURIComponent(JSON.stringify(s));
+        const seriesLabel = s.cat_series ? `${s.cat_series}.${s.series_prefix}` : s.series_prefix;
         return `<tr>
             <td><div class="cell-main">${esc(s.name)}</div><div class="cell-sub">${esc(s.code || '')}</div></td>
             <td><span class="cat-badge">${esc(s.category_name || '-')}</span></td>
-            <td><span class="series-badge">${esc(s.cat_series || '?')}-${esc(s.series_prefix)}</span></td>
+            <td><span class="series-badge">${esc(seriesLabel)}</span></td>
             <td><strong>${s.current_sequence || 0}</strong></td>
             <td><div class="col-tags">${colTags || '<span class="text-muted">None</span>'}</div></td>
             <td class="actions-cell">
@@ -36,30 +37,36 @@ function openSubcategoryModal() {
     document.getElementById('subCatCode').value = '';
     const sel = document.getElementById('subCatCategory');
     sel.innerHTML = '<option value="">Select Category</option>' + categories.map(c => `<option value="${c.id}">${esc(c.name)} (${esc(c.series_prefix)})</option>`).join('');
-    document.getElementById('columnsContainer').innerHTML = getColumnRowHTML();
-    updateDescColsCheckboxes();
+    
+    sel.onchange = function() {
+        const cat = categories.find(c => c.id === this.value);
+        if (cat) {
+            renderSubcatCategoryColumns(cat.columns || []);
+        } else {
+            document.getElementById('columnsContainer').innerHTML = '<span class="text-muted" style="font-size:12px">Select a category first</span>';
+            document.getElementById('descColsContainer').innerHTML = '<span class="text-muted" style="font-size:12px">Select a category first</span>';
+        }
+    };
+    
+    document.getElementById('columnsContainer').innerHTML = '<span class="text-muted" style="font-size:12px">Select a category first</span>';
+    document.getElementById('descColsContainer').innerHTML = '<span class="text-muted" style="font-size:12px">Select a category first</span>';
+    
     partOpenModal('subcategoryModal');
 }
 
-function updateDescColsCheckboxes() {
-    const container = document.getElementById('descColsContainer');
-    if (!container) return;
-    const cols = [];
-    document.querySelectorAll('#columnsContainer .column-row .col-name').forEach(input => { const name = input.value.trim().toLowerCase(); if (name) cols.push(name); });
-    if (cols.length === 0) { container.innerHTML = '<span class="text-muted">Add columns first</span>'; return; }
-    container.innerHTML = cols.map(c => `<label class="desc-col-label"><input type="checkbox" value="${esc(c)}" checked> ${esc(c)}</label>`).join('');
+function renderSubcatCategoryColumns(cols) {
+    if (!cols || cols.length === 0) {
+        document.getElementById('columnsContainer').innerHTML = '<span class="text-muted" style="font-size:12px">Category has no columns</span>';
+        document.getElementById('descColsContainer').innerHTML = '<span class="text-muted" style="font-size:12px">Category has no columns</span>';
+        return;
+    }
+    const html = cols.map(c => `<label style="display:block;margin-bottom:8px;font-size:13px;"><input type="checkbox" class="subcat-col-cb" value="${esc(c.name)}" data-type="${esc(c.type)}" checked> ${esc(c.name)} (${esc(c.type)})</label>`).join('');
+    document.getElementById('columnsContainer').innerHTML = html;
+    
+    const htmlDesc = cols.map(c => `<label style="display:inline-block;margin-right:12px;margin-bottom:8px;font-size:13px;"><input type="checkbox" class="subcat-desc-cb" value="${esc(c.name)}"> ${esc(c.name)}</label>`).join('');
+    document.getElementById('descColsContainer').innerHTML = htmlDesc;
 }
 
-function getColumnRowHTML() {
-    return `<div class="column-row">
-        <input type="text" placeholder="Column name (e.g. material)" class="col-name" required onblur="updateDescColsCheckboxes()">
-        <select class="col-type"><option value="varchar">Text</option><option value="integer">Number</option><option value="numeric">Decimal</option><option value="boolean">Yes/No</option><option value="date">Date</option></select>
-        <button type="button" class="btn-icon-danger" onclick="removeColumnRow(this)"><span class="material-icons-outlined">close</span></button>
-    </div>`;
-}
-
-function addColumnRow() { document.getElementById('columnsContainer').insertAdjacentHTML('beforeend', getColumnRowHTML()); updateDescColsCheckboxes(); }
-function removeColumnRow(btn) { if (document.querySelectorAll('#columnsContainer .column-row').length <= 1) { showToast('At least one column required', 'error'); return; } btn.closest('.column-row').remove(); updateDescColsCheckboxes(); }
 
 async function saveSubcategory(e) {
     e.preventDefault();
@@ -68,17 +75,17 @@ async function saveSubcategory(e) {
     const series = document.getElementById('subCatSeries').value.trim();
     if (!catId) { showToast('Select a category', 'error'); return; }
     if (!name || !series) { showToast('Name and Series required', 'error'); return; }
-    const columns = [];
-    for (const row of document.querySelectorAll('#columnsContainer .column-row')) {
-        const colName = row.querySelector('.col-name').value.trim();
-        const colType = row.querySelector('.col-type').value;
-        if (!colName) { showToast('All column names required', 'error'); return; }
-        if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(colName)) { showToast(`Invalid column name "${colName}"`, 'error'); return; }
-        columns.push({ name: colName.toLowerCase(), type: colType, label: colName });
-    }
+    
+    const columns_config = [];
+    document.querySelectorAll('#columnsContainer .subcat-col-cb:checked').forEach(cb => {
+        columns_config.push({ name: cb.value, type: cb.dataset.type, label: cb.value });
+    });
+    
     const description_columns = [];
-    document.querySelectorAll('#descColsContainer input[type="checkbox"]:checked').forEach(cb => description_columns.push(cb.value));
-    const body = { name, series_prefix: series, code: document.getElementById('subCatCode').value.trim() || undefined, category_id: catId, columns, description_columns };
+    document.querySelectorAll('#descColsContainer .subcat-desc-cb:checked').forEach(cb => description_columns.push(cb.value));
+    
+    const sequence_padding = 6;
+    const body = { name, series_prefix: series, code: document.getElementById('subCatCode').value.trim() || undefined, category_id: catId, columns_config, description_columns, sequence_padding };
     try {
         const res = await fetch(API + '/subcategories', { method: 'POST', headers: HEADERS, body: JSON.stringify(body) });
         const data = await res.json();
@@ -103,52 +110,67 @@ function editSubcategory(encodedData) {
     document.getElementById('editSubSeries').value = s.series_prefix || '';
     const sel = document.getElementById('editSubCategory');
     sel.innerHTML = categories.map(c => `<option value="${c.id}" ${c.id === s.category_id ? 'selected' : ''}>${esc(c.name)} (${esc(c.series_prefix)})</option>`).join('');
-    const cols = parseCols(s.columns_config);
-    const container = document.getElementById('editColumnsContainer');
-    container.innerHTML = cols.length > 0 ? cols.map(c => `<div class="column-row">
-        <input type="text" value="${esc(c.name)}" class="col-name" required onblur="updateEditDescColsCheckboxes()">
-        <select class="col-type"><option value="varchar" ${c.type==='varchar'?'selected':''}>Text</option><option value="integer" ${c.type==='integer'?'selected':''}>Number</option><option value="numeric" ${c.type==='numeric'?'selected':''}>Decimal</option><option value="boolean" ${c.type==='boolean'?'selected':''}>Yes/No</option><option value="date" ${c.type==='date'?'selected':''}>Date</option></select>
-        <button type="button" class="btn-icon-danger" onclick="removeEditColumnRow(this)"><span class="material-icons-outlined">close</span></button>
-    </div>`).join('') : '<div class="empty" style="font-size:12px">No columns defined</div>';
+    
+    const cat = categories.find(c => c.id === s.category_id);
+    const catCols = (cat && cat.columns && cat.columns.length > 0) ? cat.columns : parseCols(s.columns_config);
+    const subCols = parseCols(s.columns_config).map(c => c.name);
+    
+    if (catCols.length > 0) {
+        document.getElementById('editColumnsContainer').innerHTML = catCols.map(c => `<label style="display:block;margin-bottom:8px;font-size:13px;"><input type="checkbox" class="edit-subcat-col-cb" value="${esc(c.name)}" data-type="${esc(c.type||'varchar')}" ${subCols.includes(c.name) ? 'checked' : ''}> ${esc(c.label||c.name)} (${esc(c.type||'varchar')})</label>`).join('');
+    } else {
+        document.getElementById('editColumnsContainer').innerHTML = '<span class="text-muted" style="font-size:12px">No columns defined</span>';
+    }
+    
     const descCols = s.description_columns ? (Array.isArray(s.description_columns) ? s.description_columns : JSON.parse(s.description_columns || '[]')) : [];
-    updateEditDescColsCheckboxes(descCols);
+    if (catCols.length > 0) {
+        document.getElementById('editDescColsContainer').innerHTML = catCols.map(c => `<label style="display:inline-block;margin-right:12px;margin-bottom:8px;font-size:13px;"><input type="checkbox" class="edit-subcat-desc-cb" value="${esc(c.name)}" ${descCols.includes(c.name) ? 'checked' : ''}> ${esc(c.label||c.name)}</label>`).join('');
+    } else {
+        document.getElementById('editDescColsContainer').innerHTML = '<span class="text-muted" style="font-size:12px">No columns defined</span>';
+    }
+    
+    sel.onchange = function() {
+        const newCat = categories.find(c => c.id === this.value);
+        const newCols = (newCat && newCat.columns && newCat.columns.length > 0) ? newCat.columns : catCols;
+        if (newCols.length > 0) {
+            document.getElementById('editColumnsContainer').innerHTML = newCols.map(c => `<label style="display:block;margin-bottom:8px;font-size:13px;"><input type="checkbox" class="edit-subcat-col-cb" value="${esc(c.name)}" data-type="${esc(c.type||'varchar')}" checked> ${esc(c.label||c.name)} (${esc(c.type||'varchar')})</label>`).join('');
+            document.getElementById('editDescColsContainer').innerHTML = newCols.map(c => `<label style="display:inline-block;margin-right:12px;margin-bottom:8px;font-size:13px;"><input type="checkbox" class="edit-subcat-desc-cb" value="${esc(c.name)}"> ${esc(c.label||c.name)}</label>`).join('');
+        }
+    };
+    
+    document.getElementById('editSubSequencePadding').value = s.sequence_padding || 6;
     partOpenModal('editSubcategoryModal');
 }
 
-function updateEditDescColsCheckboxes(checkedCols) {
-    const container = document.getElementById('editDescColsContainer');
-    if (!container) return;
-    const cols = [];
-    document.querySelectorAll('#editColumnsContainer .column-row .col-name').forEach(input => { const name = input.value.trim().toLowerCase(); if (name) cols.push(name); });
-    if (cols.length === 0) { container.innerHTML = '<span class="text-muted">No columns defined</span>'; return; }
-    if (!checkedCols) { checkedCols = []; container.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => checkedCols.push(cb.value)); }
-    container.innerHTML = cols.map(c => `<label class="desc-col-label"><input type="checkbox" value="${esc(c)}" ${checkedCols.includes(c)?'checked':''}> ${esc(c)}</label>`).join('');
-}
-
-function addEditColumnRow() {
-    document.getElementById('editColumnsContainer').insertAdjacentHTML('beforeend', `<div class="column-row"><input type="text" placeholder="Column name" class="col-name" required onblur="updateEditDescColsCheckboxes()"><select class="col-type"><option value="varchar">Text</option><option value="integer">Number</option><option value="numeric">Decimal</option><option value="boolean">Yes/No</option><option value="date">Date</option></select><button type="button" class="btn-icon-danger" onclick="removeEditColumnRow(this)"><span class="material-icons-outlined">close</span></button></div>`);
-    updateEditDescColsCheckboxes();
-}
-function removeEditColumnRow(btn) { btn.closest('.column-row').remove(); updateEditDescColsCheckboxes(); }
 
 async function saveEditSubcategory(e) {
     e.preventDefault();
     const id = document.getElementById('editSubId').value;
     const name = document.getElementById('editSubName').value.trim();
     if (!name) { showToast('Name is required', 'error'); return; }
-    const columns = [];
-    for (const row of document.querySelectorAll('#editColumnsContainer .column-row')) {
-        const colName = row.querySelector('.col-name').value.trim();
-        const colType = row.querySelector('.col-type').value;
-        if (colName) columns.push({ name: colName.toLowerCase(), type: colType, label: colName });
-    }
+    
+    const columns_config = [];
+    document.querySelectorAll('#editColumnsContainer .edit-subcat-col-cb:checked').forEach(cb => {
+        columns_config.push({ name: cb.value, type: cb.dataset.type, label: cb.value });
+    });
+    
     const description_columns = [];
-    document.querySelectorAll('#editDescColsContainer input[type="checkbox"]:checked').forEach(cb => description_columns.push(cb.value));
-    const body = { name, code: document.getElementById('editSubCode').value.trim(), series_prefix: document.getElementById('editSubSeries').value.trim(), category_id: document.getElementById('editSubCategory').value, columns, description_columns };
+    document.querySelectorAll('#editDescColsContainer .edit-subcat-desc-cb:checked').forEach(cb => description_columns.push(cb.value));
+    
+    const sequence_padding = parseInt(document.getElementById('editSubSequencePadding').value || '6');
+    const body = { name, code: document.getElementById('editSubCode').value.trim(), series_prefix: document.getElementById('editSubSeries').value.trim(), category_id: document.getElementById('editSubCategory').value, columns_config, description_columns, sequence_padding };
     try {
         const res = await fetch(API + '/subcategories/' + id, { method: 'PUT', headers: HEADERS, body: JSON.stringify(body) });
         const data = await res.json();
         if (data.success) { partCloseModal('editSubcategoryModal'); showToast('Subcategory updated'); loadSubcategories(); }
         else showToast(data.message || 'Update failed', 'error');
     } catch (e) { showToast('Network error', 'error'); }
+}
+function filterSubcategoriesTable(query) {
+    const q = query.toLowerCase().trim();
+    const rows = document.querySelectorAll('#subcategoriesTableBody tr');
+    rows.forEach(row => {
+        if (row.querySelector('.empty')) return;
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(q) ? '' : 'none';
+    });
 }

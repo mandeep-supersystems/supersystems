@@ -2,6 +2,7 @@
 <html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IQC Quality Inspection Detail - SUPERSYSTEMS</title>
     <link rel="stylesheet" href="/static/css/header.css">
@@ -71,7 +72,7 @@
         </div>
         <nav class="sidebar-nav">
             <a href="/quality/iqc" class="sidebar-link">
-                <span class="material-icons-outlined">arrow_back</span>Back to IQC List
+                <span class="material-icons-outlined">arrow_back</span>Back to IQC
             </a>
         </nav>
     </aside>
@@ -118,6 +119,11 @@
             </div>
         </div>
 
+        <div class="card" style="margin-bottom:20px;">
+            <h3>Handover Placement</h3>
+            <div id="iqcPlacement" style="font-size:14px;color:var(--text-muted);">No placement assigned yet.</div>
+        </div>
+
         <!-- APPLICABLE INSPECTION CRITERIA -->
         <div class="card" style="margin-bottom:20px;">
             <h3>IQC Inspection Criteria Specifications for <span id="iqcCodeLabel"></span></h3>
@@ -140,35 +146,8 @@
             </div>
         </div>
 
-        <!-- PERFORM INSPECTION FORM -->
-        <div class="card">
-            <h3>Perform IQC Inspection & Disposition</h3>
-            <form onsubmit="submitIqcInspectionPage(event)" style="max-width:650px;">
-                <div style="display:flex; gap:10px;">
-                    <div class="form-group" style="flex:1;">
-                        <label>Passed OK Quantity *</label>
-                        <input type="number" id="qPassed" value="0" required>
-                    </div>
-                    <div class="form-group" style="flex:1;">
-                        <label>Rejected NG Quantity *</label>
-                        <input type="number" id="qRejected" value="0" required>
-                    </div>
-                    <div class="form-group" style="flex:1;">
-                        <label>Scrap Quantity</label>
-                        <input type="number" id="qScrap" value="0">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Inspection Elapsed Time (Minutes)</label>
-                    <input type="number" id="qElapsed" value="15">
-                </div>
-                <div class="form-group">
-                    <label>Inspector Defect Remarks & Analysis *</label>
-                    <textarea id="qRemarks" rows="3" placeholder="Enter detailed inspection findings..." required></textarea>
-                </div>
-                <button type="submit" class="btn-primary"><span class="material-icons-outlined">verified</span>Save IQC Inspection Result</button>
-            </form>
-        </div>
+        <!-- PERFORM INSPECTION FORM / RESULT CARD -->
+        <div class="card" id="iqcActionCard"></div>
     </main>
 </div>
 
@@ -176,70 +155,166 @@
 <script>requireAuth();</script>
 <script src="/static/js/quality/common.js"></script>
 <script>
-const CID = "{{ checkin_id }}";
+const GRN_ID = "{{ checkin_id }}";
+let _grn = null;
+
+const _STATUS = {
+    iqc_passed:            { label: 'IQC Passed',    cls: 'badge-success', icon: 'verified',      done: true  },
+    iqc_rejected:          { label: 'Rejected',       cls: 'badge-danger',  icon: 'cancel',        done: true  },
+    iqc_partial:           { label: 'Partial Pass',   cls: 'badge-warning', icon: 'rule',          done: true  },
+    handed_over:           { label: 'Awaiting IQC',  cls: 'badge-info',    icon: 'pending_actions', done: false },
+    partially_handed_over: { label: 'Awaiting IQC',  cls: 'badge-info',    icon: 'pending_actions', done: false },
+    pending_iqc:           { label: 'Awaiting IQC',  cls: 'badge-info',    icon: 'pending_actions', done: false },
+};
+function _meta(s) { return _STATUS[s] || { label: s, cls: 'badge-info', icon: 'help', done: false }; }
 
 async function loadIqcDetail() {
     try {
-        const res = await fetch('/api/v1/quality/iqc/' + CID, { headers: HEADERS });
+        const res  = await fetch(API + '/grn-pending-iqc', { headers: HEADERS });
         const json = await res.json();
-        if (json.success && json.data) {
-            const d = json.data;
-            document.getElementById('iqcCheckinNo').innerText = d.checkin_no;
-            document.getElementById('iqcSupplier').innerText = 'Supplier: ' + d.supplier_name + ' | PO: ' + d.po_no;
-            document.getElementById('iqcRecQty').innerText = d.received_qty + ' units';
-            document.getElementById('iqcStatusTag').innerText = d.iqc_status;
-            document.getElementById('iqcPassedQty').innerText = d.iqc_passed_qty + ' units';
-            document.getElementById('iqcRejectedQty').innerText = d.iqc_rejected_qty + ' units';
-            document.getElementById('iqcCodeLabel').innerText = d.part_or_rm_code;
+        if (!json.success) return;
+        _grn = (json.data || []).find(g => g.id === GRN_ID);
+        if (!_grn) { document.getElementById('iqcCheckinNo').innerText = 'GRN not found'; return; }
+        const d    = _grn;
+        const meta = _meta(d.grn_status);
 
-            document.getElementById('qPassed').value = d.iqc_passed_qty || d.received_qty;
-            document.getElementById('qRejected').value = d.iqc_rejected_qty;
-            document.getElementById('qScrap').value = d.iqc_scrap_qty;
-            document.getElementById('qElapsed').value = d.iqc_elapsed_min || 15;
-            document.getElementById('qRemarks').value = d.iqc_remarks;
+        document.getElementById('iqcCheckinNo').innerText  = d.grn_no;
+        document.getElementById('iqcSupplier').innerText   = 'Supplier: ' + (d.supplier_name || '-') + '  |  PO: ' + (d.po_no || '-');
+        document.getElementById('iqcRecQty').innerText     = d.received_qty + ' units';
+        document.getElementById('iqcStatusTag').innerText  = meta.label;
+        document.getElementById('iqcPassedQty').innerText  = (d.ok_qty || 0) + ' units';
+        document.getElementById('iqcRejectedQty').innerText= (d.ng_qty || 0) + ' units';
+        document.getElementById('iqcCodeLabel').innerText  = d.item_code;
 
-            // Render Criteria evaluation
-            const tbody = document.getElementById('criteriaEvaluationBody');
-            if (d.applicable_criteria && d.applicable_criteria.length > 0) {
-                tbody.innerHTML = d.applicable_criteria.map(c => `
-                    <tr>
-                        <td><strong>${c.criterion_name}</strong></td>
-                        <td>${c.spec_target}</td>
-                        <td>${c.tolerance_min} - ${c.tolerance_max}</td>
-                        <td>${c.inspection_method}</td>
-                        <td><span class="badge ${c.is_mandatory ? 'badge-danger' : 'badge-info'}">${c.is_mandatory ? 'Mandatory' : 'Optional'}</span></td>
-                        <td><span class="badge badge-success">OK (Within Spec)</span></td>
-                    </tr>
-                `).join('');
-            } else {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No criteria master records defined for this material. Standard visual & dimensional check applies.</td></tr>';
-            }
-        }
+        const parts = [];
+        if (d.warehouse_code) parts.push('Warehouse: ' + d.warehouse_code);
+        if (d.location_code)  parts.push('Location: '  + d.location_code);
+        document.getElementById('iqcPlacement').innerText = parts.length ? parts.join(' • ') : 'No placement assigned yet.';
+
+        _renderActionCard(d, meta);
+        await loadCriteriaForItem(d.item_code, meta.done);
     } catch(e) { console.error(e); }
+}
+
+function _renderActionCard(d, meta) {
+    const card = document.getElementById('iqcActionCard');
+    if (meta.done) {
+        const resultColour = d.grn_status === 'iqc_passed'
+            ? 'var(--accent)'
+            : d.grn_status === 'iqc_rejected'
+                ? 'var(--coming-soon-text)'
+                : '#f57c00';
+        const bgColour = d.grn_status === 'iqc_passed'
+            ? 'var(--accent-light)'
+            : d.grn_status === 'iqc_rejected'
+                ? 'var(--coming-soon-bg)'
+                : '#fff8e1';
+        card.innerHTML = `
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+                <span class="material-icons-outlined" style="font-size:28px;color:${resultColour};">${meta.icon}</span>
+                <div>
+                    <h3 style="margin:0;font-size:16px;">IQC Inspection Result</h3>
+                    <span class="badge ${meta.cls}" style="margin-top:4px;display:inline-block;">${meta.label}</span>
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px;">
+                <div style="background:var(--bg-secondary);border-radius:8px;padding:14px;">
+                    <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Accepted (OK)</div>
+                    <div style="font-size:22px;font-weight:700;color:var(--accent);">${d.ok_qty}</div>
+                    <div style="font-size:11px;color:var(--text-muted);">units passed</div>
+                </div>
+                <div style="background:var(--bg-secondary);border-radius:8px;padding:14px;">
+                    <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Rejected (NG)</div>
+                    <div style="font-size:22px;font-weight:700;color:var(--coming-soon-text);">${d.ng_qty}</div>
+                    <div style="font-size:11px;color:var(--text-muted);">units rejected</div>
+                </div>
+                <div style="background:var(--bg-secondary);border-radius:8px;padding:14px;">
+                    <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Acceptance Rate</div>
+                    <div style="font-size:22px;font-weight:700;color:${resultColour};">${d.received_qty > 0 ? Math.round(d.ok_qty / d.received_qty * 100) : 0}%</div>
+                    <div style="font-size:11px;color:var(--text-muted);">of received qty</div>
+                </div>
+            </div>
+            ${d.remarks ? `
+            <div style="background:${bgColour};border-radius:8px;padding:14px;margin-bottom:20px;">
+                <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Inspector Remarks</div>
+                <div style="font-size:13px;color:var(--text-primary);line-height:1.6;">${d.remarks}</div>
+            </div>` : ''}
+            <div style="display:flex;gap:10px;align-items:center;padding-top:4px;border-top:1px solid var(--border-color);">
+                <span class="material-icons-outlined" style="font-size:16px;color:var(--text-muted);">lock</span>
+                <span style="font-size:12px;color:var(--text-muted);">This inspection record is finalised. Contact a Quality Manager to amend.</span>
+            </div>`;
+    } else {
+        card.innerHTML = `
+            <h3 style="margin-bottom:18px;">Perform IQC Inspection &amp; Disposition</h3>
+            <form onsubmit="submitIqcInspectionPage(event)" style="max-width:650px;">
+                <div style="display:flex;gap:10px;">
+                    <div class="form-group" style="flex:1;">
+                        <label>Passed OK Quantity *</label>
+                        <input type="number" id="qPassed" value="${d.received_qty}" min="0" required>
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>Rejected NG Quantity *</label>
+                        <input type="number" id="qRejected" value="0" min="0" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Inspector Remarks &amp; Findings *</label>
+                    <textarea id="qRemarks" rows="3" placeholder="Enter detailed inspection findings..." required></textarea>
+                </div>
+                <button type="submit" class="btn-primary">
+                    <span class="material-icons-outlined">verified</span>Save IQC Inspection Result
+                </button>
+            </form>`;
+    }
+}
+
+async function loadCriteriaForItem(itemCode, done) {
+    const tbody = document.getElementById('criteriaEvaluationBody');
+    try {
+        const res  = await fetch(API + '/criteria', { headers: HEADERS });
+        const json = await res.json();
+        const all  = (json.data || []).filter(c => c.part_or_rm_code === itemCode || c.part_or_rm_code === 'ALL');
+        if (!all.length) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No criteria defined for this item. Standard visual &amp; dimensional check applies.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = all.map(c => `
+            <tr>
+                <td><strong>${c.criterion_name}</strong></td>
+                <td>${c.spec_target || '-'}</td>
+                <td>${c.tolerance_min || '-'} – ${c.tolerance_max || '-'}</td>
+                <td>${c.inspection_method || '-'}</td>
+                <td><span class="badge ${c.is_mandatory ? 'badge-danger' : 'badge-info'}">${c.is_mandatory ? 'Mandatory' : 'Optional'}</span></td>
+                <td><span class="badge ${done ? 'badge-success' : 'badge-info'}">${done ? 'Evaluated' : 'Pending'}</span></td>
+            </tr>`).join('');
+    } catch(e) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Could not load criteria.</td></tr>';
+    }
 }
 
 async function submitIqcInspectionPage(e) {
     e.preventDefault();
-    const payload = {
-        passed_qty: parseFloat(document.getElementById('qPassed').value || 0),
-        rejected_qty: parseFloat(document.getElementById('qRejected').value || 0),
-        scrap_qty: parseFloat(document.getElementById('qScrap').value || 0),
-        elapsed_min: parseInt(document.getElementById('qElapsed').value || 15),
-        remarks: document.getElementById('qRemarks').value
-    };
-
+    if (!_grn) return;
+    const accepted = parseFloat(document.getElementById('qPassed').value)   || 0;
+    const rejected = parseFloat(document.getElementById('qRejected').value) || 0;
+    if (accepted + rejected > _grn.received_qty) {
+        alert('Accepted + Rejected cannot exceed received qty (' + _grn.received_qty + ')'); return;
+    }
+    const btn = e.target.querySelector('button[type=submit]');
+    btn.disabled = true; btn.textContent = 'Saving...';
     try {
-        const res = await fetch(`/api/v1/quality/iqc/${CID}/inspect`, {
-            method: 'POST',
-            headers: HEADERS,
-            body: JSON.stringify(payload)
+        const res  = await fetch(`${API}/grn-iqc/${GRN_ID}/inspect`, {
+            method: 'POST', headers: HEADERS,
+            body: JSON.stringify({
+                accepted_qty:   accepted,
+                rejected_qty:   rejected,
+                failure_reason: document.getElementById('qRemarks').value.trim()
+            })
         });
         const json = await res.json();
-        if (json.success) {
-            alert(json.message);
-            loadIqcDetail();
-        } else { alert(json.message); }
-    } catch(e) { alert('Error saving inspection'); }
+        if (json.success) { loadIqcDetail(); }
+        else { alert(json.message || 'IQC submission failed'); btn.disabled = false; btn.innerHTML = '<span class="material-icons-outlined">verified</span>Save IQC Inspection Result'; }
+    } catch(e) { alert('Network error'); btn.disabled = false; }
 }
 
 document.addEventListener('DOMContentLoaded', loadIqcDetail);

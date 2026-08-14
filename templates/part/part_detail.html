@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
+
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Part Detail - SUPERSYSTEMS</title>
     <link rel="stylesheet" href="/static/css/header.css">
@@ -9,556 +11,734 @@
     <link rel="stylesheet" href="/static/css/part/part_detail.css">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
 </head>
+
 <body>
 
-<!-- FIXED HEADER -->
-<header class="header">
-    <div class="header-left">
-        <div class="logo">
-            <img class="logo-light" src="/static/img/light_mode_logo.png" alt="SUPERSYSTEMS" height="36">
-            <img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SUPERSYSTEMS" height="36">
-            <span class="logo-text">SUPERSYSTEMS</span>
-        </div>
-        <div class="nav-item services-trigger" onclick="toggleServices()">
-            <span class="material-icons-outlined">apps</span>
-            <span>Services</span>
-            <span class="material-icons-outlined arrow">expand_more</span>
-        </div>
-    </div>
-    <div class="header-center">
-        <div class="search-box">
-            <span class="material-icons-outlined">search</span>
-            <input type="text" placeholder="Search services, features..." id="globalSearch" oninput="handleSearch(this.value)">
-            <div class="search-results" id="searchResults"></div>
-        </div>
-    </div>
-    <div class="header-right">
-        <button class="header-icon-btn" title="Notifications">
-            <span class="material-icons-outlined">notifications</span>
-        </button>
-        <button class="header-icon-btn theme-toggle" title="Toggle Dark Mode" onclick="toggleTheme()">
-            <span class="material-icons-outlined icon-light">dark_mode</span>
-            <span class="material-icons-outlined icon-dark">light_mode</span>
-        </button>
-        <div class="user-menu" id="userMenu">
-            <div class="user-avatar" onclick="toggleUserMenu()">
-                <span class="material-icons-outlined">person</span>
+    <!-- FIXED HEADER -->
+    <header class="header">
+        <div class="header-left">
+            <div class="logo">
+                <img class="logo-light" src="/static/img/light_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+                <img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+                <span class="logo-text">SUPERSYSTEMS</span>
             </div>
-            <div class="user-dropdown" id="userDropdown">
-                <a href="#" onclick="logout()"><span class="material-icons-outlined">logout</span>Logout</a>
+            <div class="nav-item services-trigger" onclick="toggleServices()">
+                <span class="material-icons-outlined">apps</span>
+                <span>Services</span>
+                <span class="material-icons-outlined arrow">expand_more</span>
             </div>
         </div>
-    </div>
-</header>
-
-<div class="services-panel" id="servicesPanel">
-    <div class="services-panel-header">
-        <h3>All Services</h3>
-        <div style="display:flex;align-items:center;gap:10px">
-            <button class="btn-outline" id="toggleAllServicesBtn" onclick="toggleAllServices()">
-                <span class="material-icons-outlined">unfold_less</span> Collapse All
+        <div class="header-center">
+            <div class="search-box">
+                <span class="material-icons-outlined">search</span>
+                <input type="text" placeholder="Search services, features..." id="globalSearch"
+                    oninput="handleSearch(this.value)">
+                <div class="search-results" id="searchResults"></div>
+            </div>
+        </div>
+        <div class="header-right">
+            <button class="header-icon-btn" title="Notifications">
+                <span class="material-icons-outlined">notifications</span>
             </button>
-            <button class="close-btn" onclick="toggleServices()">
-                <span class="material-icons-outlined">close</span>
+            <button class="header-icon-btn theme-toggle" title="Toggle Dark Mode" onclick="toggleTheme()">
+                <span class="material-icons-outlined icon-light">dark_mode</span>
+                <span class="material-icons-outlined icon-dark">light_mode</span>
             </button>
-        </div>
-    </div>
-    <div class="services-grid" id="servicesGrid"></div>
-</div>
-<div class="overlay" id="overlay" onclick="toggleServices()"></div>
-
-<!-- LAYOUT -->
-<div class="part-layout">
-
-<!-- SIDEBAR -->
-<aside class="part-sidebar">
-    <div class="sidebar-header">
-        <span class="material-icons-outlined">inventory_2</span>
-        <h3>Part Management</h3>
-    </div>
-    <nav class="sidebar-nav">
-        <a href="/part" class="sidebar-link"><span class="material-icons-outlined">arrow_back</span>All Parts</a>
-        <div class="sidebar-divider"></div>
-        <div class="sidebar-link active" style="cursor:default;flex-direction:column;align-items:flex-start;gap:2px;pointer-events:none">
-            <div style="display:flex;align-items:center;gap:8px">
-                <span class="material-icons-outlined" style="font-size:18px">precision_manufacturing</span>
-                <span id="sbPartNumber" style="font-size:13px;font-weight:700;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Loading...</span>
-            </div>
-            <span id="sbPartDesc" style="font-size:11px;color:var(--text-muted);padding-left:26px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%"></span>
-        </div>
-        <div class="sidebar-divider"></div>
-        <div class="sidebar-group-label">Sections</div>
-        <button class="sidebar-link" onclick="switchTab('details')" id="sb-details">
-            <span class="material-icons-outlined">info</span>Part Details
-        </button>
-        <button class="sidebar-link" onclick="switchTab('pos')" id="sb-pos">
-            <span class="material-icons-outlined">receipt_long</span>Purchase Orders
-            <span id="sbPoCount" style="margin-left:auto;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;background:var(--accent);color:#fff;min-width:18px;text-align:center">0</span>
-        </button>
-        <button class="sidebar-link" onclick="switchTab('mappings')" id="sb-mappings">
-            <span class="material-icons-outlined">swap_horiz</span>Customer Mappings
-            <span id="sbMapCount" style="margin-left:auto;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;background:var(--accent);color:#fff;min-width:18px;text-align:center">0</span>
-        </button>
-        <div class="sidebar-divider"></div>
-        <div class="sidebar-group-label">Related</div>
-        <a href="/part" class="sidebar-link"><span class="material-icons-outlined">category</span>Categories</a>
-        <a href="/part" class="sidebar-link"><span class="material-icons-outlined">qr_code</span>Generate Part</a>
-        <a href="/procurement" class="sidebar-link"><span class="material-icons-outlined">shopping_cart</span>Procurement ↗</a>
-    </nav>
-</aside>
-
-<!-- MAIN CONTENT -->
-<main class="part-content" style="padding:24px">
-<div class="pd-wrapper" style="margin-top:0;padding:0;max-width:100%">
-
-    <!-- BACK BAR -->
-    <div class="pd-topbar">
-        <button class="pd-back-btn" onclick="history.back()">
-            <span class="material-icons-outlined">arrow_back</span> Back
-        </button>
-        <div class="pd-breadcrumb" id="pdBreadcrumb">
-            <a href="/part">Part Management</a>
-            <span class="material-icons-outlined">chevron_right</span>
-            <span id="pdBreadcrumbPart">Loading...</span>
-        </div>
-    </div>
-
-    <!-- LOADING STATE -->
-    <div id="pdLoading" class="pd-loading">
-        <span class="material-icons-outlined pd-spin">autorenew</span>
-        <span>Loading part details...</span>
-    </div>
-
-    <!-- ERROR STATE -->
-    <div id="pdError" class="pd-error" style="display:none">
-        <span class="material-icons-outlined">error_outline</span>
-        <p>Part not found or an error occurred.</p>
-        <button class="btn-outline" onclick="history.back()">Go Back</button>
-    </div>
-
-    <!-- DETAIL CONTENT -->
-    <div id="pdContent" style="display:none">
-
-        <!-- HERO CARD -->
-        <div class="pd-hero">
-            <div class="pd-hero-left">
-                <div class="pd-part-icon">
-                    <span class="material-icons-outlined">precision_manufacturing</span>
+            <div class="user-menu" id="userMenu">
+                <div class="user-avatar" onclick="toggleUserMenu()">
+                    <span class="material-icons-outlined">person</span>
                 </div>
-                <div>
-                    <div class="pd-part-number" id="pdPartNumber">-</div>
-                    <div class="pd-part-desc" id="pdPartDesc">-</div>
-                    <div class="pd-part-meta">
-                        <span class="pd-badge pd-badge-cat" id="pdCatBadge">-</span>
-                        <span class="pd-badge pd-badge-sub" id="pdSubBadge">-</span>
-                        <span class="pd-status-badge" id="pdStatusBadge">-</span>
-                        <span id="pdTypeBadge" style="font-size:11px;padding:2px 10px;border-radius:10px;font-weight:700">-</span>
+                <div class="user-dropdown" id="userDropdown">
+                    <a href="#" onclick="logout()"><span class="material-icons-outlined">logout</span>Logout</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="services-panel" id="servicesPanel">
+        <div class="services-panel-header">
+            <h3>All Services</h3>
+            <div style="display:flex;align-items:center;gap:10px">
+                <button class="btn-outline" id="toggleAllServicesBtn" onclick="toggleAllServices()">
+                    <span class="material-icons-outlined">unfold_less</span> Collapse All
+                </button>
+                <button class="close-btn" onclick="toggleServices()">
+                    <span class="material-icons-outlined">close</span>
+                </button>
+            </div>
+        </div>
+        <div class="services-grid" id="servicesGrid"></div>
+    </div>
+    <div class="overlay" id="overlay" onclick="toggleServices()"></div>
+
+    <!-- LAYOUT -->
+    <div class="part-layout">
+
+        <!-- SIDEBAR -->
+        <aside class="part-sidebar">
+            <div class="sidebar-header">
+                <span class="material-icons-outlined">inventory_2</span>
+                <h3>Part Management</h3>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/part" class="sidebar-link"><span class="material-icons-outlined">arrow_back</span>All
+                    Parts</a>
+                <div class="sidebar-divider"></div>
+                <div class="sidebar-link active"
+                    style="cursor:default;flex-direction:column;align-items:flex-start;gap:2px;pointer-events:none">
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <span class="material-icons-outlined" style="font-size:18px">precision_manufacturing</span>
+                        <span id="sbPartNumber"
+                            style="font-size:13px;font-weight:700;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Loading...</span>
                     </div>
+                    <span id="sbPartDesc"
+                        style="font-size:11px;color:var(--text-muted);padding-left:26px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%"></span>
                 </div>
-            </div>
-            <div class="pd-hero-stats">
-                <div class="pd-hero-stat">
-                    <div class="pd-hero-stat-val" id="pdPoCount">-</div>
-                    <div class="pd-hero-stat-label">Purchase Orders</div>
-                </div>
-                <div class="pd-hero-stat">
-                    <div class="pd-hero-stat-val" id="pdTotalQty">-</div>
-                    <div class="pd-hero-stat-label">Total Qty Ordered</div>
-                </div>
-                <div class="pd-hero-stat">
-                    <div class="pd-hero-stat-val" id="pdMappingCount">-</div>
-                    <div class="pd-hero-stat-label">Customer Mappings</div>
-                </div>
-                <div class="pd-hero-stat">
-                    <div class="pd-hero-stat-val" id="pdCreatedAt">-</div>
-                    <div class="pd-hero-stat-label">Created</div>
-                </div>
-            </div>
-        </div>
+                <div class="sidebar-divider"></div>
+                <div class="sidebar-group-label">Sections</div>
+                <button class="sidebar-link" onclick="switchTab('details')" id="sb-details">
+                    <span class="material-icons-outlined">info</span>Part Details
+                </button>
+                <button class="sidebar-link" onclick="switchTab('pos')" id="sb-pos">
+                    <span class="material-icons-outlined">receipt_long</span>Purchase Orders
+                    <span id="sbPoCount"
+                        style="margin-left:auto;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;background:var(--accent);color:#fff;min-width:18px;text-align:center">0</span>
+                </button>
+                <button class="sidebar-link" onclick="switchTab('custpos')" id="sb-custpos">
+                    <span class="material-icons-outlined">assignment</span>Customer POs
+                    <span id="sbCustPoCount"
+                        style="margin-left:auto;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;background:#2e7d32;color:#fff;min-width:18px;text-align:center">0</span>
+                </button>
+                <button class="sidebar-link" onclick="switchTab('mappings')" id="sb-mappings">
+                    <span class="material-icons-outlined">swap_horiz</span>Customer Mappings
+                    <span id="sbMapCount"
+                        style="margin-left:auto;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;background:var(--accent);color:#fff;min-width:18px;text-align:center">0</span>
+                </button>
+                <button class="sidebar-link" onclick="switchTab('inventory')" id="sb-inventory">
+                    <span class="material-icons-outlined">inventory_2</span>Inventory
+                    <span id="sbInvQty" style="margin-left:auto;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;background:#00796B;color:#fff;min-width:18px;text-align:center">0</span>
+                </button>
+                <button class="sidebar-link" onclick="switchTab('rmmappings')" id="sb-rmmappings">
+                    <span class="material-icons-outlined">link</span>RM Mappings
+                    <span id="sbRmMapCount"
+                        style="margin-left:auto;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;background:#e65100;color:#fff;min-width:18px;text-align:center">0</span>
+                </button>
+                <div class="sidebar-divider"></div>
+                <div class="sidebar-group-label">Related</div>
+                <a href="/part/categories" class="sidebar-link"><span class="material-icons-outlined">category</span>Categories</a>
+                <a href="/part/generate" class="sidebar-link"><span class="material-icons-outlined">qr_code</span>Generate Part</a>
+                <a href="/part/allparts" class="sidebar-link"><span class="material-icons-outlined">view_list</span>All Parts</a>
+                <a href="/procurement" class="sidebar-link"><span class="material-icons-outlined">shopping_cart</span>Procurement ↗</a>
+            </nav>
+        </aside>
 
-        <!-- TABS -->
-        <div class="pd-tabs">
-            <button class="pd-tab active" data-tab="details" onclick="switchTab('details')">
-                <span class="material-icons-outlined">info</span> Part Details
-            </button>
-            <button class="pd-tab" data-tab="pos" onclick="switchTab('pos')">
-                <span class="material-icons-outlined">receipt_long</span> Purchase Orders
-                <span class="pd-tab-count" id="tabPoCount">0</span>
-            </button>
-            <button class="pd-tab" data-tab="mappings" onclick="switchTab('mappings')">
-                <span class="material-icons-outlined">swap_horiz</span> Customer Mappings
-                <span class="pd-tab-count" id="tabMappingCount">0</span>
-            </button>
-        </div>
+        <!-- MAIN CONTENT -->
+        <main class="part-content" style="padding:24px">
+            <div class="pd-wrapper" style="margin-top:0;padding:0;max-width:100%">
 
-        <!-- TAB: DETAILS -->
-        <div class="pd-tab-content active" id="tab-details">
-            <div class="pd-details-grid">
-                <div class="pd-card">
-                    <div class="pd-card-header">
-                        <span class="material-icons-outlined">settings_input_component</span>
-                        Part Attributes
-                        <button class="pd-edit-btn" id="attrEditBtn" onclick="toggleAttrEdit()" style="margin-left:auto">
-                            <span class="material-icons-outlined">edit</span> Edit
+                <!-- BACK BAR -->
+                <div class="pd-topbar" style="display:flex; justify-content:space-between; align-items:center; width:100%">
+                    <div style="display:flex; align-items:center; gap:12px">
+                        <button class="pd-back-btn" onclick="history.back()">
+                            <span class="material-icons-outlined">arrow_back</span> Back
                         </button>
-                    </div>
-                    <div class="pd-card-body" id="pdAttributes">
-                        <div class="empty">Loading...</div>
-                    </div>
-                </div>
-                <div class="pd-card">
-                    <div class="pd-card-header">
-                        <span class="material-icons-outlined">tune</span>
-                        Part Usage
-                        <button class="pd-edit-btn" id="usageEditBtn" onclick="toggleUsageEdit()" style="margin-left:auto">
-                            <span class="material-icons-outlined">edit</span> Edit
-                        </button>
-                    </div>
-                    <div class="pd-card-body">
-                        <div style="display:flex;gap:10px;flex-wrap:wrap;margin:14px 18px 8px" id="usageCheckboxes" style="pointer-events:none;opacity:0.6">
-                            <label class="pd-usage-label" id="editBoughtLabel">
-                                <input type="checkbox" id="editBoughtOut" onchange="updateUsageStyle()" style="width:auto" disabled> Bought-Out
-                            </label>
-                            <label class="pd-usage-label" id="editMfgLabel">
-                                <input type="checkbox" id="editManufactured" onchange="updateUsageStyle()" style="width:auto" disabled> Manufactured
-                            </label>
-                        </div>
-                        <div style="font-size:11px;color:var(--text-muted);margin:0 18px 14px" id="usageHint"></div>
-                        <div id="usageSaveRow" style="display:none;padding:0 18px 14px;gap:8px;display:none">
-                            <button class="pd-save-btn" onclick="saveUsage()"><span class="material-icons-outlined">save</span> Save</button>
-                            <button class="pd-cancel-btn" onclick="cancelUsageEdit()">Cancel</button>
+                        <div class="pd-breadcrumb" id="pdBreadcrumb">
+                            <a href="/part">Part Management</a>
+                            <span class="material-icons-outlined">chevron_right</span>
+                            <span id="pdBreadcrumbPart">Loading...</span>
                         </div>
                     </div>
-                </div>
-                <div class="pd-card" style="grid-column:1/-1">
-                    <div class="pd-card-header">
-                        <span class="material-icons-outlined">info</span>
-                        System Info
+                    <div style="display:flex;gap:8px;align-items:center">
+                        <button class="btn-outline" onclick="showPartDetailHistory()" style="height:36px; padding:0 12px; font-size:13px; display:flex; align-items:center; gap:6px">
+                            <span class="material-icons-outlined" style="font-size:18px">history</span> History
+                        </button>
+                        <button class="btn-outline" id="deletePartBtn" onclick="confirmDeletePart()" style="height:36px; padding:0 12px; font-size:13px; display:flex; align-items:center; gap:6px; color:#c62828; border-color:#c62828">
+                            <span class="material-icons-outlined" style="font-size:18px">delete</span> Delete Part
+                        </button>
                     </div>
-                    <div class="pd-card-body" id="pdSysInfo">
-                        <div class="empty">Loading...</div>
-                    </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- TAB: PURCHASE ORDERS -->
-        <div class="pd-tab-content" id="tab-pos">
-            <div id="pdPoList">
-                <div class="empty" style="padding:40px;text-align:center">No purchase orders found for this part.</div>
-            </div>
-        </div>
+                <!-- LOADING STATE -->
+                <div id="pdLoading" class="pd-loading">
+                    <span class="material-icons-outlined pd-spin">autorenew</span>
+                    <span>Loading part details...</span>
+                </div>
 
-        <!-- TAB: CUSTOMER MAPPINGS -->
-        <div class="pd-tab-content" id="tab-mappings">
-            <div class="table-container">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Customer Part #</th>
-                            <th>Customer Description</th>
-                            <th>Organization</th>
-                            <th>Created</th>
-                        </tr>
-                    </thead>
-                    <tbody id="pdMappingsBody">
-                        <tr><td colspan="4" class="empty">No mappings found.</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
+                <!-- ERROR STATE -->
+                <div id="pdError" class="pd-error" style="display:none">
+                    <span class="material-icons-outlined">error_outline</span>
+                    <p>Part not found or an error occurred.</p>
+                    <button class="btn-outline" onclick="history.back()">Go Back</button>
+                </div>
 
-    </div><!-- /pdContent -->
-</div><!-- /pd-wrapper -->
-</main>
-</div><!-- /part-layout -->
+                <!-- DETAIL CONTENT -->
+                <div id="pdContent" style="display:none">
 
-<script src="/static/js/header.js"></script>
-<script>requireAuth();</script>
-<script>
-const PART_NUMBER = {{ part_number | tojson }};
-const API = '/api/v1/part';
-const PROC_API = '/api/v1/procurement';
+                    <!-- HERO CARD -->
+                    <div class="pd-hero">
+                        <div class="pd-hero-left">
+                            <div class="pd-part-icon">
+                                <span class="material-icons-outlined">precision_manufacturing</span>
+                            </div>
+                            <div>
+                                <div class="pd-part-number" id="pdPartNumber">-</div>
+                                <div class="pd-part-desc" id="pdPartDesc">-</div>
+                                <div class="pd-part-meta">
+                                    <span class="pd-badge pd-badge-cat" id="pdCatBadge">-</span>
+                                    <span class="pd-badge pd-badge-sub" id="pdSubBadge">-</span>
+                                    <span class="pd-status-badge" id="pdStatusBadge">-</span>
+                                    <span id="pdTypeBadge"
+                                        style="font-size:11px;padding:2px 10px;border-radius:10px;font-weight:700">-</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="pd-hero-stats">
+                            <div class="pd-hero-stat">
+                                <div class="pd-hero-stat-val" id="pdPoCount">-</div>
+                                <div class="pd-hero-stat-label">Purchase Orders</div>
+                            </div>
+                            <div class="pd-hero-stat">
+                                <div class="pd-hero-stat-val" id="pdTotalQty">-</div>
+                                <div class="pd-hero-stat-label">Total Qty Ordered</div>
+                            </div>
+                            <div class="pd-hero-stat" style="cursor:pointer" onclick="switchTab('inventory')">
+                                <div class="pd-hero-stat-val" id="pdInvQty" style="color:#00796B">-</div>
+                                <div class="pd-hero-stat-label">In Stock</div>
+                            </div>
+                            <div class="pd-hero-stat">
+                                <div class="pd-hero-stat-val" id="pdMappingCount">-</div>
+                                <div class="pd-hero-stat-label">Customer Mappings</div>
+                            </div>
+                            <div class="pd-hero-stat">
+                                <div class="pd-hero-stat-val" id="pdCreatedAt">-</div>
+                                <div class="pd-hero-stat-label">Created</div>
+                            </div>
+                        </div>
+                    </div>
 
-function getHeaders() {
-    const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token') || '';
-    const tenant = localStorage.getItem('tenant_id') || sessionStorage.getItem('tenant_id') || 'TEST';
-    const email = localStorage.getItem('user_email') || sessionStorage.getItem('user_email') || '';
-    const name = localStorage.getItem('user_name') || sessionStorage.getItem('user_name') || '';
-    return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, 'X-Tenant-ID': tenant, 'X-User-Email': email, 'X-User-Name': name };
-}
+                    <!-- TABS -->
+                    <div class="pd-tabs">
+                        <button class="pd-tab active" data-tab="details" onclick="switchTab('details')">
+                            <span class="material-icons-outlined">info</span> Part Details
+                        </button>
+                        <button class="pd-tab" data-tab="pos" onclick="switchTab('pos')">
+                            <span class="material-icons-outlined">receipt_long</span> Purchase Orders
+                            <span class="pd-tab-count" id="tabPoCount">0</span>
+                        </button>
+                        <button class="pd-tab" data-tab="custpos" onclick="switchTab('custpos')">
+                            <span class="material-icons-outlined">assignment</span> Customer POs
+                            <span class="pd-tab-count" id="tabCustPoCount" style="background:#2e7d32">0</span>
+                        </button>
+                        <button class="pd-tab" data-tab="mappings" onclick="switchTab('mappings')">
+                            <span class="material-icons-outlined">swap_horiz</span> Customer Mappings
+                            <span class="pd-tab-count" id="tabMappingCount">0</span>
+                        </button>
+                        <button class="pd-tab" data-tab="inventory" onclick="switchTab('inventory')">
+                            <span class="material-icons-outlined">inventory_2</span> Inventory
+                            <span class="pd-tab-count" id="tabInvCount" style="background:#00796B">0</span>
+                        </button>
+                        <button class="pd-tab" data-tab="rmmappings" onclick="switchTab('rmmappings')">
+                            <span class="material-icons-outlined">link</span> RM Mappings
+                            <span class="pd-tab-count" id="tabRmMappingCount" style="background:#e65100">0</span>
+                        </button>
+                    </div>
 
-function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+                    <!-- TAB: DETAILS -->
+                    <div class="pd-tab-content active" id="tab-details">
+                        <div class="pd-details-grid">
+                            <div class="pd-card">
+                                <div class="pd-card-header">
+                                    <span class="material-icons-outlined">settings_input_component</span>
+                                    Part Attributes
+                                    <button class="pd-edit-btn" id="attrEditBtn" onclick="toggleAttrEdit()"
+                                        style="margin-left:auto">
+                                        <span class="material-icons-outlined">edit</span> Edit
+                                    </button>
+                                </div>
+                                <div class="pd-card-body" id="pdAttributes">
+                                    <div class="empty">Loading...</div>
+                                </div>
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 24px;">
+                            <div class="pd-card">
+                                <div class="pd-card-header">
+                                    <span class="material-icons-outlined">tune</span>
+                                    Part Usage
+                                    <button class="pd-edit-btn" id="usageEditBtn" onclick="toggleUsageEdit()"
+                                        style="margin-left:auto">
+                                        <span class="material-icons-outlined">edit</span> Edit
+                                    </button>
+                                </div>
+                                <div class="pd-card-body">
+                                    <div style="display:flex;gap:10px;flex-wrap:wrap;margin:14px 18px 8px"
+                                        id="usageCheckboxes" style="pointer-events:none;opacity:0.6">
+                                        <label class="pd-usage-label" id="editBoughtLabel">
+                                            <input type="checkbox" id="editBoughtOut" onchange="updateUsageStyle()"
+                                                style="width:auto" disabled> Bought-Out
+                                        </label>
+                                        <label class="pd-usage-label" id="editMfgLabel">
+                                            <input type="checkbox" id="editManufactured" onchange="updateUsageStyle()"
+                                                style="width:auto" disabled> Manufactured
+                                        </label>
+                                    </div>
+                                    <div style="font-size:11px;color:var(--text-muted);margin:0 18px 14px"
+                                        id="usageHint"></div>
+                                    <div id="usageSaveRow"
+                                        style="display:none;padding:0 18px 14px;gap:8px;display:none">
+                                        <button class="pd-save-btn" onclick="saveUsage()"><span
+                                                class="material-icons-outlined">save</span> Save</button>
+                                        <button class="pd-cancel-btn" onclick="cancelUsageEdit()">Cancel</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="pd-card" id="pdManufacturersCard">
+                                <div class="pd-card-header">
+                                    <span class="material-icons-outlined">precision_manufacturing</span>
+                                    MPN / Make
+                                    <button class="pd-edit-btn" id="mfgEditBtn" onclick="toggleMfgEdit()" style="margin-left:auto">
+                                        <span class="material-icons-outlined">edit</span> Edit
+                                    </button>
+                                </div>
+                                <div class="pd-card-body" style="padding:0">
+                                    <table class="pd-table" style="margin:0; border:none; box-shadow:none;">
+                                        <thead>
+                                            <tr>
+                                                <th>MPN</th>
+                                                <th>Make</th>
+                                                <th>Suppliers</th>
+                                                <th class="mfg-edit-col" style="display:none; text-align:right">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="manufacturerTableBody">
+                                            <tr><td colspan="3" class="empty" style="padding:15px">Loading...</td></tr>
+                                        </tbody>
+                                    </table>
+                                    <div id="mfgSaveRow" style="display:none; padding:10px 18px; border-top:1px solid var(--border-color); gap:8px;">
+                                        <button class="btn-outline btn-sm" onclick="openAddManufacturerModal()"><span class="material-icons-outlined">add</span> Add MPN/Make</button>
+                                        <button class="pd-cancel-btn" style="margin-left:auto" onclick="toggleMfgEdit()">Done</button>
+                                    </div>
+                                </div>
+                            </div>
+                            </div>
 
-function formatDate(s) {
-    if (!s) return '-';
-    try { return new Date(s).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }); } catch { return s; }
-}
+                            <div class="pd-card" style="grid-column:1/-1">
+                                <div class="pd-card-header">
+                                    <span class="material-icons-outlined">info</span>
+                                    System Info
+                                </div>
+                                <div class="pd-card-body" id="pdSysInfo">
+                                    <div class="empty">Loading...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-function formatDateTime(s) {
-    if (!s) return '-';
-    try { return new Date(s).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }); } catch { return s; }
-}
 
-function switchTab(tab) {
-    document.querySelectorAll('.pd-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-    document.querySelectorAll('.pd-tab-content').forEach(c => c.classList.toggle('active', c.id === 'tab-' + tab));
-    // sync sidebar
-    ['details','pos','mappings'].forEach(t => {
-        const el = document.getElementById('sb-' + t);
-        if (el) el.classList.toggle('active', t === tab);
-    });
-}
 
-let _partData = null;
-let _attrEditMode = false;
-let _usageEditMode = false;
+                    <!-- TAB: PURCHASE ORDERS -->
+                    <div class="pd-tab-content" id="tab-pos">
+                        <div id="pdPoList">
+                            <div class="empty" style="padding:40px;text-align:center">No purchase orders found for this
+                                part.</div>
+                        </div>
+                    </div>
 
-function _typeBadgeProps(bo, mfg) {
-    if (bo && mfg) return { label: 'BO + MFG', bg: '#fff8e1', color: '#f9a825' };
-    if (mfg)       return { label: 'Manufactured', bg: '#e8f5e9', color: '#2e7d32' };
-    return             { label: 'Bought-Out', bg: '#e3f2fd', color: '#1565c0' };
-}
+                    <!-- TAB: CUSTOMER PURCHASE ORDERS -->
+                    <div class="pd-tab-content" id="tab-custpos">
+                        <div id="pdCustPoList">
+                            <div class="empty" style="padding:40px;text-align:center">No Customer Purchase Orders found.</div>
+                        </div>
+                    </div>
 
-// ── ATTR EDIT ──
-function toggleAttrEdit() {
-    _attrEditMode = !_attrEditMode;
-    const btn = document.getElementById('attrEditBtn');
-    if (_attrEditMode) {
-        btn.innerHTML = '<span class="material-icons-outlined">close</span> Cancel';
-        btn.classList.add('pd-btn-cancel-mode');
-        _renderAttrEdit();
-    } else {
-        btn.innerHTML = '<span class="material-icons-outlined">edit</span> Edit';
-        btn.classList.remove('pd-btn-cancel-mode');
-        _renderAttrView();
-    }
-}
+                    <!-- TAB: CUSTOMER MAPPINGS -->
+                    <div class="pd-tab-content" id="tab-mappings">
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Customer Part #</th>
+                                        <th>Customer Description</th>
+                                        <th>Organization</th>
+                                        <th>Created</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pdMappingsBody">
+                                    <tr>
+                                        <td colspan="4" class="empty">No mappings found.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
 
-function _renderAttrView() {
-    if (!_partData) return;
-    const part = _partData.part;
-    const SKIP = ['id','part_number','description','created_at','status','obsoleted_at','obsolete_reason','created_by','category','category_id','subcategory','subcategory_id','columns_config','is_bought_out','is_manufactured'];
-    const colsConfig = part.columns_config || [];
-    const colNames = colsConfig.map(c => c.name.toLowerCase().replace(/[^a-z0-9]/g,'_'));
-    const rows = colsConfig.map(c => {
-        const key = c.name.toLowerCase().replace(/[^a-z0-9]/g,'_');
-        const val = part[key];
-        return `<div class="pd-attr-row"><div class="pd-attr-label">${esc(c.label||c.name)}</div><div class="pd-attr-val">${esc(val!=null&&val!==''?String(val):'\u2014')}</div></div>`;
-    });
-    const extra = Object.entries(part).filter(([k])=>!SKIP.includes(k)&&!colNames.includes(k))
-        .map(([k,v])=>`<div class="pd-attr-row"><div class="pd-attr-label">${esc(k.replace(/_/g,' '))}</div><div class="pd-attr-val">${esc(v!=null&&v!==''?String(v):'\u2014')}</div></div>`);
-    document.getElementById('pdAttributes').innerHTML = [...rows,...extra].join('')||'<div class="empty">No attributes defined.</div>';
-}
+                    <!-- TAB: INVENTORY -->
+                    <div class="pd-tab-content" id="tab-inventory">
+                        <div class="pd-card">
+                            <div class="pd-card-header">
+                                <span class="material-icons-outlined">inventory_2</span>
+                                Stock Inventory
+                                <span id="invTotalBadge" style="margin-left:auto;font-size:12px;font-weight:700;padding:3px 12px;border-radius:10px;background:#e0f2f1;color:#00796B">Total: 0</span>
+                            </div>
+                            <div class="pd-card-body" style="padding:0">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Location</th>
+                                            <th>Plant</th>
+                                            <th>Floor</th>
+                                            <th>Shelf</th>
+                                            <th>Bin</th>
+                                            <th>Manufacturer (Make)</th>
+                                            <th style="text-align:right">Qty</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="pdInventoryBody">
+                                        <tr><td colspan="7" class="empty">No inventory found.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
 
-function _renderAttrEdit() {
-    if (!_partData) return;
-    const part = _partData.part;
-    const colsConfig = part.columns_config || [];
-    if (!colsConfig.length) {
-        document.getElementById('pdAttributes').innerHTML = '<div class="empty" style="padding:16px">No editable attributes.</div>';
-        return;
-    }
-    const inputs = colsConfig.map(c => {
-        const key = c.name.toLowerCase().replace(/[^a-z0-9]/g,'_');
-        const val = part[key] != null ? part[key] : '';
-        return `<div class="pd-attr-row">
-            <div class="pd-attr-label">${esc(c.label||c.name)}</div>
+                    <!-- TAB: RM MAPPINGS -->
+                    <div class="pd-tab-content" id="tab-rmmappings">
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>RM Code</th>
+                                        <th>RM Description</th>
+                                        <th>Qty Required</th>
+                                        <th>Unit</th>
+                                        <th>Wastage %</th>
+                                        <th>Effective Qty</th>
+                                        <th>Process Notes</th>
+                                        <th>Created</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pdRmMappingsBody">
+                                    <tr>
+                                        <td colspan="8" class="empty">No RM mappings found.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div><!-- /pdContent -->
+            </div><!-- /pd-wrapper -->
+        </main>
+    </div><!-- /part-layout -->
+
+    <script src="/static/js/header.js"></script>
+    <script>requireAuth();</script>
+    <script>
+        const PART_NUMBER = {{ part_number | tojson }};
+        const API = '/api/v1/part';
+        const PROC_API = '/api/v1/procurement';
+
+        function getHeaders() {
+            const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token') || '';
+            const tenant = localStorage.getItem('tenant_id') || sessionStorage.getItem('tenant_id') || 'TEST';
+            const email = localStorage.getItem('user_email') || sessionStorage.getItem('user_email') || '';
+            const name = localStorage.getItem('user_name') || sessionStorage.getItem('user_name') || '';
+            return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, 'X-Tenant-ID': tenant, 'X-User-Email': email, 'X-User-Name': name };
+        }
+
+        function showToast(msg, type = 'success') {
+            let toast = document.getElementById('partToast');
+            if (!toast) { toast = document.createElement('div'); toast.id = 'partToast'; document.body.appendChild(toast); }
+            toast.className = 'part-toast ' + type;
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3500);
+        }
+
+        function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+        function formatDate(s) {
+            if (!s) return '-';
+            try { return new Date(s).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }); } catch { return s; }
+        }
+
+        function formatDateTime(s) {
+            if (!s) return '-';
+            try { return new Date(s).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }); } catch { return s; }
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.pd-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+            document.querySelectorAll('.pd-tab-content').forEach(c => c.classList.toggle('active', c.id === 'tab-' + tab));
+            ['details', 'pos', 'custpos', 'mappings', 'inventory', 'rmmappings'].forEach(t => {
+                const el = document.getElementById('sb-' + t);
+                if (el) el.classList.toggle('active', t === tab);
+            });
+        }
+
+        let _partData = null;
+        let _attrEditMode = false;
+        let _usageEditMode = false;
+
+        function _typeBadgeProps(bo, mfg) {
+            if (bo && mfg) return { label: 'BO + MFG', bg: '#fff8e1', color: '#f9a825' };
+            if (mfg) return { label: 'Manufactured', bg: '#e8f5e9', color: '#2e7d32' };
+            return { label: 'Bought-Out', bg: '#e3f2fd', color: '#1565c0' };
+        }
+
+        // ── ATTR EDIT ──
+        function toggleAttrEdit() {
+            _attrEditMode = !_attrEditMode;
+            const btn = document.getElementById('attrEditBtn');
+            if (_attrEditMode) {
+                btn.innerHTML = '<span class="material-icons-outlined">close</span> Cancel';
+                btn.classList.add('pd-btn-cancel-mode');
+                _renderAttrEdit();
+            } else {
+                btn.innerHTML = '<span class="material-icons-outlined">edit</span> Edit';
+                btn.classList.remove('pd-btn-cancel-mode');
+                _renderAttrView();
+            }
+        }
+
+        function _renderAttrView() {
+            if (!_partData) return;
+            const part = _partData.part;
+            const SKIP = ['id', 'part_number', 'description', 'created_at', 'status', 'obsoleted_at', 'obsolete_reason', 'created_by', 'category', 'category_id', 'subcategory', 'subcategory_id', 'columns_config', 'is_bought_out', 'is_manufactured'];
+            const colsConfig = part.columns_config || [];
+            const rows = colsConfig.map(c => {
+                const key = c.name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                const val = part[key];
+                return `<div class="pd-attr-row"><div class="pd-attr-label">${esc(c.label || c.name)}</div><div class="pd-attr-val">${esc(val != null && val !== '' ? String(val) : '\u2014')}</div></div>`;
+            });
+            document.getElementById('pdAttributes').innerHTML = rows.join('') || '<div class="empty">No attributes defined.</div>';
+        }
+
+        function _renderAttrEdit() {
+            if (!_partData) return;
+            const part = _partData.part;
+            const colsConfig = part.columns_config || [];
+            if (!colsConfig.length) {
+                document.getElementById('pdAttributes').innerHTML = '<div class="empty" style="padding:16px">No editable attributes.</div>';
+                return;
+            }
+            const inputs = colsConfig.map(c => {
+                const key = c.name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                const val = part[key] != null ? part[key] : '';
+                return `<div class="pd-attr-row">
+            <div class="pd-attr-label">${esc(c.label || c.name)}</div>
             <div class="pd-attr-val"><input class="pd-inline-input" data-field="${esc(key)}" value="${esc(String(val))}"></div>
         </div>`;
-    }).join('');
-    document.getElementById('pdAttributes').innerHTML = inputs +
-        `<div style="padding:12px 18px;display:flex;gap:8px;border-top:1px solid var(--border-color)">
+            }).join('');
+            document.getElementById('pdAttributes').innerHTML = inputs +
+                `<div style="padding:12px 18px;display:flex;gap:8px;border-top:1px solid var(--border-color)">
             <button class="pd-save-btn" onclick="saveAttrEdit()"><span class="material-icons-outlined">save</span> Save Changes</button>
             <button class="pd-cancel-btn" onclick="toggleAttrEdit()">Cancel</button>
         </div>`;
-}
+        }
 
-async function saveAttrEdit() {
-    const subcategoryId = _partData?.part?.subcategory_id;
-    if (!subcategoryId) return;
-    const inputs = document.querySelectorAll('#pdAttributes .pd-inline-input');
-    const headers = getHeaders();
-    let ok = true;
-    for (const inp of inputs) {
-        const field = inp.dataset.field;
-        const value = inp.value.trim();
-        const res = await fetch(`${API}/part-field-update`, { method:'POST', headers, body: JSON.stringify({ part_number: PART_NUMBER, field, value, subcategory_id: subcategoryId }) });
-        const d = await res.json();
-        if (d.success) { _partData.part[field] = value; }
-        else { ok = false; showToast(`Failed to save ${field}`, 'error'); }
-    }
-    if (ok) {
-        showToast('Attributes saved', 'success');
-        _attrEditMode = false;
-        const btn = document.getElementById('attrEditBtn');
-        btn.innerHTML = '<span class="material-icons-outlined">edit</span> Edit';
-        btn.classList.remove('pd-btn-cancel-mode');
-        _renderAttrView();
-    }
-}
+        async function saveAttrEdit() {
+            const subcategoryId = _partData?.part?.subcategory_id;
+            if (!subcategoryId) return;
+            const inputs = document.querySelectorAll('#pdAttributes .pd-inline-input');
+            const headers = getHeaders();
+            let ok = true;
+            for (const inp of inputs) {
+                const field = inp.dataset.field;
+                const value = inp.value.trim();
+                const res = await fetch(`${API}/part-field-update`, { method: 'POST', headers, body: JSON.stringify({ part_number: PART_NUMBER, field, value, subcategory_id: subcategoryId }) });
+                const d = await res.json();
+                if (d.success) { _partData.part[field] = value; }
+                else { ok = false; showToast(`Failed to save ${field}`, 'error'); }
+            }
+            if (ok) {
+                showToast('Attributes saved', 'success');
+                _attrEditMode = false;
+                const btn = document.getElementById('attrEditBtn');
+                btn.innerHTML = '<span class="material-icons-outlined">edit</span> Edit';
+                btn.classList.remove('pd-btn-cancel-mode');
+                _renderAttrView();
+            }
+        }
 
-// ── USAGE EDIT ──
-function toggleUsageEdit() {
-    _usageEditMode = !_usageEditMode;
-    const btn = document.getElementById('usageEditBtn');
-    const saveRow = document.getElementById('usageSaveRow');
-    if (_usageEditMode) {
-        btn.innerHTML = '<span class="material-icons-outlined">close</span> Cancel';
-        btn.classList.add('pd-btn-cancel-mode');
-        document.getElementById('editBoughtOut').disabled = false;
-        document.getElementById('editManufactured').disabled = false;
-        saveRow.style.display = 'flex';
-        updateUsageStyle();
-    } else {
-        cancelUsageEdit();
-    }
-}
+        // ── USAGE EDIT ──
+        function toggleUsageEdit() {
+            _usageEditMode = !_usageEditMode;
+            const btn = document.getElementById('usageEditBtn');
+            const saveRow = document.getElementById('usageSaveRow');
+            if (_usageEditMode) {
+                btn.innerHTML = '<span class="material-icons-outlined">close</span> Cancel';
+                btn.classList.add('pd-btn-cancel-mode');
+                document.getElementById('editBoughtOut').disabled = false;
+                document.getElementById('editManufactured').disabled = false;
+                saveRow.style.display = 'flex';
+                updateUsageStyle();
+            } else {
+                cancelUsageEdit();
+            }
+        }
 
-function cancelUsageEdit() {
-    _usageEditMode = false;
-    const btn = document.getElementById('usageEditBtn');
-    btn.innerHTML = '<span class="material-icons-outlined">edit</span> Edit';
-    btn.classList.remove('pd-btn-cancel-mode');
-    document.getElementById('editBoughtOut').disabled = true;
-    document.getElementById('editManufactured').disabled = true;
-    document.getElementById('usageSaveRow').style.display = 'none';
-    const bo = _partData?.part?.is_bought_out !== false;
-    const mfg = _partData?.part?.is_manufactured === true;
-    document.getElementById('editBoughtOut').checked = bo;
-    document.getElementById('editManufactured').checked = mfg;
-    updateUsageStyle();
-}
+        function cancelUsageEdit() {
+            _usageEditMode = false;
+            const btn = document.getElementById('usageEditBtn');
+            btn.innerHTML = '<span class="material-icons-outlined">edit</span> Edit';
+            btn.classList.remove('pd-btn-cancel-mode');
+            document.getElementById('editBoughtOut').disabled = true;
+            document.getElementById('editManufactured').disabled = true;
+            document.getElementById('usageSaveRow').style.display = 'none';
+            const bo = _partData?.part?.is_bought_out !== false;
+            const mfg = _partData?.part?.is_manufactured === true;
+            document.getElementById('editBoughtOut').checked = bo;
+            document.getElementById('editManufactured').checked = mfg;
+            updateUsageStyle();
+        }
 
-function updateUsageStyle() {
-    const bo = document.getElementById('editBoughtOut')?.checked;
-    const mfg = document.getElementById('editManufactured')?.checked;
-    if (_usageEditMode && !bo && !mfg) { document.getElementById('editBoughtOut').checked = true; return updateUsageStyle(); }
-    const dim = !_usageEditMode;
-    document.getElementById('editBoughtLabel').style.borderColor = bo ? 'var(--accent)' : 'var(--border-color)';
-    document.getElementById('editBoughtLabel').style.color = bo ? 'var(--accent)' : 'var(--text-secondary)';
-    document.getElementById('editBoughtLabel').style.opacity = dim ? '0.65' : '1';
-    document.getElementById('editMfgLabel').style.borderColor = mfg ? '#2e7d32' : 'var(--border-color)';
-    document.getElementById('editMfgLabel').style.color = mfg ? '#2e7d32' : 'var(--text-secondary)';
-    document.getElementById('editMfgLabel').style.opacity = dim ? '0.65' : '1';
-    const hint = document.getElementById('usageHint');
-    if (hint) hint.textContent = bo && mfg ? 'Can be purchased or manufactured depending on context.' : bo ? 'Purchased from supplier.' : 'Made in-house \u2014 usable in process routings.';
-}
+        function updateUsageStyle() {
+            const bo = document.getElementById('editBoughtOut')?.checked;
+            const mfg = document.getElementById('editManufactured')?.checked;
+            if (_usageEditMode && !bo && !mfg) { document.getElementById('editBoughtOut').checked = true; return updateUsageStyle(); }
+            const dim = !_usageEditMode;
+            document.getElementById('editBoughtLabel').style.borderColor = bo ? 'var(--accent)' : 'var(--border-color)';
+            document.getElementById('editBoughtLabel').style.color = bo ? 'var(--accent)' : 'var(--text-secondary)';
+            document.getElementById('editBoughtLabel').style.opacity = dim ? '0.65' : '1';
+            document.getElementById('editMfgLabel').style.borderColor = mfg ? '#2e7d32' : 'var(--border-color)';
+            document.getElementById('editMfgLabel').style.color = mfg ? '#2e7d32' : 'var(--text-secondary)';
+            document.getElementById('editMfgLabel').style.opacity = dim ? '0.65' : '1';
+            const hint = document.getElementById('usageHint');
+            if (hint) hint.textContent = bo && mfg ? 'Can be purchased or manufactured depending on context.' : bo ? 'Purchased from supplier.' : 'Made in-house \u2014 usable in process routings.';
+        }
 
-async function saveUsage() {
-    const bo = document.getElementById('editBoughtOut').checked;
-    const mfg = document.getElementById('editManufactured').checked;
-    if (!bo && !mfg) { showToast('Select at least one usage type', 'error'); return; }
-    const subcategoryId = _partData?.part?.subcategory_id;
-    if (!subcategoryId) return;
-    const headers = getHeaders();
-    const [r1] = await Promise.all([
-        fetch(`${API}/part-field-update`, { method:'POST', headers, body: JSON.stringify({ part_number: PART_NUMBER, field:'is_bought_out', value:bo, subcategory_id:subcategoryId }) }),
-        fetch(`${API}/part-field-update`, { method:'POST', headers, body: JSON.stringify({ part_number: PART_NUMBER, field:'is_manufactured', value:mfg, subcategory_id:subcategoryId }) })
-    ]);
-    const d = await r1.json();
-    if (d.success) {
-        _partData.part.is_bought_out = bo;
-        _partData.part.is_manufactured = mfg;
-        const p = _typeBadgeProps(bo, mfg);
-        const el = document.getElementById('pdTypeBadge');
-        if (el) { el.textContent = p.label; el.style.background = p.bg; el.style.color = p.color; }
-        showToast('Usage updated', 'success');
-        cancelUsageEdit();
-    } else showToast('Update failed', 'error');
-}
+        async function saveUsage() {
+            const bo = document.getElementById('editBoughtOut').checked;
+            const mfg = document.getElementById('editManufactured').checked;
+            if (!bo && !mfg) { showToast('Select at least one usage type', 'error'); return; }
+            const subcategoryId = _partData?.part?.subcategory_id;
+            if (!subcategoryId) return;
+            const headers = getHeaders();
+            try {
+                const [r1, r2] = await Promise.all([
+                    fetch(`${API}/part-field-update`, { method: 'POST', headers, body: JSON.stringify({ part_number: PART_NUMBER, field: 'is_bought_out', value: bo, subcategory_id: subcategoryId }) }),
+                    fetch(`${API}/part-field-update`, { method: 'POST', headers, body: JSON.stringify({ part_number: PART_NUMBER, field: 'is_manufactured', value: mfg, subcategory_id: subcategoryId }) })
+                ]);
+                const d1 = await r1.json();
+                const d2 = await r2.json();
+                if (d1.success && d2.success) {
+                    _partData.part.is_bought_out = bo;
+                    _partData.part.is_manufactured = mfg;
+                    const p = _typeBadgeProps(bo, mfg);
+                    const el = document.getElementById('pdTypeBadge');
+                    if (el) { el.textContent = p.label; el.style.background = p.bg; el.style.color = p.color; }
+                    showToast('Usage updated', 'success');
+                    cancelUsageEdit();
+                } else {
+                    const msg = (!d1.success ? d1.message : '') || (!d2.success ? d2.message : '') || 'Update failed';
+                    showToast(msg, 'error');
+                }
+            } catch(e) {
+                showToast('Network error updating usage', 'error');
+            }
+        }
 
-function renderDetails(data) {
-    _partData = data;
-    const part = data.part;
-    const SKIP = ['id', 'part_number', 'description', 'created_at', 'status', 'obsoleted_at', 'obsolete_reason', 'created_by', 'category', 'category_id', 'subcategory', 'subcategory_id', 'columns_config', 'is_bought_out', 'is_manufactured'];
+        function renderDetails(data) {
+            _partData = data;
+            const part = data.part;
+            const SKIP = ['id', 'part_number', 'description', 'created_at', 'status', 'obsoleted_at', 'obsolete_reason', 'created_by', 'category', 'category_id', 'subcategory', 'subcategory_id', 'columns_config', 'is_bought_out', 'is_manufactured'];
 
-    // Hero
-    document.getElementById('pdPartNumber').textContent = part.part_number || PART_NUMBER;
-    document.getElementById('pdPartDesc').textContent = part.description || 'No description';
-    document.getElementById('pdBreadcrumbPart').textContent = part.part_number || PART_NUMBER;
-    document.title = `${part.part_number} - Part Detail`;
-    document.getElementById('sbPartNumber').textContent = part.part_number || PART_NUMBER;
-    document.getElementById('sbPartDesc').textContent = part.description || '';
-    const sbDetails = document.getElementById('sb-details');
-    if (sbDetails) sbDetails.classList.add('active');
+            // Hero
+            document.getElementById('pdPartNumber').textContent = part.part_number || PART_NUMBER;
+            document.getElementById('pdPartDesc').textContent = part.description || 'No description';
+            document.getElementById('pdBreadcrumbPart').textContent = part.part_number || PART_NUMBER;
+            document.title = `${part.part_number} - Part Detail`;
+            document.getElementById('sbPartNumber').textContent = part.part_number || PART_NUMBER;
+            document.getElementById('sbPartDesc').textContent = part.description || '';
+            const sbDetails = document.getElementById('sb-details');
+            if (sbDetails) sbDetails.classList.add('active');
 
-    document.getElementById('pdCatBadge').textContent = part.category || '-';
-    document.getElementById('pdSubBadge').textContent = part.subcategory || '-';
+            document.getElementById('pdCatBadge').textContent = part.category || '-';
+            document.getElementById('pdSubBadge').textContent = part.subcategory || '-';
 
-    const isObs = part.status === 'obsolete';
-    const statusBadge = document.getElementById('pdStatusBadge');
-    statusBadge.textContent = isObs ? 'Obsolete' : 'Active';
-    statusBadge.className = 'pd-status-badge ' + (isObs ? 'pd-status-obsolete' : 'pd-status-active');
+            const isObs = part.status === 'obsolete';
+            const statusBadge = document.getElementById('pdStatusBadge');
+            statusBadge.textContent = isObs ? 'Obsolete' : 'Active';
+            statusBadge.className = 'pd-status-badge ' + (isObs ? 'pd-status-obsolete' : 'pd-status-active');
 
-    // Type badge
-    const bo = part.is_bought_out !== false;
-    const mfg = part.is_manufactured === true;
-    const tp = _typeBadgeProps(bo, mfg);
-    const typeBadgeEl = document.getElementById('pdTypeBadge');
-    if (typeBadgeEl) { typeBadgeEl.textContent = tp.label; typeBadgeEl.style.background = tp.bg; typeBadgeEl.style.color = tp.color; }
+            // Type badge
+            const bo = part.is_bought_out !== false;
+            const mfg = part.is_manufactured === true;
+            const tp = _typeBadgeProps(bo, mfg);
+            const typeBadgeEl = document.getElementById('pdTypeBadge');
+            if (typeBadgeEl) { typeBadgeEl.textContent = tp.label; typeBadgeEl.style.background = tp.bg; typeBadgeEl.style.color = tp.color; }
 
-    // Usage checkboxes (disabled until Edit clicked)
-    const boChk = document.getElementById('editBoughtOut');
-    const mfgChk = document.getElementById('editManufactured');
-    if (boChk) { boChk.checked = bo; boChk.disabled = true; }
-    if (mfgChk) { mfgChk.checked = mfg; mfgChk.disabled = true; }
-    updateUsageStyle();
+            // Usage checkboxes (disabled until Edit clicked)
+            const boChk = document.getElementById('editBoughtOut');
+            const mfgChk = document.getElementById('editManufactured');
+            if (boChk) { boChk.checked = bo; boChk.disabled = true; }
+            if (mfgChk) { mfgChk.checked = mfg; mfgChk.disabled = true; }
+            updateUsageStyle();
 
-    document.getElementById('pdPoCount').textContent = data.po_count || 0;
-    document.getElementById('pdTotalQty').textContent = data.total_ordered_qty || 0;
-    document.getElementById('pdMappingCount').textContent = (data.mappings || []).length;
-    document.getElementById('pdCreatedAt').textContent = formatDate(part.created_at);
-    document.getElementById('tabPoCount').textContent = data.po_count || 0;
-    document.getElementById('tabMappingCount').textContent = (data.mappings || []).length;
-    document.getElementById('sbPoCount').textContent = data.po_count || 0;
-    document.getElementById('sbMapCount').textContent = (data.mappings || []).length;
+            document.getElementById('pdPoCount').textContent = data.po_count || 0;
+            document.getElementById('pdTotalQty').textContent = data.total_ordered_qty || 0;
+            const invQty = data.total_inventory_qty || 0;
+            document.getElementById('pdInvQty').textContent = invQty.toLocaleString();
+            document.getElementById('sbInvQty').textContent = invQty.toLocaleString();
+            document.getElementById('tabInvCount').textContent = (data.inventory || []).length;
+            document.getElementById('pdMappingCount').textContent = (data.mappings || []).length;
+            document.getElementById('pdCreatedAt').textContent = formatDate(part.created_at);
 
-    // Attributes — render view mode
-    _renderAttrView();
+            document.getElementById('tabPoCount').textContent = data.po_count || 0;
+            document.getElementById('tabMappingCount').textContent = (data.mappings || []).length;
+            document.getElementById('sbPoCount').textContent = data.po_count || 0;
+            document.getElementById('sbMapCount').textContent = (data.mappings || []).length;
 
-    // System info
-    const sysRows = [
-        ['Part Number', part.part_number],
-        ['Category', part.category],
-        ['Subcategory', part.subcategory],
-        ['Status', part.status || 'active'],
-        ['Created By', part.created_by || '\u2014'],
-        ['Created At', formatDateTime(part.created_at)],
-    ];
-    if (isObs) {
-        sysRows.push(['Obsoleted At', formatDateTime(part.obsoleted_at)]);
-        sysRows.push(['Obsolete Reason', part.obsolete_reason || '\u2014']);
-    }
-    document.getElementById('pdSysInfo').innerHTML = sysRows.map(([l, v]) =>
-        `<div class="pd-attr-row"><div class="pd-attr-label">${esc(l)}</div><div class="pd-attr-val">${esc(String(v || '\u2014'))}</div></div>`
-    ).join('');
-}
+            document.getElementById('sbCustPoCount').textContent = (data.customer_purchase_orders || []).length;
+            document.getElementById('tabCustPoCount').textContent = (data.customer_purchase_orders || []).length;
+            document.getElementById('sbRmMapCount').textContent = (data.rm_mappings || []).length;
+            document.getElementById('tabRmMappingCount').textContent = (data.rm_mappings || []).length;
 
-function renderPOs(pos) {
-    const container = document.getElementById('pdPoList');
-    if (!pos || pos.length === 0) {
-        container.innerHTML = '<div class="empty" style="padding:40px;text-align:center;color:var(--text-muted)"><span class="material-icons-outlined" style="font-size:40px;display:block;margin-bottom:8px">receipt_long</span>No purchase orders found for this part.</div>';
-        return;
-    }
+            // Attributes — render view mode
+            _renderAttrView();
 
-    const statusColor = { open: '#1976D2', closed: '#2e7d32', cancelled: '#c62828', draft: '#e65100' };
+            // System info
+            const sysRows = [
+                ['Part Number', part.part_number],
+                ['Category', part.category],
+                ['Subcategory', part.subcategory],
+                ['Status', part.status || 'active'],
+                ['Created By', part.created_by || '\u2014'],
+                ['Created At', formatDateTime(part.created_at)],
+            ];
+            if (isObs) {
+                sysRows.push(['Obsoleted At', formatDateTime(part.obsoleted_at)]);
+                sysRows.push(['Obsolete Reason', part.obsolete_reason || '\u2014']);
+            }
+            document.getElementById('pdSysInfo').innerHTML = sysRows.map(([l, v]) =>
+                `<div class="pd-attr-row"><div class="pd-attr-label">${esc(l)}</div><div class="pd-attr-val">${esc(String(v || '\u2014'))}</div></div>`
+            ).join('');
+        }
 
-    container.innerHTML = pos.map(po => {
-        const linesHtml = po.matched_lines.map(line => `
+        function renderPOs(pos) {
+            const container = document.getElementById('pdPoList');
+            if (!pos || pos.length === 0) {
+                container.innerHTML = '<div class="empty" style="padding:40px;text-align:center;color:var(--text-muted)"><span class="material-icons-outlined" style="font-size:40px;display:block;margin-bottom:8px">receipt_long</span>No purchase orders found for this part.</div>';
+                return;
+            }
+
+            const statusColor = { open: '#1976D2', closed: '#2e7d32', cancelled: '#c62828', draft: '#e65100' };
+
+            container.innerHTML = pos.map(po => {
+                const linesHtml = po.matched_lines.map(line => `
             <tr>
                 <td><span class="pd-cpn">${esc(line.customer_part_number || '—')}</span></td>
                 <td>${esc(line.internal_part_number || '—')}</td>
                 <td>${esc(line.internal_description || line.customer_description || '—')}</td>
                 <td class="pd-num">${esc(String(line.quantity || 0))} ${esc(line.unit || '')}</td>
-                <td class="pd-num">₹${parseFloat(line.price_per_quantity || 0).toLocaleString('en-IN', {minimumFractionDigits:2})}</td>
-                <td class="pd-num"><strong>₹${(parseFloat(line.quantity||0)*parseFloat(line.price_per_quantity||0)).toLocaleString('en-IN',{minimumFractionDigits:2})}</strong></td>
+                <td class="pd-num">₹${parseFloat(line.price_per_quantity || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                <td class="pd-num"><strong>₹${(parseFloat(line.quantity || 0) * parseFloat(line.price_per_quantity || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></td>
                 <td>${esc(line.deliver_by || line.delivery_date_etd || '—')}</td>
                 <td>${esc(line.location || '—')}</td>
             </tr>`).join('');
 
-        const sc = statusColor[po.status] || '#666';
-        return `<div class="pd-po-card">
+                const sc = statusColor[po.status] || '#666';
+                return `<div class="pd-po-card">
             <div class="pd-po-header">
                 <div class="pd-po-header-left">
                     <span class="material-icons-outlined" style="color:${sc}">receipt_long</span>
@@ -573,7 +753,7 @@ function renderPOs(pos) {
                 </div>
                 <div class="pd-po-header-right">
                     <span class="pd-po-status" style="background:${sc}22;color:${sc}">${esc(po.status)}</span>
-                    <span class="pd-po-total">₹${parseFloat(po.po_total||0).toLocaleString('en-IN',{minimumFractionDigits:2})}</span>
+                    <span class="pd-po-total">₹${parseFloat(po.po_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                 </div>
             </div>
             <div class="pd-po-lines-wrap">
@@ -585,9 +765,9 @@ function renderPOs(pos) {
                                 <th>Customer Part #</th>
                                 <th>Part Code</th>
                                 <th>Description</th>
-                                <th>Qty</th>
-                                <th>Unit Price</th>
-                                <th>Line Total</th>
+                                <th style="text-align:right">Qty</th>
+                                <th style="text-align:right">Unit Price</th>
+                                <th style="text-align:right">Line Total</th>
                                 <th>Deliver By</th>
                                 <th>Location</th>
                             </tr>
@@ -598,44 +778,629 @@ function renderPOs(pos) {
             </div>
             ${po.remarks ? `<div class="pd-po-remarks"><span class="material-icons-outlined">notes</span> ${esc(po.remarks)}</div>` : ''}
         </div>`;
-    }).join('');
-}
+            }).join('');
+        }
 
-function renderMappings(mappings) {
-    const tbody = document.getElementById('pdMappingsBody');
-    if (!mappings || mappings.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="empty">No customer mappings found.</td></tr>';
-        return;
-    }
-    tbody.innerHTML = mappings.map(m => `<tr>
+        function renderMappings(mappings) {
+            const tbody = document.getElementById('pdMappingsBody');
+            if (!mappings || mappings.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="empty">No customer mappings found.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = mappings.map(m => `<tr>
         <td><strong style="font-family:monospace;color:var(--accent)">${esc(m.customer_part_number)}</strong></td>
         <td>${esc(m.customer_description || '—')}</td>
         <td>${esc(m.organization_name || '—')}</td>
         <td>${formatDate(m.created_at)}</td>
     </tr>`).join('');
-}
-
-async function loadPartDetail() {
-    const headers = getHeaders();
-    try {
-        const res = await fetch(`${API}/part-detail/${encodeURIComponent(PART_NUMBER)}`, { headers });
-        const data = await res.json();
-        document.getElementById('pdLoading').style.display = 'none';
-        if (!data.success) {
-            document.getElementById('pdError').style.display = 'flex';
-            return;
         }
-        document.getElementById('pdContent').style.display = 'block';
-        renderDetails(data.data);
-        renderPOs(data.data.purchase_orders);
-        renderMappings(data.data.mappings);
-    } catch (e) {
-        document.getElementById('pdLoading').style.display = 'none';
-        document.getElementById('pdError').style.display = 'flex';
-    }
-}
 
-loadPartDetail();
-</script>
+        function renderCustomerPOs(pos) {
+            const container = document.getElementById('pdCustPoList');
+            if (!pos || pos.length === 0) {
+                container.innerHTML = '<div class="empty" style="padding:40px;text-align:center;color:var(--text-muted)"><span class="material-icons-outlined" style="font-size:40px;display:block;margin-bottom:8px">assignment</span>No Customer Purchase Orders found for this part.</div>';
+                return;
+            }
+
+            container.innerHTML = pos.map(po => {
+                const linesHtml = po.matched_lines.map(line => `
+            <tr>
+                <td><span class="pd-cpn">${esc(line.customer_part_number || '—')}</span></td>
+                <td>${esc(line.internal_part_number || '—')}</td>
+                <td>${esc(line.description || '—')}</td>
+                <td class="pd-num">${esc(String(line.quantity || 0))} ${esc(line.unit || '')}</td>
+                <td class="pd-num">₹${parseFloat(line.price || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                <td class="pd-num"><strong>₹${(parseFloat(line.quantity || 0) * parseFloat(line.price || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></td>
+            </tr>`).join('');
+
+                const sc = '#2e7d32'; // green for customer orders
+                return `<div class="pd-po-card">
+            <div class="pd-po-header">
+                <div class="pd-po-header-left">
+                    <span class="material-icons-outlined" style="color:${sc}">assignment</span>
+                    <div>
+                        <div class="pd-po-number">${esc(po.po_number)}</div>
+                        <div class="pd-po-meta">
+                            ${po.project_name ? `<span><span class="material-icons-outlined" style="font-size:12px;vertical-align:middle">folder</span> ${esc(po.project_name)}</span>` : ''}
+                            <span><span class="material-icons-outlined" style="font-size:12px;vertical-align:middle">calendar_today</span> ${formatDate(po.po_date)}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="pd-po-header-right">
+                    <span class="pd-po-status" style="background:${sc}22;color:${sc}">${esc(po.status)}</span>
+                    <span class="pd-po-total">₹${parseFloat(po.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+            </div>
+            <div class="pd-po-lines-wrap">
+                <div class="pd-po-lines-title">Matched Line Items (${po.matched_lines.length})</div>
+                <div class="table-container" style="margin:0">
+                    <table class="data-table pd-lines-table">
+                        <thead>
+                            <tr>
+                                <th>Customer Part #</th>
+                                <th>Internal Part Code</th>
+                                <th>Description</th>
+                                <th style="text-align:right">Qty</th>
+                                <th style="text-align:right">Unit Price</th>
+                                <th style="text-align:right">Line Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>${linesHtml}</tbody>
+                    </table>
+                </div>
+            </div>
+        </div>`;
+            }).join('');
+        }
+
+        let _mfgEditMode = false;
+        function toggleMfgEdit() {
+            _mfgEditMode = !_mfgEditMode;
+            const btn = document.getElementById('mfgEditBtn');
+            const saveRow = document.getElementById('mfgSaveRow');
+            const editCols = document.querySelectorAll('.mfg-edit-col');
+            if (_mfgEditMode) {
+                btn.innerHTML = '<span class="material-icons-outlined">close</span> Cancel';
+                btn.classList.add('pd-btn-cancel-mode');
+                saveRow.style.display = 'flex';
+                editCols.forEach(el => el.style.display = '');
+            } else {
+                btn.innerHTML = '<span class="material-icons-outlined">edit</span> Edit';
+                btn.classList.remove('pd-btn-cancel-mode');
+                saveRow.style.display = 'none';
+                editCols.forEach(el => el.style.display = 'none');
+            }
+        }
+
+        function renderManufacturers(manufacturers) {
+            const tbody = document.getElementById('manufacturerTableBody');
+            const editMode = _mfgEditMode;
+            if (!manufacturers || manufacturers.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="empty" style="padding:15px">No MPN/Make found.</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = manufacturers.map(m => {
+                let supsHtml = '';
+                if (m.suppliers && m.suppliers.length > 0) {
+                    supsHtml = m.suppliers.map(s => `<div style="font-size:12px; display:flex; align-items:center; gap:4px; margin-bottom:4px"><span class="material-icons-outlined" style="font-size:14px; color:var(--text-muted)">storefront</span> <a href="/supplier/detail/${s.supplier_id}" style="color:var(--primary); text-decoration:none" target="_blank">${esc(s.supplier_name)}</a></div>`).join('');
+                } else {
+                    supsHtml = `<span style="color:var(--text-muted); font-size:12px">None mapped</span>`;
+                }
+                
+                return `<tr>
+                <td style="padding:10px 18px; vertical-align:top"><strong>${esc(m.mpn || '—')}</strong></td>
+                <td style="padding:10px 18px; vertical-align:top">${esc(m.make || '—')}</td>
+                <td style="padding:10px 18px; vertical-align:top">
+                    ${supsHtml}
+                    <div style="margin-top:6px">
+                        <button class="btn-outline btn-sm" style="padding:2px 6px; font-size:11px" onclick="openMapSupplierModal('${esc(m.mpn || '')}', '${esc(m.make || '')}')">
+                            <span class="material-icons-outlined" style="font-size:12px">add_link</span> Map Supplier
+                        </button>
+                    </div>
+                </td>
+                <td class="mfg-edit-col" style="display:${editMode ? '' : 'none'}; text-align:right; padding:10px 18px; vertical-align:top">
+                    <button class="btn-obs" onclick="deleteManufacturer('${m.id}')" title="Delete"><span class="material-icons-outlined">delete</span></button>
+                </td>
+            </tr>`;
+            }).join('');
+        }
+
+        function openAddManufacturerModal() {
+            document.getElementById('amlMpn').value = '';
+            document.getElementById('amlMake').value = '';
+            partOpenModal('addManufacturerModal');
+        }
+
+        
+        function openMapSupplierModal(mpn, make) {
+            document.getElementById('mapSupMpn').value = mpn;
+            document.getElementById('mapSupMake').value = make;
+            document.getElementById('mapSupMpnDisplay').textContent = mpn || 'N/A';
+            document.getElementById('mapSupMakeDisplay').textContent = make || 'N/A';
+            
+            document.getElementById('mapSupSearch').value = '';
+            document.getElementById('mapSupId').value = '';
+            document.getElementById('mapSupSampleQty').value = '0';
+            document.getElementById('mapSupSamplePrice').value = '0';
+            document.getElementById('mapSupSPQ').value = '0';
+            document.getElementById('mapSupSPQPrice').value = '0';
+            document.getElementById('mapSupMOQ').value = '0';
+            document.getElementById('mapSupMOQPrice').value = '0';
+            document.getElementById('mapSupNotes').value = '';
+            
+            partOpenModal('mapSupplierModal');
+        }
+        
+        let mapSupSearchTimeout = null;
+        async function onMapSupSearch(q) {
+            const dropdown = document.getElementById('mapSupDropdown');
+            if (q.length < 2) {
+                dropdown.style.display = 'none';
+                return;
+            }
+            if (mapSupSearchTimeout) clearTimeout(mapSupSearchTimeout);
+            mapSupSearchTimeout = setTimeout(async () => {
+                try {
+                    const res = await fetch(`/api/v1/suppliers/search?q=${encodeURIComponent(q)}`, {headers: getHeaders()});
+                    const data = await res.json();
+                    if (!data.success || data.data.length === 0) {
+                        dropdown.innerHTML = '<div style="padding:10px;color:var(--text-muted)">No suppliers found</div>';
+                    } else {
+                        dropdown.innerHTML = data.data.map(s => `
+                            <div style="padding:10px; cursor:pointer; border-bottom:1px solid #eee" onclick="selectMapSupplier('${s.id}', '${esc(s.name.replace(/'/g,"\'"))}')">
+                                <strong>${esc(s.name)}</strong>
+                            </div>
+                        `).join('');
+                    }
+                    dropdown.style.display = 'block';
+                } catch(e) {
+                    console.error('Error searching suppliers:', e);
+                }
+            }, 300);
+        }
+        
+        function selectMapSupplier(id, name) {
+            document.getElementById('mapSupId').value = id;
+            document.getElementById('mapSupSearch').value = name;
+            document.getElementById('mapSupDropdown').style.display = 'none';
+        }
+        
+        async function saveMappedSupplier(e) {
+            e.preventDefault();
+            const sid = document.getElementById('mapSupId').value;
+            if (!sid) {
+                showToast('Please select a valid supplier from the search dropdown', 'error');
+                return;
+            }
+            const btn = document.getElementById('btnSaveMappedSupplier');
+            btn.disabled = true;
+            btn.textContent = 'Saving...';
+            
+            const payload = {
+                item_type: 'part',
+                part_code: PART_NUMBER,
+                mpn: document.getElementById('mapSupMpn').value,
+                make: document.getElementById('mapSupMake').value,
+                sample_qty: parseFloat(document.getElementById('mapSupSampleQty').value) || 0,
+                sample_price: parseFloat(document.getElementById('mapSupSamplePrice').value) || 0,
+                spq: parseFloat(document.getElementById('mapSupSPQ').value) || 0,
+                spq_price: parseFloat(document.getElementById('mapSupSPQPrice').value) || 0,
+                moq: parseFloat(document.getElementById('mapSupMOQ').value) || 0,
+                moq_price: parseFloat(document.getElementById('mapSupMOQPrice').value) || 0,
+                notes: document.getElementById('mapSupNotes').value
+            };
+            
+            try {
+                const res = await fetch(`/api/v1/suppliers/suppliers/${sid}/items`, {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('Supplier mapped successfully');
+                    partCloseModal('mapSupplierModal');
+                    loadPartDetail(); // Reload to show the new supplier in the table
+                } else {
+                    showToast(data.message || 'Error mapping supplier', 'error');
+                }
+            } catch(err) {
+                console.error(err);
+                showToast('Network error', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Map Supplier';
+            }
+        }
+
+        async function saveManufacturer(e) {
+            e.preventDefault();
+            const mpn = document.getElementById('amlMpn').value.trim();
+            const make = document.getElementById('amlMake').value.trim();
+            
+            if (!mpn && !make) {
+                showToast('At least one of MPN or Make is required', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('btnSaveManufacturer');
+            btn.disabled = true;
+            btn.textContent = 'Saving...';
+            
+            try {
+                const res = await fetch(`${API}/manufacturers`, {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify({ part_number: PART_NUMBER, mpn, make })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('Manufacturer added', 'success');
+                    partCloseModal('addManufacturerModal');
+                    loadPartDetail(); // Reload everything
+                } else {
+                    showToast(data.message || 'Failed to add', 'error');
+                }
+            } catch(err) {
+                showToast('Network error', 'error');
+            }
+            btn.disabled = false;
+            btn.textContent = 'Add';
+        }
+
+        async function deleteManufacturer(id) {
+            if (!confirm('Are you sure you want to remove this manufacturer?')) return;
+            try {
+                const res = await fetch(`${API}/manufacturers/${id}`, {
+                    method: 'DELETE',
+                    headers: getHeaders()
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('Manufacturer deleted', 'success');
+                    loadPartDetail();
+                } else {
+                    showToast(data.message || 'Failed to delete', 'error');
+                }
+            } catch(e) {
+                showToast('Network error', 'error');
+            }
+        }
+
+        function renderInventory(inventory, total) {
+            const tbody = document.getElementById('pdInventoryBody');
+            const badge = document.getElementById('invTotalBadge');
+            if (badge) badge.textContent = 'Total: ' + (total || 0).toLocaleString();
+            if (!inventory || inventory.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="empty">No inventory records found.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = inventory.map(i => `<tr>
+                <td style="font-size:12px;color:var(--text-muted)">${esc(i.location_code || '—')}</td>
+                <td>${esc(i.plant || '—')}</td>
+                <td>${esc(i.floor || '—')}</td>
+                <td>${esc(i.shelf || '—')}</td>
+                <td><strong style="font-family:monospace;color:#00796B">${esc(i.bin_code)}</strong></td>
+                <td>${esc(i.manufacturer || '—')}</td>
+                <td style="text-align:right"><strong>${i.qty.toLocaleString()}</strong></td>
+            </tr>`).join('');
+        }
+
+        function renderRmMappings(rm_mappings) {
+            const tbody = document.getElementById('pdRmMappingsBody');
+            if (!rm_mappings || rm_mappings.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="empty">No RM mappings found.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = rm_mappings.map(r => `<tr>
+                <td><strong style="font-family:monospace;color:#e65100">${esc(r.rm_code)}</strong></td>
+                <td>${esc(r.rm_description || '—')}</td>
+                <td>${r.quantity_required != null ? r.quantity_required : '—'}</td>
+                <td>${esc(r.unit) || '—'}</td>
+                <td>${r.wastage_percent != null ? r.wastage_percent + '%' : '—'}</td>
+                <td><strong>${r.effective_quantity != null ? r.effective_quantity.toFixed(2) : '—'}</strong></td>
+                <td>${esc(r.process_notes) || '—'}</td>
+                <td>${formatDate(r.created_at)}</td>
+            </tr>`).join('');
+        }
+
+        let myEntityPerms = {};
+
+        async function loadPermissions() {
+            // No fine-grained entity perms in use — edit buttons always visible
+        }
+
+        async function confirmDeletePart() {
+            const pwd = prompt('Enter your password to permanently delete part ' + PART_NUMBER + ':');
+            if (!pwd) return;
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            try {
+                const vRes = await fetch('/api/v1/auth/verify-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('access_token') || '') },
+                    body: JSON.stringify({ email: user.email || '', password: pwd })
+                });
+                const vd = await vRes.json();
+                if (!vd.success) { showToast(vd.message || 'Incorrect password', 'error'); return; }
+            } catch { showToast('Failed to verify password', 'error'); return; }
+            try {
+                const subcategoryId = _partData?.part?.subcategory_id;
+                if (!subcategoryId) { showToast('Cannot determine subcategory', 'error'); return; }
+                const res = await fetch(`${API}/delete-part`, {
+                    method: 'POST', headers: getHeaders(),
+                    body: JSON.stringify({ part_number: PART_NUMBER, subcategory_id: subcategoryId })
+                });
+                const d = await res.json();
+                if (d.success) { showToast('Part deleted'); setTimeout(() => window.location = '/part/allparts', 1200); }
+                else showToast(d.message || 'Delete failed', 'error');
+            } catch { showToast('Network error', 'error'); }
+        }
+
+        async function loadPartDetail() {
+            const headers = getHeaders();
+            try {
+                const res = await fetch(`${API}/part-detail/${encodeURIComponent(PART_NUMBER)}`, { headers });
+                const data = await res.json();
+                document.getElementById('pdLoading').style.display = 'none';
+                if (!data.success) {
+                    document.getElementById('pdError').style.display = 'flex';
+                    return;
+                }
+                document.getElementById('pdContent').style.display = 'block';
+                renderDetails(data.data);
+                renderPOs(data.data.purchase_orders);
+                renderCustomerPOs(data.data.customer_purchase_orders);
+                renderMappings(data.data.mappings);
+                renderRmMappings(data.data.rm_mappings);
+                renderManufacturers(data.data.manufacturers);
+                renderInventory(data.data.inventory, data.data.total_inventory_qty);
+                await loadPermissions();
+            } catch (e) {
+                document.getElementById('pdLoading').style.display = 'none';
+                document.getElementById('pdError').style.display = 'flex';
+            }
+        }
+
+        loadPartDetail();
+
+        function partOpenModal(id) {
+            const el = document.getElementById(id);
+            if (el) el.classList.add('active');
+        }
+        function partCloseModal(id) {
+            const el = document.getElementById(id);
+            if (el) el.classList.remove('active');
+        }
+
+        let loadedHistoryLogs = [];
+        
+        async function showPartDetailHistory() {
+            document.getElementById('historyModalSearch').value = '';
+            const tbody = document.getElementById('historyModalTableBody');
+            tbody.innerHTML = '<tr><td colspan="5" class="empty">Loading...</td></tr>';
+            partOpenModal('historyModal');
+            try {
+                const res = await fetch(API + `/audit-logs?limit=250&entity_id=${encodeURIComponent(PART_NUMBER)}`, { headers: getHeaders() });
+                const data = await res.json();
+                if (!data.success || !data.data || !data.data.items) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="empty">No history logs</td></tr>';
+                    return;
+                }
+                loadedHistoryLogs = data.data.items;
+                renderHistoryModalTable(loadedHistoryLogs);
+            } catch (e) {
+                tbody.innerHTML = '<tr><td colspan="5" class="empty">Error loading history</td></tr>';
+            }
+        }
+
+        function renderHistoryModalTable(logs) {
+            const tbody = document.getElementById('historyModalTableBody');
+            if (logs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="empty">No history matches found.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = logs.map(l => {
+                let changes = '';
+                if (l.action === 'update' && l.old_values && l.new_values) {
+                    changes = Object.keys(l.new_values).map(k => {
+                        const oldVal = typeof l.old_values[k] === 'object' ? JSON.stringify(l.old_values[k]) : l.old_values[k];
+                        const newVal = typeof l.new_values[k] === 'object' ? JSON.stringify(l.new_values[k]) : l.new_values[k];
+                        return `<div class="log-change-row"><code>${esc(k)}</code>: <span class="log-old">${esc(oldVal || 'None')}</span> → <span class="log-new">${esc(newVal || 'None')}</span></div>`;
+                    }).join('');
+                } else if (l.action === 'create' && l.new_values) {
+                    changes = `<div style="color:green;font-weight:600">Created with initial values:</div>` + Object.entries(l.new_values).map(([k, v]) => `<div><code>${esc(k)}</code>: ${esc(typeof v === 'object' ? JSON.stringify(v) : v)}</div>`).join('');
+                } else if (l.extra_data && l.extra_data.message) {
+                    changes = `<div class="log-msg-detail">${esc(l.extra_data.message)}</div>`;
+                } else if (l.extra_data && l.extra_data.details) {
+                    changes = `<div class="log-msg-detail">${esc(l.extra_data.details)}</div>`;
+                } else {
+                    changes = `<span style="color:var(--text-muted)">No detail log</span>`;
+                }
+                return `<tr>
+                    <td><span class="action-tag action-${l.action}">${esc(l.action.toUpperCase())}</span></td>
+                    <td><strong>${esc(l.entity_id)}</strong><div style="font-size:11px;color:var(--text-muted)">${esc(l.entity_type)}</div></td>
+                    <td><div class="log-changes-cell">${changes}</div></td>
+                    <td><strong>${esc(l.user_name || 'System')}</strong><div style="font-size:11px;color:var(--text-muted)">${esc(l.user_email || '—')}</div></td>
+                    <td>${formatDateTime(l.created_at)}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        function filterHistoryModalTable() {
+            const q = document.getElementById('historyModalSearch').value.toLowerCase().trim();
+            if (!q) {
+                renderHistoryModalTable(loadedHistoryLogs);
+                return;
+            }
+            const filtered = loadedHistoryLogs.filter(l => {
+                const actionMatch = (l.action || '').toLowerCase().includes(q);
+                const emailMatch = (l.user_email || '').toLowerCase().includes(q);
+                const nameMatch = (l.user_name || '').toLowerCase().includes(q);
+                const idMatch = (l.entity_id || '').toLowerCase().includes(q);
+                const changesMatch = JSON.stringify(l.new_values || {}).toLowerCase().includes(q) || JSON.stringify(l.old_values || {}).toLowerCase().includes(q) || JSON.stringify(l.extra_data || {}).toLowerCase().includes(q);
+                return actionMatch || emailMatch || nameMatch || idMatch || changesMatch;
+            });
+            renderHistoryModalTable(filtered);
+        }
+    </script>
+
+    <!-- ADD MANUFACTURER MODAL -->
+<div class="modal-overlay" id="addManufacturerModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3><span class="material-icons-outlined">precision_manufacturing</span> Add Manufacturer</h3>
+            <button class="close-btn" onclick="partCloseModal('addManufacturerModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <form id="addManufacturerForm" onsubmit="saveManufacturer(event)">
+                <div class="form-group">
+                    <label>MPN (Manufacturer Part Number)</label>
+                    <input type="text" id="amlMpn" placeholder="Enter MPN">
+                </div>
+                <div class="form-group">
+                    <label>Make (Manufacturer Name)</label>
+                    <input type="text" id="amlMake" placeholder="Enter Make">
+                </div>
+                <div style="font-size:12px; color:var(--text-muted); margin-bottom:15px">At least one of MPN or Make is required.</div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="partCloseModal('addManufacturerModal')">Cancel</button>
+                    <button type="submit" class="btn-primary" id="btnSaveManufacturer">Add</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MAP SUPPLIER MODAL -->
+<div class="modal-overlay" id="mapSupplierModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3><span class="material-icons-outlined">add_link</span> Map Supplier to MPN/Make</h3>
+            <button class="close-btn" onclick="partCloseModal('mapSupplierModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <form id="mapSupplierForm" onsubmit="saveMappedSupplier(event)">
+                <input type="hidden" id="mapSupMpn">
+                <input type="hidden" id="mapSupMake">
+                
+                <div style="background:var(--bg-secondary); padding:10px; border-radius:6px; margin-bottom:15px; font-size:13px">
+                    Mapping to: <strong>MPN: <span id="mapSupMpnDisplay"></span></strong> | <strong>Make: <span id="mapSupMakeDisplay"></span></strong>
+                </div>
+                
+                <div class="form-group" style="position:relative">
+                    <label style="display:flex; justify-content:space-between; align-items:center;">
+                        <span>Search Supplier <span style="color:red">*</span></span>
+                        <a href="/supplier" target="_blank" style="font-size:12px; display:flex; align-items:center; gap:4px; text-decoration:none; color:var(--primary)">
+                            <span class="material-icons-outlined" style="font-size:14px">add_circle_outline</span> Add Supplier
+                        </a>
+                    </label>
+                    <input type="text" id="mapSupSearch" placeholder="Type supplier name..." autocomplete="off" oninput="onMapSupSearch(this.value)" required>
+                    <input type="hidden" id="mapSupId">
+                    <div id="mapSupDropdown" class="item-search-dropdown" style="display:none; max-height:200px; overflow-y:auto; border:1px solid var(--border-color); background:#fff; position:absolute; width:100%; z-index:100; box-shadow:0 4px 6px rgba(0,0,0,0.1)"></div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Sample Qty</label>
+                        <input type="number" id="mapSupSampleQty" min="0" step="0.001" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Sample Price (Total)</label>
+                        <input type="number" id="mapSupSamplePrice" min="0" step="0.01" value="0">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>SPQ</label>
+                        <input type="number" id="mapSupSPQ" min="0" step="0.001" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>SPQ Price (Total)</label>
+                        <input type="number" id="mapSupSPQPrice" min="0" step="0.01" value="0">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>MOQ</label>
+                        <input type="number" id="mapSupMOQ" min="0" step="0.001" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>MOQ Price (Total)</label>
+                        <input type="number" id="mapSupMOQPrice" min="0" step="0.01" value="0">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea id="mapSupNotes" rows="2"></textarea>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="partCloseModal('mapSupplierModal')">Cancel</button>
+                    <button type="submit" class="btn-primary" id="btnSaveMappedSupplier">Map Supplier</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- HISTORY MODAL -->
+    <div class="modal-overlay" id="historyModal">
+        <div class="modal" style="width: 1300px; max-width: 95vw; max-height: 90vh; border-radius: 12px; padding: 24px; display: flex; flex-direction: column; background: var(--bg-primary); color: var(--text-primary); position: relative; box-shadow: var(--shadow-lg);">
+            <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:16px; margin-bottom:16px;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <h3 id="historyModalTitle" style="margin:0; font-size:18px; color:var(--text-primary)">Part History</h3>
+                    <div class="search-box" style="height:32px; width:300px; margin:0; display:flex; align-items:center; border:1px solid var(--border-color); border-radius:6px; padding:0 8px;">
+                        <span class="material-icons-outlined" style="font-size:16px; margin-right:6px">search</span>
+                        <input type="text" id="historyModalSearch" placeholder="Search history..." oninput="filterHistoryModalTable()" style="border:none; outline:none; width:100%; font-size:12px; background:transparent; color:var(--text-primary)">
+                    </div>
+                </div>
+                <button class="close-btn" onclick="partCloseModal('historyModal')" style="background:none; border:none; color:var(--text-primary); cursor:pointer"><span class="material-icons-outlined">close</span></button>
+            </div>
+            <div class="table-container" style="flex:1; overflow-y:auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Action</th>
+                            <th>Entity ID</th>
+                            <th>Detail Changes</th>
+                            <th>Performed By</th>
+                            <th>Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyModalTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .log-change-row {
+            margin: 2px 0;
+            font-size: 12px;
+        }
+        .log-old {
+            color: #d32f2f;
+            text-decoration: line-through;
+            background: #ffebee;
+            padding: 1px 4px;
+            border-radius: 4px;
+        }
+        .log-new {
+            color: #388e3c;
+            background: #e8f5e9;
+            padding: 1px 4px;
+            border-radius: 4px;
+        }
+        .action-tag {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .action-create { background: #e8f5e9; color: #2e7d32; }
+        .action-update { background: #e3f2fd; color: #1565c0; }
+        .action-delete { background: #ffebee; color: #c62828; }
+    </style>
 </body>
+
 </html>

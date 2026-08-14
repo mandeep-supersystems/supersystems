@@ -11,6 +11,19 @@ rawmaterial_bp = Blueprint("rawmaterial", __name__)
 @rawmaterial_bp.route("/overview", methods=["GET"])
 def rm_overview():
     tenant_id = request.headers.get("X-Tenant-ID", "")
+    period = request.args.get("period", "all")
+
+    # Time filter for audit logs
+    time_filter = ""
+    if period == "day":
+        time_filter = "AND created_at >= NOW() - INTERVAL '1 day'"
+    elif period == "week":
+        time_filter = "AND created_at >= NOW() - INTERVAL '7 days'"
+    elif period == "month":
+        time_filter = "AND created_at >= NOW() - INTERVAL '30 days'"
+    elif period == "year":
+        time_filter = "AND created_at >= NOW() - INTERVAL '365 days'"
+
     criteria_count = db.session.execute(db.text(
         "SELECT COUNT(*) FROM rawmaterial.rm_criteria WHERE tenant_id = :tid AND is_deleted = false"
     ), {"tid": tenant_id}).scalar() or 0
@@ -27,20 +40,37 @@ def rm_overview():
         "SELECT COUNT(*) FROM rawmaterial.rm_master WHERE tenant_id = :tid AND is_deleted = false AND is_active = true"
     ), {"tid": tenant_id}).scalar() or 0
 
+    # Category breakdown
+    cat_rows = db.session.execute(db.text(
+        "SELECT material_category, COUNT(*) FROM rawmaterial.rm_master "
+        "WHERE tenant_id = :tid AND is_deleted = false GROUP BY material_category"
+    ), {"tid": tenant_id}).fetchall()
+    category_breakdown = [{"category": r[0] if r[0] else 'Uncategorized', "count": r[1]} for r in cat_rows]
+    category_breakdown = sorted(category_breakdown, key=lambda x: x["count"], reverse=True)
+
+    # Recent audit logs with time filter
     recent_logs = db.session.execute(db.text(
-        "SELECT action, entity_type, entity_id, created_at FROM audit.logs "
-        "WHERE module = 'Raw Material Management' AND tenant_id = :tid ORDER BY created_at DESC LIMIT 10"
+        f"SELECT action, entity_type, entity_id, created_at FROM audit.logs "
+        f"WHERE module = 'Raw Material Management' AND tenant_id = :tid {time_filter} ORDER BY created_at DESC LIMIT 20"
     ), {"tid": tenant_id})
     recent_activity = [{"action": r[0], "entity_type": r[1], "entity_id": r[2],
                         "created_at": str(r[3]) if r[3] else None} for r in recent_logs]
 
+    # Action breakdown
+    action_rows = db.session.execute(db.text(
+        f"SELECT action, COUNT(*) FROM audit.logs "
+        f"WHERE module = 'Raw Material Management' AND tenant_id = :tid {time_filter} GROUP BY action"
+    ), {"tid": tenant_id}).fetchall()
+    action_breakdown = {r[0]: r[1] for r in action_rows}
+
     return {"success": True, "data": {
         "criteria": criteria_count, "raw_materials": rm_count,
         "active_rm": active_rm, "mappings": mapping_count,
-        "vendors": vendor_count, "recent_activity": recent_activity
+        "vendors": vendor_count, 
+        "category_breakdown": category_breakdown,
+        "action_breakdown": action_breakdown,
+        "recent_activity": recent_activity
     }}
-
-
 # ─── RM CODE CRITERIA ───
 
 @rawmaterial_bp.route("/criteria", methods=["GET"])
@@ -425,6 +455,136 @@ def get_my_access():
         sections = ['overview', 'master', 'vendors']
     return {"success": True, "data": {"role": role, "sections": sections}}
 
+# ─── MODULE USER MANAGEMENT ───
+
+@rawmaterial_bp.route("/users", methods=["GET"])
+def list_module_users():
+    """List users with access to Raw Material Management module."""
+    tenant_id = request.headers.get("X-Tenant-ID", "")
+    if not tenant_id or tenant_id == 'TEST':
+        tenant_id = 'b424df0e-f766-4e94-b3fd-05777e158958'
+    rows = db.session.execute(db.text(
+        "SELECT ma.id, ma.user_id, ma.role, ma.permissions, ma.is_active, ma.created_at, "
+        "u.email, u.first_name, u.last_name "
+        "FROM iam.module_access ma JOIN iam.users u ON ma.user_id = u.id "
+        "WHERE ma.module = 'Raw Material Management' "
+        "AND (ma.tenant_id = :tid OR ma.tenant_id = 'b424df0e-f766-4e94-b3fd-05777e158958' OR ma.tenant_id = 'TEST' OR ma.tenant_id = '' OR ma.tenant_id IS NULL) "
+        "ORDER BY ma.created_at DESC"
+    ), {"tid": tenant_id})
+    items = [{
+        "id": r[0], "user_id": r[1], "role": r[2], "permissions": r[3] or [],
+        "is_active": r[4], "created_at": str(r[5]) if r[5] else None,
+        "email": r[6], "first_name": r[7] or '', "last_name": r[8] or ''
+    } for r in rows]
+    return {"success": True, "data": items}
+
+
+@rawmaterial_bp.route("/users", methods=["POST"])
+def add_module_user():
+    """Grant a user access to Raw Material Management module."""
+    import uuid
+    data = request.get_json()
+    tenant_id = request.headers.get("X-Tenant-ID", "")
+    if not tenant_id or tenant_id == 'TEST':
+        tenant_id = 'b424df0e-f766-4e94-b3fd-05777e158958'
+    user_id = data.get("user_id")
+    role = data.get("role", "viewer")
+    permissions = data.get("permissions", [])
+
+    if not user_id:
+        return {"success": False, "message": "user_id required"}, 400
+
+    user = db.session.execute(db.text(
+        "SELECT id, email FROM iam.users WHERE id = :id AND is_deleted = false"
+    ), {"id": user_id}).first()
+    if not user:
+        return {"success": False, "message": "User not found"}, 404
+
+    existing = db.session.execute(db.text(
+        "SELECT id FROM iam.module_access WHERE user_id = :uid AND module = 'Raw Material Management'"
+    ), {"uid": user_id}).first()
+    if existing:
+        return {"success": False, "message": "User already has access to this module"}, 409
+
+    access_id = str(uuid.uuid4())
+    db.session.execute(db.text(
+        "INSERT INTO iam.module_access (id, user_id, module, role, permissions, granted_by, tenant_id) "
+        "VALUES (:id, :uid, 'Raw Material Management', :role, :perms, :granted_by, :tid)"
+    ), {
+        "id": access_id,
+        "uid": user_id, "role": role,
+        "perms": json.dumps(permissions),
+        "granted_by": request.headers.get('X-User-Email', ''),
+        "tid": tenant_id
+    })
+    db.session.commit()
+    _log_audit('GRANT_ACCESS', 'Module User', user[1], details=f"Granted {role} role to {user[1]}", new_values={"email": user[1], "role": role, "permissions": permissions})
+    return {"success": True, "message": f"Access granted to {user[1]}"}, 201
+
+
+@rawmaterial_bp.route("/users/<access_id>", methods=["PUT"])
+def update_module_user(access_id):
+    """Update user's role/permissions in Raw Material Management."""
+    data = request.get_json()
+    updates = []
+    params = {"id": access_id}
+    if "role" in data:
+        updates.append("role=:role")
+        params["role"] = data["role"]
+    if "permissions" in data:
+        updates.append("permissions=:permissions")
+        params["permissions"] = json.dumps(data["permissions"])
+    if "is_active" in data:
+        updates.append("is_active=:is_active")
+        params["is_active"] = data["is_active"]
+    if not updates:
+        return {"success": False, "message": "Nothing to update"}, 400
+    updates.append("updated_at=NOW()")
+    old_acc = db.session.execute(db.text("SELECT u.email, ma.role, ma.permissions, ma.is_active FROM iam.module_access ma JOIN iam.users u ON ma.user_id = u.id WHERE ma.id=:id"), {"id": access_id}).first()
+    old_values = {"email": old_acc[0], "role": old_acc[1], "permissions": json.loads(old_acc[2]) if isinstance(old_acc[2], str) else old_acc[2], "is_active": old_acc[3]} if old_acc else {}
+    
+    db.session.execute(db.text(
+        f"UPDATE iam.module_access SET {', '.join(updates)} WHERE id=:id"
+    ), params)
+    
+    new_values = {
+        "email": old_values.get("email"),
+        "role": data.get("role", old_values.get("role")),
+        "permissions": data.get("permissions", old_values.get("permissions")),
+        "is_active": data.get("is_active", old_values.get("is_active"))
+    }
+    
+    _log_audit('UPDATE_ACCESS', 'Module User', old_values.get("email", access_id), details=f"Updated access for {old_values.get('email')}", old_values=old_values, new_values=new_values)
+    db.session.commit()
+    return {"success": True, "message": "Access updated"}
+
+
+@rawmaterial_bp.route("/users/<access_id>", methods=["DELETE"])
+def revoke_module_user(access_id):
+    """Revoke user's access to Raw Material Management."""
+    row = db.session.execute(db.text(
+        "SELECT u.email FROM iam.module_access ma JOIN iam.users u ON ma.user_id = u.id WHERE ma.id = :id"
+    ), {"id": access_id}).first()
+    db.session.execute(db.text(
+        "DELETE FROM iam.module_access WHERE id = :id"
+    ), {"id": access_id})
+    _log_audit('REVOKE_ACCESS', 'Module User', row[0] if row else access_id, details=f"Revoked access for {row[0] if row else access_id}")
+    db.session.commit()
+    return {"success": True, "message": "Access revoked"}
+
+
+@rawmaterial_bp.route("/users/available", methods=["GET"])
+def list_available_users():
+    """List org users who don't yet have RM Management access."""
+    tenant_id = request.headers.get("X-Tenant-ID", "")
+    rows = db.session.execute(db.text(
+        "SELECT u.id, u.email, u.first_name, u.last_name FROM iam.users u "
+        "LEFT JOIN iam.module_access ma ON u.id = ma.user_id AND ma.module = 'Raw Material Management' "
+        "WHERE u.is_deleted = false AND ma.id IS NULL AND u.tenant_id = :tid "
+        "ORDER BY u.email"
+    ), {"tid": tenant_id})
+    items = [{"id": r[0], "email": r[1], "first_name": r[2] or '', "last_name": r[3] or ''} for r in rows]
+    return {"success": True, "data": items}
 
 # ─── AUDIT HELPER ───
 

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SUPERSYSTEMS</title>
+    <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg">
     <link rel="stylesheet" href="/static/css/header.css">
     <link rel="stylesheet" href="/static/css/dashboard.css">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
@@ -81,7 +82,7 @@
 </div>
 <div class="overlay" id="overlay" onclick="toggleServices()"></div>
 
-<!-- MAIN CONTENT -->
+<!-- MAIN CONTENT — Power BI Executive Dashboard -->
 <main class="main-content">
     <div class="dash-layout">
 
@@ -103,6 +104,7 @@
             <div class="welcome-text">
                 <h2>Welcome back, <span id="dashUserName">User</span></h2>
                 <p id="dashUserRole">Organization User</p>
+                <div class="welcome-date" id="dashDate"></div>
             </div>
             <div class="period-filter">
                 <button class="period-btn" data-period="day">Today</button>
@@ -113,83 +115,109 @@
             </div>
         </div>
 
-        <!-- Stats Cards -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-icon blue"><span class="material-icons-outlined">login</span></div>
-                <div class="stat-info">
-                    <span class="stat-value" id="statLogins">0</span>
-                    <span class="stat-label">Total Logins</span>
+        <!-- KPI Summary Cards -->
+        <div class="kpi-grid" id="kpiGrid">
+            <div class="kpi-card">
+                <div class="kpi-header">
+                    <div class="kpi-icon blue"><span class="material-icons-outlined">bolt</span></div>
+                    <div class="kpi-trend neutral"><span class="material-icons-outlined" style="font-size:13px">remove</span> --</div>
+                </div>
+                <div class="kpi-value" id="kpiTotalActions" data-target="0">0</div>
+                <div class="kpi-label">Total Actions</div>
+                <div class="kpi-sparkline" id="sparkActions"></div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-header">
+                    <div class="kpi-icon green"><span class="material-icons-outlined">add_circle</span></div>
+                    <div class="kpi-trend neutral"><span class="material-icons-outlined" style="font-size:13px">remove</span> --</div>
+                </div>
+                <div class="kpi-value" id="kpiCreated" data-target="0">0</div>
+                <div class="kpi-label">Created</div>
+                <div class="kpi-sparkline" id="sparkCreated"></div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-header">
+                    <div class="kpi-icon orange"><span class="material-icons-outlined">edit</span></div>
+                    <div class="kpi-trend neutral"><span class="material-icons-outlined" style="font-size:13px">remove</span> --</div>
+                </div>
+                <div class="kpi-value" id="kpiUpdated" data-target="0">0</div>
+                <div class="kpi-label">Updated</div>
+                <div class="kpi-sparkline" id="sparkUpdated"></div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-header">
+                    <div class="kpi-icon red"><span class="material-icons-outlined">delete</span></div>
+                    <div class="kpi-trend neutral"><span class="material-icons-outlined" style="font-size:13px">remove</span> --</div>
+                </div>
+                <div class="kpi-value" id="kpiDeleted" data-target="0">0</div>
+                <div class="kpi-label">Deleted</div>
+                <div class="kpi-sparkline" id="sparkDeleted"></div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-header">
+                    <div class="kpi-icon purple"><span class="material-icons-outlined">login</span></div>
+                    <div class="kpi-trend neutral"><span class="material-icons-outlined" style="font-size:13px">remove</span> --</div>
+                </div>
+                <div class="kpi-value" id="kpiLogins" data-target="0">0</div>
+                <div class="kpi-label">Total Logins</div>
+                <div class="kpi-sparkline" id="sparkLogins"></div>
+            </div>
+        </div>
+
+        <!-- Charts Row: Donut + Horizontal Bars -->
+        <div class="charts-row">
+            <div class="chart-card">
+                <div class="chart-card-header">
+                    <h3><span class="material-icons-outlined">donut_large</span> Activity Distribution</h3>
+                </div>
+                <div class="chart-card-body">
+                    <div class="donut-container" id="donutContainer">
+                        <div class="donut-chart" id="donutChart">
+                            <div class="donut-hole">
+                                <div class="donut-hole-value" id="donutTotal">0</div>
+                                <div class="donut-hole-label">Total</div>
+                            </div>
+                        </div>
+                        <div class="donut-legend" id="donutLegend"></div>
+                    </div>
                 </div>
             </div>
-            <div class="stat-card">
-                <div class="stat-icon green"><span class="material-icons-outlined">task_alt</span></div>
-                <div class="stat-info">
-                    <span class="stat-value" id="statActions">0</span>
-                    <span class="stat-label">Total Actions</span>
+
+            <div class="chart-card">
+                <div class="chart-card-header">
+                    <h3><span class="material-icons-outlined">bar_chart</span> Module Activity Breakdown</h3>
                 </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon orange"><span class="material-icons-outlined">edit_note</span></div>
-                <div class="stat-info">
-                    <span class="stat-value" id="statCreates">0</span>
-                    <span class="stat-label">Created</span>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon purple"><span class="material-icons-outlined">update</span></div>
-                <div class="stat-info">
-                    <span class="stat-value" id="statUpdates">0</span>
-                    <span class="stat-label">Updated</span>
+                <div class="chart-card-body">
+                    <div class="hbar-list" id="hbarList">
+                        <div class="empty-state">Loading...</div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Two Column Layout -->
-        <div class="dash-grid">
-            <!-- Recent Logins -->
-            <div class="dash-card">
-                <div class="dash-card-header">
-                    <h3><span class="material-icons-outlined">history</span> Recent Logins</h3>
-                </div>
-                <div class="dash-card-body" id="recentLoginsBody">
-                    <div class="empty-state">Loading...</div>
-                </div>
-            </div>
+        <!-- Module Coverage Grid -->
+        <div class="module-section-title">
+            <span class="material-icons-outlined">grid_view</span>
+            Module Coverage
+        </div>
+        <div class="module-grid" id="moduleGrid">
+            <!-- Populated by JS -->
+        </div>
 
-            <!-- Module Activity -->
-            <div class="dash-card">
-                <div class="dash-card-header">
-                    <h3><span class="material-icons-outlined">pie_chart</span> Module Activity</h3>
-                </div>
-                <div class="dash-card-body" id="moduleActivityBody">
-                    <div class="empty-state">Loading...</div>
-                </div>
+        <!-- Activity Timeline -->
+        <div class="timeline-card">
+            <div class="timeline-header">
+                <h3><span class="material-icons-outlined">timeline</span> Recent Activity & Audit Trail</h3>
+            </div>
+            <div class="timeline-body" id="timelineBody">
+                <div class="empty-state">Loading...</div>
             </div>
         </div>
 
-        <!-- Audit Trail -->
-        <div class="dash-card full-width">
-            <div class="dash-card-header">
-                <h3><span class="material-icons-outlined">receipt_long</span> Recent Activity & Audit Trail</h3>
-            </div>
-            <div class="dash-card-body">
-                <table class="audit-table" id="auditTable">
-                    <thead>
-                        <tr>
-                            <th>Time</th>
-                            <th>Action</th>
-                            <th>Module</th>
-                            <th>Entity</th>
-                            <th>IP Address</th>
-                        </tr>
-                    </thead>
-                    <tbody id="auditTableBody">
-                        <tr><td colspan="5" class="empty-state">Loading...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
     </div><!-- /.dashboard -->
     </div><!-- /.dash-layout -->
 </main>

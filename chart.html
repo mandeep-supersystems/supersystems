@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SUPERSYSTEMS — Vertical Module Flow Map</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070a14;--bg2:#0d1024;--bg3:#131728;--bg4:#191e30;
+  --border:rgba(255,255,255,0.06);--text:#dde2f0;--muted:#5c6280;
+  --acc:#6c63ff;
+  --c1:#7c3aed;/* Part */
+  --c2:#0ea5e9;/* Planning */
+  --c3:#f59e0b;/* Purchase */
+  --c4:#10b981;/* Warehouse */
+  --c5:#ef4444;/* Quality */
+  --c6:#3b82f6;/* Inventory */
+  --c7:#f97316;/* Manufacturing */
+  --c8:#8b5cf6;/* Project */
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+code{font-family:'JetBrains Mono',monospace;font-size:11px}
+
+/* NAV */
+nav{display:flex;align-items:center;gap:12px;padding:12px 28px;
+  background:rgba(7,10,20,.92);backdrop-filter:blur(18px);
+  border-bottom:1px solid var(--border);position:sticky;top:0;z-index:300}
+.nav-brand{font-size:15px;font-weight:800;color:var(--acc);letter-spacing:.5px;flex:1}
+.badge{font-size:10px;padding:2px 8px;border-radius:14px;font-weight:600;letter-spacing:.4px;text-transform:uppercase}
+.b-live{background:rgba(16,185,129,.12);color:#34d399;border:1px solid rgba(16,185,129,.25)}
+.b-wip {background:rgba(245,158,11,.12);color:#fbbf24;border:1px solid rgba(245,158,11,.25)}
+.b-todo{background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.25)}
+
+/* HERO */
+.hero{text-align:center;padding:44px 20px 24px}
+.hero h1{font-size:clamp(20px,3vw,36px);font-weight:800;
+  background:linear-gradient(135deg,#6c63ff 0%,#22d3ee 50%,#34d399 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1.2}
+.hero p{color:var(--muted);font-size:13px;margin-top:10px}
+
+/* LEGEND */
+.legend{display:flex;flex-wrap:wrap;justify-content:center;gap:16px;padding:0 20px 30px}
+.leg-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.leg-dot{width:10px;height:10px;border-radius:50%}
+
+/* FLOW WRAPPER — two column layout */
+.flow-wrapper{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  padding:0 24px 80px;
+  position:relative;
+}
+
+/* MODULE ROW */
+.mod-row{
+  display:flex;
+  align-items:flex-start;
+  gap:0;
+  width:100%;
+  max-width:1200px;
+  position:relative;
+  margin-bottom:0;
+}
+
+/* MODULE HEADER */
+.mod-header{
+  width:200px;min-width:200px;
+  padding:16px;
+  border-radius:14px 0 0 14px;
+  display:flex;flex-direction:column;justify-content:flex-start;
+  position:sticky;
+}
+.mod-header .micon{font-size:24px;margin-bottom:6px}
+.mod-header h3{font-size:13px;font-weight:800;line-height:1.3}
+.mod-header .mroute{font-size:10px;font-family:'JetBrains Mono';margin-top:4px;opacity:.6}
+.mod-header .mbadge{font-size:9px;margin-top:6px;padding:2px 7px;border-radius:6px;font-weight:700;
+  display:inline-block;letter-spacing:.4px;text-transform:uppercase;width:fit-content}
+
+/* MODULE SUB-GRID */
+.mod-subs{
+  flex:1;
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(190px,1fr));
+  gap:10px;
+  padding:12px 12px 12px 16px;
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-left:none;
+  border-radius:0 14px 14px 0;
+}
+
+/* SUB NODE */
+.sub-node{
+  background:var(--bg3);border:1px solid var(--border);border-radius:10px;
+  padding:12px;position:relative;cursor:default;
+  transition:transform .15s,box-shadow .15s,border-color .2s;
+}
+.sub-node:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.sub-node .sicon{font-size:16px;margin-bottom:6px}
+.sub-node h5{font-size:12px;font-weight:700;margin-bottom:3px;line-height:1.3}
+.sub-node .sdesc{font-size:11px;color:var(--muted);line-height:1.5}
+.sub-node .sroute{font-size:9px;font-family:'JetBrains Mono';margin-top:6px;
+  padding:2px 5px;border-radius:4px;display:inline-block;
+  background:rgba(255,255,255,.04);color:var(--muted);border:1px solid var(--border)}
+.sub-node .sstatus{position:absolute;top:8px;right:8px;font-size:8px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.3px;padding:1px 5px;border-radius:5px}
+.ss-live{background:rgba(16,185,129,.12);color:#34d399;border:1px solid rgba(16,185,129,.2)}
+.ss-wip {background:rgba(245,158,11,.12);color:#fbbf24;border:1px solid rgba(245,158,11,.2)}
+.ss-todo{background:rgba(239,68,68,.1);color:#f87171;border:1px solid rgba(239,68,68,.18)}
+
+/* CONNECTOR BETWEEN MODULES */
+.v-connector{
+  width:100%;max-width:1200px;
+  display:flex;align-items:center;justify-content:center;
+  padding:4px 0;position:relative;
+}
+.v-connector .vcline{
+  position:absolute;left:100px;top:0;bottom:0;width:2px;
+  background:linear-gradient(180deg,transparent,var(--border),transparent);
+}
+.v-connector .vcbadge{
+  background:var(--bg3);border:1px solid var(--border);border-radius:20px;
+  padding:4px 14px;font-size:11px;color:var(--muted);font-weight:500;
+  position:relative;z-index:1;display:flex;align-items:center;gap:6px;
+}
+.v-connector .arrow{font-size:16px;color:var(--acc);animation:bounce 1.8s infinite}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(4px)}}
+
+/* SVG CONNECTOR CANVAS — overlaid */
+#svg-canvas{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+
+/* Work-to-do sidebar column */
+.todo-panel{
+  width:100%;max-width:1200px;margin:40px 0 0;
+}
+.todo-section-title{
+  font-size:18px;font-weight:800;padding:16px 0 12px;
+  background:linear-gradient(90deg,#f87171,#fbbf24);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.todo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.todo-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px;
+  border-left:3px solid transparent}
+.todo-card.priority-high{border-left-color:#f87171}
+.todo-card.priority-med {border-left-color:#fbbf24}
+.todo-card.priority-low {border-left-color:#60a5fa}
+.todo-card h5{font-size:13px;font-weight:700;margin-bottom:4px}
+.todo-card .tmod{font-size:10px;color:var(--muted);margin-bottom:8px;font-weight:500;text-transform:uppercase;letter-spacing:.5px}
+.todo-card ul{list-style:none;margin-top:8px}
+.todo-card ul li{font-size:12px;color:var(--muted);padding:3px 0;display:flex;gap:6px;align-items:flex-start;border-bottom:1px solid var(--border)}
+.todo-card ul li:last-child{border-bottom:none}
+.todo-card ul li::before{content:"○";color:var(--muted);font-size:10px;margin-top:1px;flex-shrink:0}
+.todo-card ul li.done::before{content:"✓";color:#34d399}
+.todo-card ul li.doing::before{content:"◐";color:#fbbf24}
+.prio-tag{font-size:9px;font-weight:700;padding:2px 7px;border-radius:6px;margin-left:auto;
+  text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
+.pt-high{background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.2)}
+.pt-med {background:rgba(245,158,11,.12);color:#fbbf24;border:1px solid rgba(245,158,11,.2)}
+.pt-low {background:rgba(59,130,246,.12);color:#60a5fa;border:1px solid rgba(59,130,246,.2)}
+
+/* Module color themes */
+.m1{background:linear-gradient(135deg,rgba(124,58,237,.3),rgba(124,58,237,.08));border-top:2px solid var(--c1);border-bottom:1px solid rgba(124,58,237,.2);border-left:1px solid rgba(124,58,237,.2)}
+.m2{background:linear-gradient(135deg,rgba(14,165,233,.3),rgba(14,165,233,.08));border-top:2px solid var(--c2);border-bottom:1px solid rgba(14,165,233,.2);border-left:1px solid rgba(14,165,233,.2)}
+.m3{background:linear-gradient(135deg,rgba(245,158,11,.3),rgba(245,158,11,.08));border-top:2px solid var(--c3);border-bottom:1px solid rgba(245,158,11,.2);border-left:1px solid rgba(245,158,11,.2)}
+.m4{background:linear-gradient(135deg,rgba(16,185,129,.3),rgba(16,185,129,.08));border-top:2px solid var(--c4);border-bottom:1px solid rgba(16,185,129,.2);border-left:1px solid rgba(16,185,129,.2)}
+.m5{background:linear-gradient(135deg,rgba(239,68,68,.3),rgba(239,68,68,.08));border-top:2px solid var(--c5);border-bottom:1px solid rgba(239,68,68,.2);border-left:1px solid rgba(239,68,68,.2)}
+.m6{background:linear-gradient(135deg,rgba(59,130,246,.3),rgba(59,130,246,.08));border-top:2px solid var(--c6);border-bottom:1px solid rgba(59,130,246,.2);border-left:1px solid rgba(59,130,246,.2)}
+.m7{background:linear-gradient(135deg,rgba(249,115,22,.3),rgba(249,115,22,.08));border-top:2px solid var(--c7);border-bottom:1px solid rgba(249,115,22,.2);border-left:1px solid rgba(249,115,22,.2)}
+.m8{background:linear-gradient(135deg,rgba(139,92,246,.3),rgba(139,92,246,.08));border-top:2px solid var(--c8);border-bottom:1px solid rgba(139,92,246,.2);border-left:1px solid rgba(139,92,246,.2)}
+
+/* sub hover colors */
+.s1:hover{border-color:var(--c1)}.s2:hover{border-color:var(--c2)}.s3:hover{border-color:var(--c3)}
+.s4:hover{border-color:var(--c4)}.s5:hover{border-color:var(--c5)}.s6:hover{border-color:var(--c6)}
+.s7:hover{border-color:var(--c7)}.s8:hover{border-color:var(--c8)}
+
+/* DATA FIELD LINK BADGE */
+.link-badge{
+  display:inline-flex;align-items:center;gap:4px;font-size:10px;
+  padding:2px 7px;border-radius:6px;font-family:'JetBrains Mono';
+  margin:1px;white-space:nowrap;
+  background:rgba(108,99,255,.1);color:#a78bfa;border:1px solid rgba(108,99,255,.2)
+}
+
+.footer{text-align:center;padding:24px;color:var(--muted);font-size:11px;border-top:1px solid var(--border);margin-top:40px}
+
+/* Scroll animation */
+.mod-row{opacity:0;transform:translateX(-20px);transition:opacity .4s ease,transform .4s ease}
+.mod-row.visible{opacity:1;transform:translateX(0)}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">⚡ SUPERSYSTEMS</div>
+  <span class="badge b-live">● Live</span>
+  <span class="badge b-wip">◐ WIP / In Progress</span>
+  <span class="badge b-todo">○ To-Do / Not Started</span>
+  <span style="font-size:11px;color:var(--muted);margin-left:8px">Vertical Module Flow + Work Map</span>
+</nav>
+
+<div class="hero">
+  <h1>Module Flow Map — Part Code to Stock-In</h1>
+  <p>Each module shown vertically · Sub-modules listed inside · Lines show data connections · Work status mapped below</p>
+</div>
+
+<div class="legend">
+  <div class="leg-item"><div class="leg-dot" style="background:#7c3aed"></div>Part Management</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#0ea5e9"></div>Planning</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#f59e0b"></div>Purchase</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#10b981"></div>Warehouse</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#ef4444"></div>Quality</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#3b82f6"></div>Inventory</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#f97316"></div>Manufacturing</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#8b5cf6"></div>Project Mgmt</div>
+</div>
+
+<div class="flow-wrapper" id="flowWrapper">
+
+  <!-- ══════════ MODULE 1: PART MANAGEMENT ══════════ -->
+  <div class="mod-row" id="mod1">
+    <div class="mod-header m1">
+      <div class="micon">🔩</div>
+      <h3>Part Management</h3>
+      <div class="mroute">/part</div>
+      <div class="mbadge b-live">Live</div>
+    </div>
+    <div class="mod-subs">
+      <div class="sub-node s1" id="s1-partlist">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">🔑</div>
+        <h5>Part Master Table</h5>
+        <div class="sdesc">Primary registry for defining all universal item numbers. Universal <code>part_number</code> key.</div>
+        <div class="sroute">parts_master</div>
+      </div>
+      <div class="sub-node s1" id="s1-categories">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">📁</div>
+        <h5>Categories &amp; Separators</h5>
+        <div class="sdesc">Generates part code serial sequences and prefix boundaries.</div>
+        <div class="sroute">part_categories</div>
+      </div>
+      <div class="sub-node s1" id="s1-subcategories">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">📂</div>
+        <h5>Subcategories Config</h5>
+        <div class="sdesc">Handles custom attributes schemas and sequences.</div>
+        <div class="sroute">part_subcategories</div>
+      </div>
+      <div class="sub-node s1" id="s1-mappings">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">🔗</div>
+        <h5>Customer Part Mapping</h5>
+        <div class="sdesc">Resolves client catalog cross-references back to internal codes.</div>
+        <div class="sroute">part_mappings</div>
+      </div>
+      <div class="sub-node s1" id="s1-obsolete">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">📴</div>
+        <h5>Obsolete Parts Registry</h5>
+        <div class="sdesc">Archive boundaries for outdated or inactive items.</div>
+        <div class="sroute">obsolete_parts</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="v-connector">
+    <div class="vcline"></div>
+    <div class="vcbadge"><span class="arrow">↓</span> <code>part_number</code> → triggers demand planning & purchase</div>
+  </div>
+
+  <!-- ══════════ MODULE 2: PLANNING ══════════ -->
+  <div class="mod-row" id="mod2">
+    <div class="mod-header m2">
+      <div class="micon">📋</div>
+      <h3>Planning</h3>
+      <div class="mroute">/planning</div>
+      <div class="mbadge b-wip">WIP</div>
+    </div>
+    <div class="mod-subs">
+      <div class="sub-node s2" id="s2-demand">
+        <div class="sstatus ss-wip">WIP</div>
+        <div class="sicon">📊</div>
+        <h5>Demand Plans</h5>
+        <div class="sdesc">Create demand for an <code>item_code</code>. Auto-fetches <code>available_stock</code> from <code>inventory_stock_levels</code>. Calculates <code>shortage_qty</code>. Table: <code>planning.demand_plans</code>.</div>
+        <div class="sroute">POST /api/v1/planning/demands</div>
+      </div>
+      <div class="sub-node s2" id="s2-pr">
+        <div class="sstatus ss-wip">WIP</div>
+        <div class="sicon">📝</div>
+        <h5>Purchase Requests (PR)</h5>
+        <div class="sdesc">Planner raises PR from demand. Has <code>pr_no</code>, <code>plan_no</code>, <code>suggested_supplier</code>, <code>estimated_price</code>. Sent to Purchaser. Table: <code>planning.purchase_requests</code>.</div>
+        <div class="sroute">POST /api/v1/planning/purchase-requests</div>
+      </div>
+      <div class="sub-node s2" id="s2-notif">
+        <div class="sstatus ss-wip">WIP</div>
+        <div class="sicon">🔔</div>
+        <h5>Notifications</h5>
+        <div class="sdesc">System sends alerts on demand creation, PR sent, stock shortage. Recipient role-based. Table: <code>planning.notifications</code>.</div>
+        <div class="sroute">GET /api/v1/planning/notifications</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="v-connector">
+    <div class="vcline"></div>
+    <div class="vcbadge"><span class="arrow">↓</span> <code>demand_no</code> + <code>part_or_rm_code</code> → Purchase Requisition</div>
+  </div>
+
+  <!-- ══════════ MODULE 3: PURCHASE MANAGEMENT ══════════ -->
+  <div class="mod-row" id="mod3">
+    <div class="mod-header m3">
+      <div class="micon">🛒</div>
+      <h3>Purchase Management</h3>
+      <div class="mroute">/purchase</div>
+      <div class="mbadge b-live">Live</div>
+    </div>
+    <div class="mod-subs">
+      <div class="sub-node s3" id="s3-overview">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">📊</div>
+        <h5>Overview</h5>
+        <div class="sdesc">KPI dashboard. Tracks demands, net shortage qty, active PO counts, and revisions.</div>
+        <div class="sroute">purchase_overview</div>
+      </div>
+      <div class="sub-node s3" id="s3-supp">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">📋</div>
+        <h5>Supplier SOP &amp; SQP</h5>
+        <div class="sdesc">Approved pricing models, MOQ, and packaging structures per supplier.</div>
+        <div class="sroute">supplier_rules</div>
+      </div>
+      <div class="sub-node s3" id="s3-req">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">📝</div>
+        <h5>Req Orders (Requisitions)</h5>
+        <div class="sdesc">Formal purchase requisitions created and rounded to MOQ/SPQ units.</div>
+        <div class="sroute">requisitions</div>
+      </div>
+      <div class="sub-node s3" id="s3-po">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">📄</div>
+        <h5>Purchase Orders &amp; Lead Time</h5>
+        <div class="sdesc">Generates official purchase orders and manages supplier promised delivery dates.</div>
+        <div class="sroute">orders</div>
+      </div>
+      <div class="sub-node s3" id="s3-demands">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">👤</div>
+        <h5>Customer demands</h5>
+        <div class="sdesc">Stores live incoming product requirements and reserves active stock.</div>
+        <div class="sroute">customer_demands</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="v-connector">
+    <div class="vcline"></div>
+    <div class="vcbadge"><span class="arrow">↓</span> <code>po_no</code> → Warehouse receives physical goods</div>
+  </div>
+
+  <!-- ══════════ MODULE 4: WAREHOUSE ══════════ -->
+  <div class="mod-row" id="mod4">
+    <div class="mod-header m4">
+      <div class="micon">🏭</div>
+      <h3>Warehouse</h3>
+      <div class="mroute">/warehouse</div>
+      <div class="mbadge b-live">Live</div>
+    </div>
+    <div class="mod-subs">
+      <div class="sub-node s4" id="s4-receive">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">📥</div>
+        <h5>Goods Receiving</h5>
+        <div class="sdesc">Physical goods received. GRN created against <code>po_id</code>. Records received qty, discrepancies. Status: <code>pending_iqc</code> → routes to Quality.</div>
+        <div class="sroute">/warehouse/receiving → receiving.html</div>
+      </div>
+      <div class="sub-node s4" id="s4-zones">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">🗺</div>
+        <h5>Zones</h5>
+        <div class="sdesc">Warehouse divided into zones: Receiving, Inspection Hold, Approved Stock, Dispatch. Goods placed in Inspection Hold pending IQC.</div>
+        <div class="sroute">/warehouse/zones → zones.html</div>
+      </div>
+      <div class="sub-node s4" id="s4-bins">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">📦</div>
+        <h5>Bins</h5>
+        <div class="sdesc">Physical bin locations. <code>bin_code</code> assigned to each received batch. Detail view shows current stock + movement history at that bin.</div>
+        <div class="sroute">/warehouse/bin/&lt;code&gt; → bin_detail.html</div>
+      </div>
+      <div class="sub-node s4" id="s4-putaway">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">📍</div>
+        <h5>Put-Away</h5>
+        <div class="sdesc">System/operator assigns bin to each received item. Confirms physical placement. <code>bin_code</code> stored in check-in record.</div>
+        <div class="sroute">/warehouse/putaway → putaway.html</div>
+      </div>
+      <div class="sub-node s4">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">🚚</div>
+        <h5>Shipping & Packing</h5>
+        <div class="sdesc">Outbound: pick lists, packing, shipping notes for FG dispatch to customer.</div>
+        <div class="sroute">/warehouse/shipping, /packing</div>
+      </div>
+      <div class="sub-node s4">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">📋</div>
+        <h5>Pick Lists</h5>
+        <div class="sdesc">Pick tasks for production material issue or dispatch. Linked to production orders and sales orders.</div>
+        <div class="sroute">/warehouse/picklists → picklists.html</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="v-connector">
+    <div class="vcline"></div>
+    <div class="vcbadge"><span class="arrow">↓</span> <code>po_no</code> + <code>part_code</code> + <code>bin_code</code> → Inventory Check-In (iqc_status = pending_iqc)</div>
+  </div>
+
+  <!-- ══════════ MODULE 5: INVENTORY CHECK-IN ══════════ -->
+  <div class="mod-row" id="mod5">
+    <div class="mod-header m6">
+      <div class="micon">📦</div>
+      <h3>Inventory</h3>
+      <div class="mroute">/inventory</div>
+      <div class="mbadge b-live">Live</div>
+    </div>
+    <div class="mod-subs">
+      <div class="sub-node s6" id="s6-checkin">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">✅</div>
+        <h5>Stock Check-In (GR)</h5>
+        <div class="sdesc">Records goods receipt. Required: <code>po_no</code>, <code>part_or_rm_code</code>, <code>received_qty</code>. Auto: <code>iqc_status = pending_iqc</code>, QR code. Table: <code>inventory_stock_checkins</code>.</div>
+        <div class="sroute">POST /api/v1/inventory/checkins</div>
+      </div>
+      <div class="sub-node s6" id="s6-levels">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">📊</div>
+        <h5>Stock Levels</h5>
+        <div class="sdesc">Live stock per part+warehouse+bin. Updated ONLY after IQC passes. Fields: <code>qty_on_hand</code>, <code>qty_reserved</code>, <code>qty_available</code>. Table: <code>inventory_stock_levels</code>.</div>
+        <div class="sroute">GET /api/v1/inventory/stock-levels</div>
+      </div>
+      <div class="sub-node s6" id="s6-moves">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">🔄</div>
+        <h5>Stock Movements</h5>
+        <div class="sdesc">All movements: RECEIPT, ISSUE, TRANSFER, ADJUSTMENT, RETURN. Each has <code>movement_no</code>, from/to bin, reference_no. Table: <code>inventory_stock_movements</code>.</div>
+        <div class="sroute">GET /api/v1/inventory/stock-movements</div>
+      </div>
+      <div class="sub-node s6">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">🔀</div>
+        <h5>Transfers</h5>
+        <div class="sdesc">Move between bins/warehouses. Source decremented, target incremented. <code>TRF-</code> movement created.</div>
+        <div class="sroute">POST /api/v1/inventory/transfers</div>
+      </div>
+      <div class="sub-node s6">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">⚖️</div>
+        <h5>Adjustments & Counts</h5>
+        <div class="sdesc">Positive/negative qty adjustments with reason + approver. Cycle count sheets auto-generated from stock. <code>ADJ-</code> / <code>CNT-</code> numbers.</div>
+        <div class="sroute">POST /api/v1/inventory/adjustments</div>
+      </div>
+      <div class="sub-node s6">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">🏷</div>
+        <h5>Batch & Serial Tracking</h5>
+        <div class="sdesc">Batch: lot, mfg date, expiry, qty_remaining. Serial: serial_no per item, production_order link. Tables: <code>inventory_batches</code>, <code>inventory_serial_numbers</code>.</div>
+        <div class="sroute">GET /api/v1/inventory/batches, /serials</div>
+      </div>
+      <div class="sub-node s6">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">🔔</div>
+        <h5>Reorder Rules & Alerts</h5>
+        <div class="sdesc">Per part: reorder_point, reorder_qty, preferred_supplier. Alert API returns parts where <code>qty_available ≤ reorder_point</code>.</div>
+        <div class="sroute">GET /api/v1/inventory/reorder-alerts</div>
+      </div>
+      <div class="sub-node s6">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">📍</div>
+        <h5>Locations</h5>
+        <div class="sdesc">Plant/floor/shelf/row/column/bin hierarchy. Location detail shows current stock + full movement history at that bin.</div>
+        <div class="sroute">GET /api/v1/inventory/locations/&lt;id&gt;/detail</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="v-connector">
+    <div class="vcline"></div>
+    <div class="vcbadge"><span class="arrow">↓</span> <code>checkin_id</code> + <code>iqc_status = pending_iqc</code> → Quality IQC Queue</div>
+  </div>
+
+  <!-- ══════════ MODULE 6: QUALITY ══════════ -->
+  <div class="mod-row" id="mod6">
+    <div class="mod-header m5">
+      <div class="micon">🔬</div>
+      <h3>Quality Mgmt</h3>
+      <div class="mroute">/quality</div>
+      <div class="mbadge b-live">Live</div>
+    </div>
+    <div class="mod-subs">
+      <div class="sub-node s5" id="s5-iqcq">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">📋</div>
+        <h5>IQC Queue</h5>
+        <div class="sdesc">Reads <code>inventory_stock_checkins WHERE iqc_status='pending_iqc'</code>. Inspector picks a batch to inspect. Shows checkin_no, po_no, supplier, received_qty.</div>
+        <div class="sroute">GET /api/v1/quality/iqc → quality.html</div>
+      </div>
+      <div class="sub-node s5" id="s5-iqcd">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">🔭</div>
+        <h5>IQC Detail & Inspect</h5>
+        <div class="sdesc">Opens checkin. Auto-loads criteria from <code>quality_iqc_criteria</code> by part code. Inspector enters passed/rejected/scrap qty + remarks. Status set: passed / partial_pass / rejected.</div>
+        <div class="sroute">GET+POST /api/v1/quality/iqc/&lt;cid&gt;</div>
+      </div>
+      <div class="sub-node s5" id="s5-crit">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">📐</div>
+        <h5>IQC Criteria Master</h5>
+        <div class="sdesc">Admin defines inspection parameters per <code>part_or_rm_code</code>: criterion name, spec target, tolerance min/max, inspection method, mandatory flag. Table: <code>quality_iqc_criteria</code>.</div>
+        <div class="sroute">POST /api/v1/quality/criteria</div>
+      </div>
+      <div class="sub-node s5" id="s5-ncr">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">⚠️</div>
+        <h5>Non-Conformance (NCR)</h5>
+        <div class="sdesc">Auto-created when <code>rejected_qty > 0</code>. Fields: NCR-no, defect_type, severity=Major, corrective_action, disposition=RTV. Table: <code>quality_ncrs</code>.</div>
+        <div class="sroute">auto → quality_ncrs on rejection</div>
+      </div>
+      <div class="sub-node s5" id="s5-grn">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">📦</div>
+        <h5>GRN-IQC Inspection</h5>
+        <div class="sdesc">Alternative IQC flow via procurement.grn. Inspector accepts/rejects GRN items. Creates <code>quality.iqc_inspections</code> record and updates GRN status to iqc_passed/iqc_rejected.</div>
+        <div class="sroute">POST /api/v1/quality/grn-iqc/&lt;grn_id&gt;/inspect</div>
+      </div>
+      <div class="sub-node s5">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">📊</div>
+        <h5>Quality Overview</h5>
+        <div class="sdesc">KPIs: pending_iqc count, passed count, total NCRs, active criteria count.</div>
+        <div class="sroute">GET /api/v1/quality/overview-stats</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="v-connector">
+    <div class="vcline"></div>
+    <div class="vcbadge"><span class="arrow">↓</span> IQC PASS → <code>inventory_stock_levels.qty_on_hand += passed_qty</code> (stock goes live)</div>
+  </div>
+
+  <!-- ══════════ MODULE 7: MANUFACTURING ══════════ -->
+  <div class="mod-row" id="mod7">
+    <div class="mod-header m7">
+      <div class="micon">⚙️</div>
+      <h3>Manufacturing</h3>
+      <div class="mroute">/manufacturing</div>
+      <div class="mbadge b-live">Live</div>
+    </div>
+    <div class="mod-subs">
+      <div class="sub-node s7" id="s7-bom">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">📐</div>
+        <h5>Bill of Materials (BOM)</h5>
+        <div class="sdesc">BOM header: <code>fg_part_number</code>. BOM lines: <code>item_code</code> (RM), <code>qty_required</code>. Used by Purchase Demand to auto-resolve RM from FG. Tables: <code>manufacturing_boms</code>, <code>manufacturing_bom_lines</code>.</div>
+        <div class="sroute">/manufacturing/bom → bom.html</div>
+      </div>
+      <div class="sub-node s7" id="s7-po">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">🏭</div>
+        <h5>Production Orders</h5>
+        <div class="sdesc">Created for FG part. Explodes BOM to show RM needs. Checks <code>qty_available</code> per RM. On release: ISSUE movements created in <code>inventory_stock_movements</code>.</div>
+        <div class="sroute">/manufacturing/productionorders</div>
+      </div>
+      <div class="sub-node s7">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">🗺</div>
+        <h5>Routing</h5>
+        <div class="sdesc">Step-by-step operations per FG (Cut → Weld → Paint → Assemble). Each step assigned a Work Center with standard time.</div>
+        <div class="sroute">/manufacturing/routing → routing.html</div>
+      </div>
+      <div class="sub-node s7">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">🔧</div>
+        <h5>Work Centers</h5>
+        <div class="sdesc">Machine/cell definitions. Capacity, efficiency, cost per hour. Used for scheduling and costing production orders.</div>
+        <div class="sroute">/manufacturing/workcenters</div>
+      </div>
+      <div class="sub-node s7">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">📺</div>
+        <h5>Shop Floor</h5>
+        <div class="sdesc">Operator terminal. Clock on/off per operation step. Real-time WIP. Scrap/rework per step. Actual vs planned time. Completion → FG stock-in.</div>
+        <div class="sroute">/manufacturing/shopfloor → shopfloor.html</div>
+      </div>
+      <div class="sub-node s7">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">📅</div>
+        <h5>Capacity Planning</h5>
+        <div class="sdesc">View available vs booked capacity per Work Center. Plan production load. Avoid bottlenecks.</div>
+        <div class="sroute">/manufacturing/capacity → capacity.html</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="v-connector">
+    <div class="vcline"></div>
+    <div class="vcbadge"><span class="arrow">↓</span> Production completes → FG Stock-In back to Inventory → Dispatch via Warehouse</div>
+  </div>
+
+  <!-- ══════════ MODULE 8: PROJECT MANAGEMENT ══════════ -->
+  <div class="mod-row" id="mod8">
+    <div class="mod-header m8">
+      <div class="micon">🗂</div>
+      <h3>Project Mgmt</h3>
+      <div class="mroute">/project</div>
+      <div class="mbadge b-live">Live</div>
+    </div>
+    <div class="mod-subs">
+      <div class="sub-node s8" id="s8-org">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">🏢</div>
+        <h5>Organizations</h5>
+        <div class="sdesc">Client/customer organizations. Fields: name, code, industry, GST, PAN, addresses, contacts. Projects linked to organizations. Table: <code>project.organizations</code>.</div>
+        <div class="sroute">GET/POST /api/v1/projects/organizations</div>
+      </div>
+      <div class="sub-node s8" id="s8-proj">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">📁</div>
+        <h5>Projects</h5>
+        <div class="sdesc">Project record: <code>code</code>, <code>name</code>, type, status, start/due dates, <code>percent_complete</code>, budget, actual_cost, <code>organization_id</code>. Table: <code>project.projects</code>.</div>
+        <div class="sroute">GET/POST /api/v1/projects/projects</div>
+      </div>
+      <div class="sub-node s8" id="s8-tasks">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">✅</div>
+        <h5>Tasks</h5>
+        <div class="sdesc">Tasks per project. Fields: task_name, stage, owner, start/end dates, <code>planned_cost</code>, <code>invoiced_amount</code>, <code>percent_complete</code>, dependencies. Table: <code>project.tasks</code>.</div>
+        <div class="sroute">GET /api/v1/projects/projects/&lt;pid&gt;/tasks</div>
+      </div>
+      <div class="sub-node s8" id="s8-po">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">🛒</div>
+        <h5>Project PO Linkage</h5>
+        <div class="sdesc">Projects can store linked Purchase Orders as JSON array (<code>purchase_orders</code> field). Connects project spend to POs in Purchase module.</div>
+        <div class="sroute">purchase_orders JSON field on project record</div>
+      </div>
+      <div class="sub-node s8" id="s8-template">
+        <div class="sstatus ss-wip">WIP</div>
+        <div class="sicon">📋</div>
+        <h5>Project Templates</h5>
+        <div class="sdesc">Pre-defined project task templates for standard project types. Clone and apply to new projects to speed up setup.</div>
+        <div class="sroute">GET /api/v1/projects/templates [WIP]</div>
+      </div>
+      <div class="sub-node s8" id="s8-track">
+        <div class="sstatus ss-todo">To-Do</div>
+        <div class="sicon">📈</div>
+        <h5>Gantt & Tracking</h5>
+        <div class="sdesc">Visual Gantt chart view for project timeline. Real-time tracking of milestones vs actuals. Dependencies shown as graph.</div>
+        <div class="sroute">Not yet built</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="v-connector">
+    <div class="vcline"></div>
+    <div class="vcbadge"><span class="arrow">↓</span> Project Specific Procurement</div>
+  </div>
+
+  <!-- ══════════ MODULE 9: PROCUREMENT ══════════ -->
+  <div class="mod-row" id="mod9">
+    <div class="mod-header m7" style="border-top-color:#f472b6; border-left-color:rgba(244,114,182,.2); border-bottom-color:rgba(244,114,182,.2); background:linear-gradient(135deg,rgba(244,114,182,.3),rgba(244,114,182,.08))">
+      <div class="micon">📋</div>
+      <h3>Procurement</h3>
+      <div class="mroute">/procurement</div>
+      <div class="mbadge b-live">Live</div>
+    </div>
+    <div class="mod-subs">
+      <div class="sub-node s7" id="s9-pos" style="border-color:rgba(244,114,182,.2)">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">📄</div>
+        <h5>Purchase Orders</h5>
+        <div class="sdesc">Creates and lists purchase orders specifically referenced and billed to project codes.</div>
+        <div class="sroute">procurement.purchase_orders</div>
+      </div>
+      <div class="sub-node s7" id="s9-search" style="border-color:rgba(244,114,182,.2)">
+        <div class="sstatus ss-live">Live</div>
+        <div class="sicon">🔍</div>
+        <h5>Search Projects</h5>
+        <div class="sdesc">Lookup query handler to resolve projects and customer org values.</div>
+        <div class="sroute">search-projects</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end flow-wrapper -->
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- WORK-TO-DO MAP -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="flow-wrapper" style="padding-top:0">
+  <div class="todo-panel">
+    <div class="todo-section-title">🛠 Work To-Do Map — What Still Needs to Be Built</div>
+    <div class="todo-grid">
+
+      <div class="todo-card priority-high">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <h5>Planning Module</h5><span class="prio-tag pt-high">High</span>
+        </div>
+        <div class="tmod">📋 /planning</div>
+        <ul>
+          <li class="done">Demand Plans API built</li>
+          <li class="done">Purchase Requests API built</li>
+          <li class="done">Notifications API built</li>
+          <li class="doing">planning.html UI → needs Demand Plans tab working</li>
+          <li>Link Demand Plan → auto-create Purchase Requisition in Purchase module</li>
+          <li>PR "Send to Purchaser" action notification</li>
+          <li>MRP auto-calculation (explode BOM vs current stock)</li>
+          <li>Planning dashboard KPIs display</li>
+        </ul>
+      </div>
+
+      <div class="todo-card priority-high">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <h5>IQC ↔ Inventory Link</h5><span class="prio-tag pt-high">High</span>
+        </div>
+        <div class="tmod">🔬 Quality → 📦 Inventory</div>
+        <ul>
+          <li class="done">IQC inspection updates iqc_status in inventory_stock_checkins</li>
+          <li class="done">Passed qty auto-adds to inventory_stock_levels</li>
+          <li class="done">NCR auto-created on rejection</li>
+          <li>Rejected qty quarantine bin transfer (code exists, needs testing)</li>
+          <li>IQC → Inventory Check-In detail page link (header now fixed)</li>
+          <li>IQC overview stats card on Quality dashboard</li>
+        </ul>
+      </div>
+
+      <div class="todo-card priority-high">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <h5>Quality Module Header Fix</h5><span class="prio-tag pt-high">High</span>
+        </div>
+        <div class="tmod">🔬 /quality/iqc/&lt;cid&gt;</div>
+        <ul>
+          <li class="done">Services panel HTML added to iqc_detail.html</li>
+          <li class="done">toggleServices() JS error fixed in header.js</li>
+          <li class="doing">Verify services panel opens/closes correctly</li>
+          <li>Quality module IQC sub-tabs (Overview / IQC / Criteria / NCR) wiring</li>
+          <li>NCR detail view and management page</li>
+        </ul>
+      </div>
+
+      <div class="todo-card priority-med">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <h5>Project Management</h5><span class="prio-tag pt-med">Medium</span>
+        </div>
+        <div class="tmod">🗂 /project</div>
+        <ul>
+          <li class="done">Organizations CRUD API</li>
+          <li class="done">Projects CRUD API</li>
+          <li class="done">Tasks CRUD API</li>
+          <li class="doing">project.html UI building</li>
+          <li>Project detail page</li>
+          <li>Task list per project (Kanban / List view)</li>
+          <li>Project Templates feature</li>
+          <li>Gantt chart view</li>
+          <li>Link Project PO → Purchase Orders</li>
+          <li>Budget vs Actual Cost tracking dashboard</li>
+        </ul>
+      </div>
+
+      <div class="todo-card priority-med">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <h5>Purchase ↔ Planning Link</h5><span class="prio-tag pt-med">Medium</span>
+        </div>
+        <div class="tmod">📋 Planning → 🛒 Purchase</div>
+        <ul>
+          <li class="done">planning.purchase_requests table + API done</li>
+          <li>When PR is sent, auto-create Purchase Requisition in purchase_requisitions</li>
+          <li>PR status sync: planning PR ↔ purchase REQ ↔ PO</li>
+          <li>Overdue PO alert pushes notification to Planning</li>
+          <li>Stock reorder alert triggers new Demand Plan entry</li>
+        </ul>
+      </div>
+
+      <div class="todo-card priority-med">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <h5>Inventory ↔ Manufacturing</h5><span class="prio-tag pt-med">Medium</span>
+        </div>
+        <div class="tmod">📦 Inventory → ⚙️ Manufacturing</div>
+        <ul>
+          <li class="done">Stock levels API for qty check</li>
+          <li class="done">Stock movements (ISSUE type) API done</li>
+          <li>Production Order → auto-issue RM stock (ISSUE movement per BOM line)</li>
+          <li>FG completion → auto Stock Check-In for FG parts</li>
+          <li>BOM explosion in production order with live stock check</li>
+          <li>Material shortage alert before production release</li>
+        </ul>
+      </div>
+
+      <div class="todo-card priority-med">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <h5>Warehouse ↔ Inventory Link</h5><span class="prio-tag pt-med">Medium</span>
+        </div>
+        <div class="tmod">🏭 Warehouse → 📦 Inventory</div>
+        <ul>
+          <li class="done">bin_code passed from check-in to stock levels</li>
+          <li class="done">Warehouse zones/bins management pages live</li>
+          <li>GRN in procurement.grn → auto-create inventory check-in</li>
+          <li>Warehouse receiving page linked to Inventory Check-In creation</li>
+          <li>Put-away task completion → update bin in inventory_stock_levels</li>
+          <li>Pick List completion → ISSUE stock movement auto-create</li>
+        </ul>
+      </div>
+
+      <div class="todo-card priority-low">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <h5>Supplier Management</h5><span class="prio-tag pt-low">Low</span>
+        </div>
+        <div class="tmod">🏢 /supplier</div>
+        <ul>
+          <li class="done">Supplier list, detail, evaluation pages live</li>
+          <li class="done">Supplier contracts page live</li>
+          <li>IQC NCR → auto-update supplier rating score</li>
+          <li>Supplier performance dashboard (delivery on-time %, defect rate)</li>
+          <li>Supplier portal (external access for PO acknowledgement)</li>
+        </ul>
+      </div>
+
+      <div class="todo-card priority-low">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <h5>Finance Integration</h5><span class="prio-tag pt-low">Low</span>
+        </div>
+        <div class="tmod">💰 /finance</div>
+        <ul>
+          <li>PO amount → AP invoice creation</li>
+          <li>Stock Check-In → GR accounting entry</li>
+          <li>Production cost → COGS calculation</li>
+          <li>Project budget vs actual cost tracking</li>
+          <li>Inventory valuation report (FIFO/WAC)</li>
+        </ul>
+      </div>
+
+      <div class="todo-card priority-low">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <h5>Analytics & Reports</h5><span class="prio-tag pt-low">Low</span>
+        </div>
+        <div class="tmod">📊 Cross-Module</div>
+        <ul>
+          <li class="done">Inventory valuation + aging reports</li>
+          <li class="done">Reorder alerts API</li>
+          <li>Cross-module KPI dashboard</li>
+          <li>Purchase lead time analytics</li>
+          <li>Quality defect trends per supplier</li>
+          <li>Production efficiency OEE dashboard</li>
+          <li>Project portfolio view</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- SVG CROSS-MODULE CONNECTION LINES -->
+<svg id="svg-canvas" xmlns="http://www.w3.org/2000/svg"></svg>
+
+<div class="footer">
+  SUPERSYSTEMS — Vertical Flow Map · Built from actual routes.py source code · July 2026
+</div>
+
+<script>
+// ── Scroll reveal ──
+const rows = document.querySelectorAll('.mod-row');
+const io = new IntersectionObserver(entries=>{
+  entries.forEach((e,i)=>{
+    if(e.isIntersecting){
+      setTimeout(()=>e.target.classList.add('visible'),i*60);
+    }
+  });
+},{threshold:0.05});
+rows.forEach(r=>io.observe(r));
+
+// ── Draw SVG curved lines between connected sub-modules ──
+// We draw lines AFTER layout is painted
+window.addEventListener('load', drawConnections);
+window.addEventListener('resize', ()=>{clearTimeout(window._rt);window._rt=setTimeout(drawConnections,200)});
+
+function getCenterOf(el){
+  const r = el.getBoundingClientRect();
+  const sr = document.getElementById('svg-canvas').getBoundingClientRect();
+  return {x:r.left+r.width/2-sr.left, y:r.top+r.height/2-sr.top};
+}
+
+function drawCurve(svg, from, to, color, label){
+  const ns = 'http://www.w3.org/2000/svg';
+  const mid_x = (from.x+to.x)/2;
+  const mid_y = (from.y+to.y)/2;
+  const cx1 = from.x + (to.x-from.x)*0.1;
+  const cy1 = from.y + (to.y-from.y)*0.5;
+  const cx2 = to.x - (to.x-from.x)*0.1;
+  const cy2 = cy1;
+
+  const path = document.createElementNS(ns,'path');
+  const d = `M ${from.x} ${from.y} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${to.x} ${to.y}`;
+  path.setAttribute('d',d);
+  path.setAttribute('stroke',color);
+  path.setAttribute('stroke-width','1.5');
+  path.setAttribute('fill','none');
+  path.setAttribute('stroke-dasharray','5,4');
+  path.setAttribute('opacity','0.55');
+  svg.appendChild(path);
+
+  // dots at endpoints
+  [from, to].forEach(pt=>{
+    const c = document.createElementNS(ns,'circle');
+    c.setAttribute('cx',pt.x);c.setAttribute('cy',pt.y);c.setAttribute('r','4');
+    c.setAttribute('fill',color);c.setAttribute('opacity','0.7');
+    svg.appendChild(c);
+  });
+
+  // label
+  if(label){
+    const txt = document.createElementNS(ns,'text');
+    txt.setAttribute('x',mid_x);
+    txt.setAttribute('y',mid_y-6);
+    txt.setAttribute('text-anchor','middle');
+    txt.setAttribute('fill',color);
+    txt.setAttribute('font-size','10');
+    txt.setAttribute('font-family','JetBrains Mono, monospace');
+    txt.setAttribute('opacity','0.8');
+    txt.textContent = label;
+    svg.appendChild(txt);
+  }
+}
+
+function drawConnections(){
+  const svg = document.getElementById('svg-canvas');
+  svg.innerHTML = ''; // clear
+
+  // Set SVG size to full page
+  const body = document.body;
+  svg.setAttribute('width', body.scrollWidth);
+  svg.setAttribute('height', body.scrollHeight);
+
+  const connections = [
+    // [fromId, toId, color, label]
+    ['s1-partlist', 's2-demand',  '#6366f1', 'part_number'],
+    ['s1-partlist', 's3-demands', '#6366f1', 'part_number'],
+    ['s1-partlist', 's7-bom',     '#ec4899', 'fg_part_number'],
+    ['s1-partlist', 's5-crit',    '#ef4444', 'part_code'],
+    ['s1-mappings', 's3-po',      '#6366f1', 'PO lines sync'],
+    ['s2-demand',   's3-demands', '#6366f1', 'shortage_qty'],
+    ['s2-pr',       's3-req',     '#6366f1', 'pr_no ➔ req_no'],
+    ['s3-po',       's4-receive', '#f59e0b', 'po_no'],
+    ['s3-po',       's6-checkin', '#3b82f6', 'po_no'],
+    ['s4-receive',  's6-checkin', '#10b981', 'grn_no ➔ checkin_no'],
+    ['s4-bins',     's6-checkin', '#10b981', 'bin_code'],
+    ['s6-checkin',  's5-iqcq',    '#ef4444', 'checkin_no (pending_iqc)'],
+    ['s5-iqcd',     's6-levels',  '#10b981', 'passed_qty ➔ qty_on_hand'],
+    ['s5-iqcd',     's5-ncr',     '#ef4444', 'rejected_qty ➔ ncr_no'],
+    ['s8-proj',     's3-po',      '#06b6d4', 'PO linkage'],
+    ['s8-proj',     's9-pos',     '#06b6d4', 'Project POs'],
+    ['s8-tasks',    's7-po',      '#06b6d4', 'task_id ➔ production_order_no'],
+    ['s9-pos',      's1-mappings','#f472b6', 'Auto-res code mapping']
+  ];
+
+  // Only draw if both elements exist and are visible
+  connections.forEach(([fromId, toId, color, label])=>{
+    const fromEl = document.getElementById(fromId);
+    const toEl   = document.getElementById(toId);
+    if(!fromEl || !toEl) return;
+    const fromRect = fromEl.getBoundingClientRect();
+    const toRect   = toEl.getBoundingClientRect();
+    if(fromRect.width === 0 || toRect.width === 0) return;
+
+    const from = getCenterOf(fromEl);
+    const to   = getCenterOf(toEl);
+    drawCurve(svg, from, to, color, label);
+  });
+}
+</script>
+</body>
+</html>

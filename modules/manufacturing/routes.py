@@ -252,14 +252,20 @@ def create_work_center():
 @manufacturing_bp.route("/production-orders", methods=["GET"])
 def list_production_orders():
     tenant_id = _get_tenant()
+    project_id = request.args.get("project_id", "").strip()
+    where = "is_deleted = false AND tenant_id = :tid"
+    params = {"tid": tenant_id}
+    if project_id:
+        where += " AND project_id = :pid"
+        params["pid"] = project_id
     rows = db.session.execute(db.text(
-        "SELECT id, order_no, fg_part_number, fg_description, planned_qty, produced_qty, rejected_qty, planned_start, planned_end, status, priority, created_at FROM manufacturing_production_orders WHERE is_deleted = false AND tenant_id = :tid ORDER BY created_at DESC"
-    ), {"tid": tenant_id}).fetchall()
+        f"SELECT id, order_no, fg_part_number, fg_description, planned_qty, produced_qty, rejected_qty, planned_start, planned_end, status, priority, created_at, project_id FROM manufacturing_production_orders WHERE {where} ORDER BY created_at DESC"
+    ), params).fetchall()
     orders = [{
         "id": r[0], "order_no": r[1], "fg_part_number": r[2], "fg_description": r[3] or "",
         "planned_qty": float(r[4] or 0), "produced_qty": float(r[5] or 0), "rejected_qty": float(r[6] or 0),
         "planned_start": r[7] or "", "planned_end": r[8] or "", "status": r[9], "priority": r[10] or "normal",
-        "created_at": str(r[11])
+        "created_at": str(r[11]), "project_id": r[12] or ""
     } for r in rows]
     return jsonify({"success": True, "data": orders})
 
@@ -279,15 +285,17 @@ def create_production_order():
 
     poid = str(uuid.uuid4())
     ono = f"PRD-{datetime.now().strftime('%Y%m%d%H%M')}"
+    project_id = data.get("project_id") or None
 
     db.session.execute(db.text(
-        "INSERT INTO manufacturing_production_orders (id, order_no, fg_part_number, fg_description, planned_qty, produced_qty, rejected_qty, planned_start, planned_end, status, priority, notes, tenant_id) "
-        "VALUES (:id, :ono, :fg, :desc, :pqty, 0, 0, :pstart, :pend, 'released', :prio, :notes, :tid)"
+        "INSERT INTO manufacturing_production_orders (id, order_no, fg_part_number, fg_description, planned_qty, produced_qty, rejected_qty, planned_start, planned_end, status, priority, notes, project_id, tenant_id) "
+        "VALUES (:id, :ono, :fg, :desc, :pqty, 0, 0, :pstart, :pend, 'released', :prio, :notes, :pid, :tid)"
     ), {
         "id": poid, "ono": ono, "fg": fg_part, "desc": data.get("fg_description", ""),
         "pqty": qty, "pstart": data.get("planned_start", datetime.now().strftime('%Y-%m-%d')),
         "pend": data.get("planned_end", (datetime.now() + timedelta(days=3)).strftime('%Y-%m-%d')),
-        "prio": data.get("priority", "normal"), "notes": data.get("notes", ""), "tid": tenant_id
+        "prio": data.get("priority", "normal"), "notes": data.get("notes", ""),
+        "pid": project_id, "tid": tenant_id
     })
 
     # Auto generate pick list for materials in Warehouse

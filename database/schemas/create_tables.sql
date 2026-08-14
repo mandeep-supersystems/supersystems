@@ -127,6 +127,10 @@ CREATE TABLE IF NOT EXISTS warehouse.transfers (id VARCHAR(36) PRIMARY KEY, doc_
 
 -- PROJECT
 CREATE TABLE IF NOT EXISTS project.projects (id VARCHAR(36) PRIMARY KEY, name VARCHAR(200) NOT NULL, code VARCHAR(50) UNIQUE NOT NULL, description TEXT, manager_id VARCHAR(36), department_id VARCHAR(36), status VARCHAR(20) DEFAULT 'planning', priority VARCHAR(20) DEFAULT 'normal', start_date DATE, end_date DATE, budget DECIMAL(18,2), actual_cost DECIMAL(18,2) DEFAULT 0, progress INTEGER DEFAULT 0, tenant_id VARCHAR(36) NOT NULL, is_deleted BOOLEAN DEFAULT false, version INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW(), created_by VARCHAR(36), updated_by VARCHAR(36));
+-- customer_pos: POs received FROM the customer (uploaded into the project)
+ALTER TABLE project.projects ADD COLUMN IF NOT EXISTS customer_pos JSONB DEFAULT '[]';
+-- purchase_orders kept for backward compat, customer_pos is the canonical column
+ALTER TABLE project.projects ADD COLUMN IF NOT EXISTS purchase_orders JSONB DEFAULT '[]';
 CREATE TABLE IF NOT EXISTS project.tasks (id VARCHAR(36) PRIMARY KEY, project_id VARCHAR(36) REFERENCES project.projects(id), name VARCHAR(200) NOT NULL, description TEXT, assignee_id VARCHAR(36), status VARCHAR(20) DEFAULT 'todo', priority VARCHAR(20) DEFAULT 'normal', start_date DATE, due_date DATE, estimated_hours DECIMAL(8,2), actual_hours DECIMAL(8,2) DEFAULT 0, parent_id VARCHAR(36), tenant_id VARCHAR(36) NOT NULL, is_deleted BOOLEAN DEFAULT false, version INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW(), created_by VARCHAR(36), updated_by VARCHAR(36));
 CREATE TABLE IF NOT EXISTS project.timesheets (id VARCHAR(36) PRIMARY KEY, project_id VARCHAR(36) REFERENCES project.projects(id), task_id VARCHAR(36) REFERENCES project.tasks(id), user_id VARCHAR(36) NOT NULL, date DATE NOT NULL, hours DECIMAL(8,2) NOT NULL, description TEXT, status VARCHAR(20) DEFAULT 'draft', tenant_id VARCHAR(36) NOT NULL, is_deleted BOOLEAN DEFAULT false, version INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT NOW());
 

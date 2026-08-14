@@ -2,6 +2,7 @@
 <html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Supplier Management - SUPERSYSTEMS</title>
     <link rel="stylesheet" href="/static/css/header.css">
@@ -29,6 +30,7 @@
         </div>
     </div>
     <div class="header-right">
+        <button class="header-icon-btn" title="Notifications"><span class="material-icons-outlined">notifications</span></button>
         <button class="header-icon-btn theme-toggle" onclick="toggleTheme()">
             <span class="material-icons-outlined icon-light">dark_mode</span>
             <span class="material-icons-outlined icon-dark">light_mode</span>
@@ -62,16 +64,25 @@
         <nav class="sidebar-nav">
             <a href="/" class="sidebar-link"><span class="material-icons-outlined">arrow_back</span>Home</a>
             <div class="sidebar-divider"></div>
+            <a class="sidebar-link" href="/supplier/overview"><span class="material-icons-outlined">dashboard</span>Overview</a>
             <a class="sidebar-link active" href="/supplier"><span class="material-icons-outlined">storefront</span>All Suppliers</a>
             <a class="sidebar-link" href="/supplier/evaluation"><span class="material-icons-outlined">fact_check</span>Evaluation</a>
             <a class="sidebar-link" href="/supplier/contracts"><span class="material-icons-outlined">description</span>Contracts</a>
             <a class="sidebar-link" href="/supplier/performance"><span class="material-icons-outlined">leaderboard</span>Performance</a>
+            <a class="sidebar-link" href="/supplier/auditlogs"><span class="material-icons-outlined">manage_search</span>Audit Logs</a>
+            <div class="sidebar-divider admin-only" style="display: none;"></div>
+            <a class="sidebar-link admin-only" href="/supplier/moduleusers" style="display: none;"><span class="material-icons-outlined">group</span>User Management</a>
         </nav>
     </aside>
     <main class="sup-content">
         <div class="section-header">
             <h2>All Suppliers</h2>
-            <button class="btn-primary" onclick="openAddModal()"><span class="material-icons-outlined">add</span> New Supplier</button>
+            <div style="display:flex; gap:10px;">
+                <button class="btn-secondary" onclick="exportSuppliers()"><span class="material-icons-outlined">download</span> Export</button>
+                <button class="btn-secondary" onclick="triggerImport()"><span class="material-icons-outlined">upload</span> Import</button>
+                <button class="btn-primary" onclick="openAddModal()"><span class="material-icons-outlined">add</span> New Supplier</button>
+            </div>
+            <input type="file" id="importFileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleImportFile(this)">
         </div>
         <div class="sup-search-bar">
             <span class="material-icons-outlined">search</span>
@@ -159,7 +170,24 @@
 </div>
 <div class="sup-toast" id="supToast"></div>
 <script src="/static/js/header.js"></script>
-<script>requireAuth(); trackModule("Supplier Management", "handshake", "/supplier");</script>
+<script>requireAuth();</script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token') || '';
+        const res = await fetch('/api/v1/auth/me/access?module=Supplier+Management', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success && data.data && data.data.role === 'module_admin') {
+            document.querySelectorAll('.admin-only').forEach(el => {
+                el.style.display = (el.tagName === 'A' || el.tagName === 'BUTTON') ? 'flex' : 'block';
+            });
+        }
+    } catch (e) {}
+});
+</script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="/static/js/supplier/common.js"></script>
 <script src="/static/js/supplier/suppliers.js"></script>
 </body>

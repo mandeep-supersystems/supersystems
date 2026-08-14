@@ -1,6 +1,7 @@
 from flask import Blueprint, request
 from extensions import db
 import uuid
+import json
 
 supplier_bp = Blueprint("suppliers", __name__)
 
@@ -15,16 +16,23 @@ def _by():
 
 def _safe_float(v):
     try:
-        return float(v) if v not in (None, "", " ") else 0
+        if v in (None, "", " ", "nan", "NaN", "NAN"):
+            return 0.0
+        import math
+        val = float(v)
+        if math.isnan(val) or math.isinf(val):
+            return 0.0
+        return val
     except Exception:
-        return 0
+        return 0.0
 
 
-def _log(action, entity_type, entity_id):
+def _log(action, entity_type, entity_id, old_value=None, new_value=None):
     try:
+        import json
         db.session.execute(db.text(
-            "INSERT INTO audit.logs (id, action, module, entity_type, entity_id, ip_address, tenant_id, user_email, user_name, created_at) "
-            "VALUES (gen_random_uuid(), :action, 'Supplier Management', :etype, :eid, :ip, :tid, :email, :name, NOW())"
+            "INSERT INTO audit.logs (id, action, module, entity_type, entity_id, ip_address, tenant_id, user_email, user_name, created_at, old_value, new_value) "
+            "VALUES (gen_random_uuid(), :action, 'Supplier Management', :etype, :eid, :ip, :tid, :email, :name, NOW(), :old_val, :new_val)"
         ), {
             "action": action,
             "etype": entity_type,
@@ -32,10 +40,77 @@ def _log(action, entity_type, entity_id):
             "ip": request.remote_addr or "",
             "tid": _tid(),
             "email": request.headers.get("X-User-Email", ""),
-            "name": request.headers.get("X-User-Name", "")
+            "name": request.headers.get("X-User-Name", ""),
+            "old_val": json.dumps(old_value) if old_value else None,
+            "new_val": json.dumps(new_value) if new_value else None
         })
     except Exception:
         pass
+
+
+# ─── OVERVIEW ───
+@supplier_bp.route("/overview", methods=["GET"])
+def sup_overview():
+    tid = _tid()
+    period = request.args.get("period", "all")
+
+    time_filter = ""
+    if period == "day":
+        time_filter = "AND created_at >= NOW() - INTERVAL '1 day'"
+    elif period == "week":
+        time_filter = "AND created_at >= NOW() - INTERVAL '7 days'"
+    elif period == "month":
+        time_filter = "AND created_at >= NOW() - INTERVAL '30 days'"
+    elif period == "year":
+        time_filter = "AND created_at >= NOW() - INTERVAL '365 days'"
+
+    total_suppliers = db.session.execute(db.text(
+        "SELECT COUNT(*) FROM supplier.suppliers WHERE tenant_id = :tid AND is_deleted = false"
+    ), {"tid": tid}).scalar() or 0
+    
+    active_suppliers = db.session.execute(db.text(
+        "SELECT COUNT(*) FROM supplier.suppliers WHERE tenant_id = :tid AND is_deleted = false AND status = 'active'"
+    ), {"tid": tid}).scalar() or 0
+    
+    total_parts = db.session.execute(db.text(
+        "SELECT COUNT(*) FROM supplier.parts WHERE is_deleted = false AND supplier_id IN "
+        "(SELECT id FROM supplier.suppliers WHERE tenant_id = :tid)"
+    ), {"tid": tid}).scalar() or 0
+    
+    total_contracts = db.session.execute(db.text(
+        "SELECT COUNT(*) FROM supplier.contracts WHERE is_deleted = false AND supplier_id IN "
+        "(SELECT id FROM supplier.suppliers WHERE tenant_id = :tid)"
+    ), {"tid": tid}).scalar() or 0
+
+    type_rows = db.session.execute(db.text(
+        "SELECT company_type, COUNT(*) FROM supplier.suppliers "
+        "WHERE tenant_id = :tid AND is_deleted = false GROUP BY company_type"
+    ), {"tid": tid}).fetchall()
+    type_breakdown = [{"type": r[0] if r[0] else 'Unspecified', "count": r[1]} for r in type_rows]
+    type_breakdown = sorted(type_breakdown, key=lambda x: x["count"], reverse=True)
+
+    recent_logs = db.session.execute(db.text(
+        f"SELECT action, entity_type, entity_id, created_at FROM audit.logs "
+        f"WHERE module = 'Supplier Management' AND tenant_id = :tid {time_filter} ORDER BY created_at DESC LIMIT 20"
+    ), {"tid": tid})
+    recent_activity = [{"action": r[0], "entity_type": r[1], "entity_id": r[2],
+                        "created_at": str(r[3]) if r[3] else None} for r in recent_logs]
+
+    action_rows = db.session.execute(db.text(
+        f"SELECT action, COUNT(*) FROM audit.logs "
+        f"WHERE module = 'Supplier Management' AND tenant_id = :tid {time_filter} GROUP BY action"
+    ), {"tid": tid}).fetchall()
+    action_breakdown = {r[0]: r[1] for r in action_rows}
+
+    return {"success": True, "data": {
+        "total_suppliers": total_suppliers,
+        "active_suppliers": active_suppliers,
+        "total_parts": total_parts,
+        "total_contracts": total_contracts,
+        "type_breakdown": type_breakdown,
+        "action_breakdown": action_breakdown,
+        "recent_activity": recent_activity
+    }}
 
 
 # ─── SUPPLIERS ───
@@ -108,10 +183,19 @@ def get_supplier(sid):
     ), {"sid": sid}).fetchall()
 
     audit = db.session.execute(db.text(
-        "SELECT id, action, entity_type, user_email, user_name, ip_address, created_at "
-        "FROM audit.logs WHERE entity_id = :eid AND module = 'Supplier Management' "
-        "ORDER BY created_at DESC LIMIT 100"
-    ), {"eid": sid}).fetchall()
+        "SELECT id, action, entity_type, user_email, user_name, ip_address, created_at, old_value, new_value "
+        "FROM audit.logs "
+        "WHERE module = 'Supplier Management' AND ("
+        "  entity_id = :sid "
+        "  OR entity_id IN (SELECT id::text FROM supplier.addresses WHERE supplier_id = :sid) "
+        "  OR entity_id IN (SELECT id::text FROM supplier.contacts WHERE supplier_id = :sid) "
+        "  OR entity_id IN (SELECT id::text FROM supplier.parts WHERE supplier_id = :sid) "
+        "  OR entity_id IN (SELECT id::text FROM supplier.evaluations WHERE supplier_id = :sid) "
+        "  OR entity_id IN (SELECT id::text FROM supplier.contracts WHERE supplier_id = :sid) "
+        "  OR entity_id IN (SELECT id::text FROM supplier.performance WHERE supplier_id = :sid)"
+        "  OR entity_id IN (SELECT id::text FROM supplier.history WHERE supplier_id = :sid)"
+        ") ORDER BY created_at DESC LIMIT 200"
+    ), {"sid": str(sid)}).fetchall()
 
     evaluations = db.session.execute(db.text(
         "SELECT id, supplier_id, evaluation_date, period, document_verification_status, workflow_stage, quality_score, price_score, delivery_score, capacity_score, financial_stability_score, experience_score, technical_support_score, overall_score, approval_status, evaluator_id, comments, created_at "
@@ -265,7 +349,9 @@ def get_supplier(sid):
             "user_email": a[3] or "",
             "user_name": a[4] or "",
             "ip_address": a[5] or "",
-            "created_at": str(a[6]) if a[6] else None
+            "created_at": str(a[6]) if a[6] else None,
+            "old_value": a[7] if isinstance(a[7], (dict, list)) else (json.loads(a[7]) if (isinstance(a[7], str) and a[7].strip()) else None),
+            "new_value": a[8] if isinstance(a[8], (dict, list)) else (json.loads(a[8]) if (isinstance(a[8], str) and a[8].strip()) else None)
         } for a in audit]
     }}
 
@@ -324,8 +410,22 @@ def update_supplier(sid):
     if not updates:
         return {"success": False, "message": "Nothing to update"}, 400
     updates.append("updated_at=NOW()")
+    old_row = db.session.execute(db.text("SELECT * FROM supplier.suppliers WHERE id=:id"), {"id": sid}).mappings().first()
+    old_val = dict(old_row) if old_row else None
+    if old_val:
+        for k, v in old_val.items():
+            if hasattr(v, 'isoformat'): old_val[k] = v.isoformat()
+            
     db.session.execute(db.text(f"UPDATE supplier.suppliers SET {', '.join(updates)} WHERE id=:id"), params)
     _log("UPDATE", "Supplier", sid)
+    
+    new_row = db.session.execute(db.text("SELECT * FROM supplier.suppliers WHERE id=:id"), {"id": sid}).mappings().first()
+    new_val = dict(new_row) if new_row else None
+    if new_val:
+        for k, v in new_val.items():
+            if hasattr(v, 'isoformat'): new_val[k] = v.isoformat()
+            
+    _log("UPDATE", "Supplier", sid, old_val, new_val)
     db.session.commit()
     return {"success": True, "message": "Supplier updated"}
 
@@ -380,8 +480,22 @@ def update_address(sid, aid):
             "UPDATE supplier.addresses SET is_default=false WHERE supplier_id=:sid"
         ), {"sid": sid})
     if updates:
-        db.session.execute(db.text(f"UPDATE supplier.addresses SET {', '.join(updates)} WHERE id=:id"), params)
+        old_row = db.session.execute(db.text("SELECT * FROM supplier.addresses WHERE id=:id"), {"id": aid}).mappings().first()
+    old_val = dict(old_row) if old_row else None
+    if old_val:
+        for k, v in old_val.items():
+            if hasattr(v, 'isoformat'): old_val[k] = v.isoformat()
+            
+    db.session.execute(db.text(f"UPDATE supplier.addresses SET {', '.join(updates)} WHERE id=:id"), params)
     _log("UPDATE", "Supplier Address", aid)
+    
+    new_row = db.session.execute(db.text("SELECT * FROM supplier.addresses WHERE id=:id"), {"id": aid}).mappings().first()
+    new_val = dict(new_row) if new_row else None
+    if new_val:
+        for k, v in new_val.items():
+            if hasattr(v, 'isoformat'): new_val[k] = v.isoformat()
+            
+    _log("UPDATE", "Supplier Address", aid, old_val, new_val)
     db.session.commit()
     return {"success": True, "message": "Address updated"}
 
@@ -435,8 +549,22 @@ def update_contact(sid, cid):
             params[f] = data[f]
     if not updates:
         return {"success": False, "message": "Nothing to update"}, 400
+    old_row = db.session.execute(db.text("SELECT * FROM supplier.contacts WHERE id=:id"), {"id": cid}).mappings().first()
+    old_val = dict(old_row) if old_row else None
+    if old_val:
+        for k, v in old_val.items():
+            if hasattr(v, 'isoformat'): old_val[k] = v.isoformat()
+            
     db.session.execute(db.text(f"UPDATE supplier.contacts SET {', '.join(updates)} WHERE id=:id"), params)
     _log("UPDATE", "Supplier Contact", cid)
+    
+    new_row = db.session.execute(db.text("SELECT * FROM supplier.contacts WHERE id=:id"), {"id": cid}).mappings().first()
+    new_val = dict(new_row) if new_row else None
+    if new_val:
+        for k, v in new_val.items():
+            if hasattr(v, 'isoformat'): new_val[k] = v.isoformat()
+            
+    _log("UPDATE", "Supplier Contact", cid, old_val, new_val)
     db.session.commit()
     return {"success": True, "message": "Contact updated"}
 
@@ -463,21 +591,37 @@ def add_item(sid):
     ), {
         "id": pid,
         "sid": sid,
-        "item_type": str(data.get("item_type", "part")).lower(),
-        "pc": data.get("part_code", ""),
-        "mpn": data.get("mpn", ""),
-        "make": data.get("make", ""),
-        "unit": data.get("unit", ""),
-        "moq": data.get("moq", 0) or 0,
-        "moqp": data.get("moq_price", 0) or 0,
-        "spq": data.get("spq", 0) or 0,
-        "spqp": data.get("spq_price", 0) or 0,
-        "sq": data.get("sample_qty", 0) or 0,
-        "sp": data.get("sample_price", 0) or 0,
-        "notes": data.get("notes", ""),
+        "item_type": str(data.get("item_type") or "part").lower(),
+        "pc": data.get("part_code") or "",
+        "mpn": data.get("mpn") or "",
+        "make": data.get("make") or "",
+        "unit": data.get("unit") or "",
+        "moq": _safe_float(data.get("moq")),
+        "moqp": _safe_float(data.get("moq_price")),
+        "spq": _safe_float(data.get("spq")),
+        "spqp": _safe_float(data.get("spq_price")),
+        "sq": _safe_float(data.get("sample_qty")),
+        "sp": _safe_float(data.get("sample_price")),
+        "notes": data.get("notes") or "",
         "tid": _tid()
     })
-    _log("CREATE", "Supplier Item", pid)
+    _log("CREATE", "Supplier Item", pid, new_value={"part_code": data.get("part_code") or "", "mpn": data.get("mpn") or "", "make": data.get("make") or ""})
+    
+    # Auto-add to part.manufacturers if it's a new combination
+    _item_type = str(data.get("item_type") or "part").lower()
+    _pc = data.get("part_code") or ""
+    _mpn = data.get("mpn") or ""
+    _make = data.get("make") or ""
+    
+    if _item_type == "part" and _pc and (_mpn or _make):
+        _exists = db.session.execute(db.text(
+            "SELECT 1 FROM part.manufacturers WHERE part_number = :pn AND (mpn = :mpn OR (mpn IS NULL AND :mpn = '')) AND (make = :make OR (make IS NULL AND :make = ''))"
+        ), {"pn": _pc, "mpn": _mpn, "make": _make}).fetchone()
+        if not _exists:
+            db.session.execute(db.text(
+                "INSERT INTO part.manufacturers (part_number, mpn, make) VALUES (:pn, :mpn, :make)"
+            ), {"pn": _pc, "mpn": _mpn, "make": _make})
+
     db.session.commit()
     return {"success": True, "data": {"id": pid}, "message": "Item added"}, 201
 
@@ -489,22 +633,42 @@ def update_item(sid, pid):
     for f in ["item_type", "part_code", "mpn", "make", "unit", "moq", "moq_price", "spq", "spq_price", "sample_qty", "sample_price", "notes"]:
         if f in data:
             updates.append(f"{f}=:{f}")
-            params[f] = data[f] if data[f] != "" else None
+            if f in ("unit", "item_type", "part_code", "mpn", "make", "notes"):
+                params[f] = data[f] if data[f] is not None else ""
+            elif f in ("moq", "moq_price", "spq", "spq_price", "sample_qty", "sample_price"):
+                params[f] = _safe_float(data[f])
+            else:
+                params[f] = data[f] if data[f] != "" else None
     if not updates:
         return {"success": False, "message": "Nothing to update"}, 400
     updates.append("updated_at=NOW()")
+    old_row = db.session.execute(db.text("SELECT * FROM supplier.parts WHERE id=:id"), {"id": pid}).mappings().first()
+    old_val = dict(old_row) if old_row else None
+    if old_val:
+        for k, v in old_val.items():
+            if hasattr(v, 'isoformat'): old_val[k] = v.isoformat()
+            
     db.session.execute(db.text(f"UPDATE supplier.parts SET {', '.join(updates)} WHERE id=:id"), params)
     _log("UPDATE", "Supplier Item", pid)
+    
+    new_row = db.session.execute(db.text("SELECT * FROM supplier.parts WHERE id=:id"), {"id": pid}).mappings().first()
+    new_val = dict(new_row) if new_row else None
+    if new_val:
+        for k, v in new_val.items():
+            if hasattr(v, 'isoformat'): new_val[k] = v.isoformat()
+            
+    _log("UPDATE", "Supplier Item", pid, old_val, new_val)
     db.session.commit()
     return {"success": True, "message": "Item updated"}
 
 
 @supplier_bp.route("/suppliers/<sid>/items/<pid>", methods=["DELETE"])
 def delete_item(sid, pid):
+    item = db.session.execute(db.text("SELECT part_code, mpn, make FROM supplier.parts WHERE id=:id"), {"id": pid}).fetchone()
     db.session.execute(db.text(
         "UPDATE supplier.parts SET is_deleted=true, updated_at=NOW() WHERE id=:id"
     ), {"id": pid})
-    _log("DELETE", "Supplier Item", pid)
+    _log("DELETE", "Supplier Item", pid, old_value={"part_code": item[0], "mpn": item[1], "make": item[2]} if item else None)
     db.session.commit()
     return {"success": True, "message": "Item deleted"}
 
@@ -602,7 +766,15 @@ def add_history(sid):
         "by": _by(),
         "tid": _tid()
     })
-    _log("CREATE", "Supplier History", hid)
+    _log("CREATE", "Supplier History", hid, new_value={
+        "part_code": data.get("part_code", ""),
+        "event_type": data.get("event_type", ""),
+        "description": data.get("description", ""),
+        "quantity": data.get("quantity", ""),
+        "unit": data.get("unit", ""),
+        "amount": data.get("amount", ""),
+        "reference_no": data.get("reference_no", "")
+    })
     db.session.commit()
     return {"success": True, "data": {"id": hid}, "message": "History entry added"}, 201
 
@@ -692,8 +864,22 @@ def update_evaluation(sid, eid):
     if not updates:
         return {"success": False, "message": "Nothing to update"}, 400
     updates.append("updated_at=NOW()")
+    old_row = db.session.execute(db.text("SELECT * FROM supplier.evaluations WHERE id=:id"), {"id": eid}).mappings().first()
+    old_val = dict(old_row) if old_row else None
+    if old_val:
+        for k, v in old_val.items():
+            if hasattr(v, 'isoformat'): old_val[k] = v.isoformat()
+            
     db.session.execute(db.text(f"UPDATE supplier.evaluations SET {', '.join(updates)} WHERE id=:id"), params)
     _log("UPDATE", "Supplier Evaluation", eid)
+    
+    new_row = db.session.execute(db.text("SELECT * FROM supplier.evaluations WHERE id=:id"), {"id": eid}).mappings().first()
+    new_val = dict(new_row) if new_row else None
+    if new_val:
+        for k, v in new_val.items():
+            if hasattr(v, 'isoformat'): new_val[k] = v.isoformat()
+            
+    _log("UPDATE", "Supplier Evaluation", eid, old_val, new_val)
     db.session.commit()
     return {"success": True, "message": "Evaluation updated"}
 
@@ -776,8 +962,22 @@ def update_contract(sid, cid):
     if not updates:
         return {"success": False, "message": "Nothing to update"}, 400
     updates.append("updated_at=NOW()")
+    old_row = db.session.execute(db.text("SELECT * FROM supplier.contracts WHERE id=:id"), {"id": cid}).mappings().first()
+    old_val = dict(old_row) if old_row else None
+    if old_val:
+        for k, v in old_val.items():
+            if hasattr(v, 'isoformat'): old_val[k] = v.isoformat()
+            
     db.session.execute(db.text(f"UPDATE supplier.contracts SET {', '.join(updates)} WHERE id=:id"), params)
     _log("UPDATE", "Supplier Contract", cid)
+    
+    new_row = db.session.execute(db.text("SELECT * FROM supplier.contracts WHERE id=:id"), {"id": cid}).mappings().first()
+    new_val = dict(new_row) if new_row else None
+    if new_val:
+        for k, v in new_val.items():
+            if hasattr(v, 'isoformat'): new_val[k] = v.isoformat()
+            
+    _log("UPDATE", "Supplier Contract", cid, old_val, new_val)
     db.session.commit()
     return {"success": True, "message": "Contract updated"}
 
@@ -858,8 +1058,22 @@ def update_performance(sid, pid):
     if not updates:
         return {"success": False, "message": "Nothing to update"}, 400
     updates.append("updated_at=NOW()")
+    old_row = db.session.execute(db.text("SELECT * FROM supplier.performance WHERE id=:id"), {"id": pid}).mappings().first()
+    old_val = dict(old_row) if old_row else None
+    if old_val:
+        for k, v in old_val.items():
+            if hasattr(v, 'isoformat'): old_val[k] = v.isoformat()
+            
     db.session.execute(db.text(f"UPDATE supplier.performance SET {', '.join(updates)} WHERE id=:id"), params)
     _log("UPDATE", "Supplier Performance", pid)
+    
+    new_row = db.session.execute(db.text("SELECT * FROM supplier.performance WHERE id=:id"), {"id": pid}).mappings().first()
+    new_val = dict(new_row) if new_row else None
+    if new_val:
+        for k, v in new_val.items():
+            if hasattr(v, 'isoformat'): new_val[k] = v.isoformat()
+            
+    _log("UPDATE", "Supplier Performance", pid, old_val, new_val)
     db.session.commit()
     return {"success": True, "message": "Performance review updated"}
 
@@ -883,9 +1097,12 @@ def search_suppliers():
     if not q or len(q) < 2:
         return {"success": True, "data": []}
     rows = db.session.execute(db.text(
-        "SELECT id, supplier_code, brand_name, status FROM supplier.suppliers "
-        "WHERE (tenant_id = :tid OR tenant_id = '' OR tenant_id IS NULL) AND is_deleted = false "
-        "AND (LOWER(brand_name) LIKE LOWER(:q) OR LOWER(supplier_code) LIKE LOWER(:q)) ORDER BY brand_name LIMIT 20"
+        "SELECT DISTINCT s.id, s.supplier_code, s.brand_name, s.status "
+        "FROM supplier.suppliers s "
+        "LEFT JOIN supplier.parts p ON p.supplier_id = s.id AND p.is_deleted = false "
+        "WHERE (s.tenant_id = :tid OR s.tenant_id = '' OR s.tenant_id IS NULL) AND s.is_deleted = false "
+        "AND (LOWER(s.brand_name) LIKE LOWER(:q) OR LOWER(s.supplier_code) LIKE LOWER(:q) OR LOWER(p.part_code) LIKE LOWER(:q) OR LOWER(p.mpn) LIKE LOWER(:q) OR LOWER(p.make) LIKE LOWER(:q)) "
+        "ORDER BY s.brand_name LIMIT 20"
     ), {"tid": tid, "q": f"%{q}%"}).fetchall()
     return {"success": True, "data": [{
         "id": str(r[0]),
@@ -925,3 +1142,247 @@ def item_supplier_history(item_code):
         "rating": _safe_float(r[14]),
         "currency": r[15] or "INR"
     } for r in rows]}
+
+
+# ─── MODULE USER MANAGEMENT ───
+
+@supplier_bp.route("/users", methods=["GET"])
+def list_module_users():
+    """List users with access to Supplier Management module."""
+    tid = _tid()
+    if not tid or tid == 'TEST':
+        tid = 'b424df0e-f766-4e94-b3fd-05777e158958'
+    rows = db.session.execute(db.text(
+        "SELECT ma.id, ma.user_id, ma.role, ma.permissions, ma.is_active, ma.created_at, "
+        "u.email, u.first_name, u.last_name "
+        "FROM iam.module_access ma JOIN iam.users u ON ma.user_id = u.id "
+        "WHERE ma.module = 'Supplier Management' "
+        "AND (ma.tenant_id = :tid OR ma.tenant_id = 'b424df0e-f766-4e94-b3fd-05777e158958' OR ma.tenant_id = 'TEST' OR ma.tenant_id = '' OR ma.tenant_id IS NULL) "
+        "ORDER BY ma.created_at DESC"
+    ), {"tid": tid})
+    items = [{
+        "id": r[0], "user_id": r[1], "role": r[2], "permissions": r[3] or [],
+        "is_active": r[4], "created_at": str(r[5]) if r[5] else None,
+        "email": r[6], "first_name": r[7] or '', "last_name": r[8] or ''
+    } for r in rows]
+    return {"success": True, "data": items}
+
+@supplier_bp.route("/users", methods=["POST"])
+def add_module_user():
+    data = request.get_json()
+    tid = _tid()
+    if not tid or tid == 'TEST':
+        tid = 'b424df0e-f766-4e94-b3fd-05777e158958'
+    user_id = data.get("user_id")
+    role = data.get("role", "viewer")
+    permissions = data.get("permissions", [])
+
+    if not user_id: return {"success": False, "message": "user_id required"}, 400
+
+    user = db.session.execute(db.text("SELECT id, email FROM iam.users WHERE id = :id AND is_deleted = false"), {"id": user_id}).first()
+    if not user: return {"success": False, "message": "User not found"}, 404
+
+    existing = db.session.execute(db.text("SELECT id FROM iam.module_access WHERE user_id = :uid AND module = 'Supplier Management'"), {"uid": user_id}).first()
+    if existing: return {"success": False, "message": "User already has access"}, 409
+
+    access_id = str(uuid.uuid4())
+    db.session.execute(db.text(
+        "INSERT INTO iam.module_access (id, user_id, module, role, permissions, granted_by, tenant_id) "
+        "VALUES (:id, :uid, 'Supplier Management', :role, :perms, :granted_by, :tid)"
+    ), {
+        "id": access_id, "uid": user_id, "role": role,
+        "perms": json.dumps(permissions),
+        "granted_by": request.headers.get('X-User-Email', ''),
+        "tid": tid
+    })
+    db.session.commit()
+    _log('GRANT_ACCESS', 'Module User', user[1])
+    return {"success": True, "message": f"Access granted to {user[1]}"}, 201
+
+@supplier_bp.route("/users/<access_id>", methods=["PUT"])
+def update_module_user(access_id):
+    data = request.get_json()
+    updates = []
+    params = {"id": access_id}
+    if "role" in data:
+        updates.append("role=:role")
+        params["role"] = data["role"]
+    if "permissions" in data:
+        updates.append("permissions=:permissions")
+        params["permissions"] = json.dumps(data["permissions"])
+    if "is_active" in data:
+        updates.append("is_active=:is_active")
+        params["is_active"] = data["is_active"]
+    if not updates: return {"success": False, "message": "Nothing to update"}, 400
+    updates.append("updated_at=NOW()")
+    db.session.execute(db.text(f"UPDATE iam.module_access SET {', '.join(updates)} WHERE id=:id"), params)
+    db.session.commit()
+    _log('UPDATE_ACCESS', 'Module User', access_id)
+    return {"success": True, "message": "Access updated"}
+
+@supplier_bp.route("/users/<access_id>", methods=["DELETE"])
+def revoke_module_user(access_id):
+    db.session.execute(db.text("DELETE FROM iam.module_access WHERE id = :id"), {"id": access_id})
+    db.session.commit()
+    _log('REVOKE_ACCESS', 'Module User', access_id)
+    return {"success": True, "message": "Access revoked"}
+
+@supplier_bp.route("/users/available", methods=["GET"])
+def list_available_users():
+    tid = _tid()
+    rows = db.session.execute(db.text(
+        "SELECT u.id, u.email, u.first_name, u.last_name FROM iam.users u "
+        "LEFT JOIN iam.module_access ma ON u.id = ma.user_id AND ma.module = 'Supplier Management' "
+        "WHERE u.is_deleted = false AND ma.id IS NULL AND u.tenant_id = :tid "
+        "ORDER BY u.email"
+    ), {"tid": tid})
+    items = [{"id": r[0], "email": r[1], "first_name": r[2] or '', "last_name": r[3] or ''} for r in rows]
+    return {"success": True, "data": items}
+
+@supplier_bp.route("/suppliers/<sid>/detailed-history", methods=["GET"])
+def get_detailed_history(sid):
+    entity_type = request.args.get('entity_type')
+    
+    # Map entity_type to the table that holds the supplier_id
+    table_map = {
+        "Supplier Address": "supplier.addresses",
+        "Supplier Contact": "supplier.contacts",
+        "Supplier Evaluation": "supplier.evaluations",
+        "Supplier Contract": "supplier.contracts",
+        "Supplier Performance": "supplier.performance",
+        "Supplier Item": "supplier.parts",
+        "Supplier History": "supplier.history",
+        "Supplier": "supplier.suppliers"
+    }
+    
+    table_name = table_map.get(entity_type)
+    if not table_name:
+        return {"success": False, "message": "Invalid entity type"}, 400
+        
+    if entity_type == "Supplier":
+        # The entity_id IS the supplier_id
+        q = "SELECT id, action, entity_type, entity_id, user_name, user_email, created_at, old_value, new_value FROM audit.logs WHERE entity_type=:etype AND entity_id=:sid ORDER BY created_at DESC"
+    else:
+        q = f"SELECT id, action, entity_type, entity_id, user_name, user_email, created_at, old_value, new_value FROM audit.logs WHERE entity_type=:etype AND entity_id IN (SELECT id::text FROM {table_name} WHERE supplier_id=:sid) ORDER BY created_at DESC"
+        
+    logs = db.session.execute(db.text(q), {"etype": entity_type, "sid": sid}).fetchall()
+    
+    data = []
+    import json
+    for r in logs:
+        data.append({
+            "id": str(r[0]),
+            "action": r[1],
+            "entity_type": r[2],
+            "entity_id": str(r[3]),
+            "user_name": r[4],
+            "user_email": r[5],
+            "created_at": str(r[6]),
+            "old_value": r[7] if isinstance(r[7], dict) else (json.loads(r[7]) if r[7] else None),
+            "new_value": r[8] if isinstance(r[8], dict) else (json.loads(r[8]) if r[8] else None)
+        })
+        
+    return {"success": True, "data": data}
+
+# ─── PURCHASE ORDERS FOR SUPPLIER ───
+
+@supplier_bp.route("/suppliers/<sid>/purchase-orders", methods=["GET"])
+def get_supplier_purchase_orders(sid):
+    try:
+        rows = db.session.execute(db.text(
+            "SELECT id, doc_no, pr_no, item_code, item_description, order_qty, unit_price, "
+            "total_amount, promised_date, po_status, sent_to_supplier_at, date, "
+            "COALESCE(lines::text,'[]') as lines, "
+            "COALESCE(notes,'') as notes, COALESCE(created_by,'') as created_by, "
+            "COALESCE(supplier_name,'') as supplier_name, "
+            "COALESCE(supplier_invoice_no,'') as supplier_invoice_no, "
+            "COALESCE(supplier_invoice_amount,0) as supplier_invoice_amount "
+            "FROM procurement.purchase_orders "
+            "WHERE supplier_id = :sid AND is_deleted = false "
+            "ORDER BY date DESC"
+        ), {"sid": str(sid)}).fetchall()
+        data = []
+        for r in rows:
+            try:
+                raw = r[12]
+                lines = raw if isinstance(raw, list) else (json.loads(raw) if raw and raw != '[]' else [])
+            except Exception:
+                lines = []
+            data.append({
+                "id": str(r[0]), "po_no": r[1] or "", "pr_no": r[2] or "",
+                "item_code": r[3] or "", "item_description": r[4] or "",
+                "order_qty": float(r[5] or 0), "unit_price": float(r[6] or 0),
+                "total_amount": float(r[7] or 0),
+                "promised_date": str(r[8]) if r[8] else "",
+                "po_status": r[9] or "draft",
+                "sent_to_supplier_at": str(r[10]) if r[10] else None,
+                "po_date": str(r[11]) if r[11] else "",
+                "lines": lines,
+                "notes": r[13] or "",
+                "created_by": r[14] or "",
+                "supplier_name": r[15] or "",
+                "supplier_invoice_no": r[16] or "",
+                "supplier_invoice_amount": float(r[17] or 0)
+            })
+        return {"success": True, "data": data}
+    except Exception as e:
+        db.session.rollback()
+        return {"success": False, "message": str(e)}, 500
+
+
+@supplier_bp.route("/suppliers/<sid>/purchase-orders/<po_id>/promised-date", methods=["PUT"])
+def update_po_promised_date(sid, po_id):
+    data = request.get_json() or {}
+    new_date = data.get("promised_date", "").strip()
+    reason = data.get("reason", "").strip()
+    if not new_date:
+        return {"success": False, "message": "promised_date is required"}, 400
+    po = db.session.execute(db.text(
+        "SELECT doc_no, promised_date FROM procurement.purchase_orders WHERE id=:id AND supplier_id=:sid AND is_deleted=false"
+    ), {"id": po_id, "sid": sid}).first()
+    if not po:
+        return {"success": False, "message": "PO not found"}, 404
+    old_date = str(po[1]) if po[1] else ""
+    note_append = f" | Date revised {old_date} → {new_date}" + (f": {reason}" if reason else "")
+    db.session.execute(db.text(
+        "UPDATE procurement.purchase_orders SET promised_date=:d, "
+        "notes = COALESCE(notes,'') || :note, updated_at=NOW() WHERE id=:id"
+    ), {"d": new_date, "note": note_append, "id": po_id})
+    db.session.commit()
+    return {"success": True, "message": f"Promised date updated to {new_date}"}
+
+
+@supplier_bp.route("/audit-logs", methods=["GET"])
+def get_supplier_audit_logs():
+    tenant_id = _tid()
+    page = request.args.get("page", 1, type=int)
+    limit = request.args.get("limit", 50, type=int)
+    try:
+        rows = db.session.execute(db.text(
+            "SELECT id, action, entity_type, entity_id, user_name, user_email, ip_address, created_at, old_value, new_value "
+            "FROM audit.logs "
+            "WHERE module = 'Supplier Management' AND tenant_id = :tid "
+            "ORDER BY created_at DESC LIMIT :limit OFFSET :offset"
+        ), {"tid": tenant_id, "limit": limit, "offset": (page-1)*limit}).fetchall()
+        
+        import json
+        items = []
+        for r in rows:
+            items.append({
+                "id": str(r[0]),
+                "action": r[1],
+                "entity_type": r[2],
+                "entity_id": str(r[3]),
+                "user_name": r[4],
+                "user_email": r[5],
+                "ip_address": r[6],
+                "created_at": str(r[7]),
+                "old_value": r[8] if isinstance(r[8], dict) else (json.loads(r[8]) if r[8] else None),
+                "new_value": r[9] if isinstance(r[9], dict) else (json.loads(r[9]) if r[9] else None)
+            })
+        
+        return {"success": True, "data": items}
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return {"success": False, "message": str(e)}, 500

@@ -3,6 +3,66 @@
 let allMappings = [];
 let allUnmapped = [];
 
+// ─── EXPORT HELPERS ───
+function _downloadCSV(rows, filename) {
+    const csv = rows.map(r => r.map(c => '"' + String(c ?? '').replace(/"/g, '""') + '"').join(',')).join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.download = filename; a.click();
+}
+
+function exportUnmapped() {
+    if (!allUnmapped.length) { showToast('No unmapped parts to export', 'error'); return; }
+    const rows = [['Customer Part #', 'From PO', 'Source'], ...allUnmapped.map(u => [u.customer_part_number, u.po_number, 'Project PO'])];
+    _downloadCSV(rows, 'unmapped_parts.csv');
+    showToast('Exported unmapped parts');
+}
+
+function downloadUnmappedTemplate() {
+    _downloadCSV([['customer_part_number', 'internal_part_number', 'internal_description']], 'mapping_import_template.csv');
+    showToast('Template downloaded');
+}
+
+function importUnmappedCSV() {
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = '.csv';
+    inp.onchange = async e => {
+        const file = e.target.files[0]; if (!file) return;
+        const text = await file.text();
+        const lines = text.trim().split('\n').slice(1); // skip header
+        let ok = 0, fail = 0;
+        for (const line of lines) {
+            const cols = line.split(',').map(c => c.replace(/^"|"$/g, '').trim());
+            const [cpn, ipn, idesc] = cols;
+            if (!cpn || !ipn) { fail++; continue; }
+            try {
+                const res = await fetch(API + '/mappings', { method: 'POST', headers: HEADERS, body: JSON.stringify({ customer_part_number: cpn, internal_part_number: ipn, internal_description: idesc || '' }) });
+                const d = await res.json();
+                if (d.success) ok++; else fail++;
+            } catch { fail++; }
+        }
+        showToast(`Import done: ${ok} created, ${fail} failed`, ok > 0 ? 'success' : 'error');
+        loadMappings();
+    };
+    inp.click();
+}
+
+function exportMappings() {
+    if (!allMappings.length) { showToast('No mappings to export', 'error'); return; }
+    const rows = [['Part Code', 'Description', 'Customer Part #', 'Created'], ...allMappings.map(m => [m.internal_part_number, m.internal_description, m.customer_part_number, m.created_at || ''])];
+    _downloadCSV(rows, 'part_mappings.csv');
+    showToast('Exported mappings');
+}
+
+// ─── FULLSCREEN TOGGLE ───
+function toggleFullscreen(sectionId) {
+    const el = document.getElementById(sectionId);
+    if (!el) return;
+    el.classList.toggle('pm-fullscreen');
+    const btn = el.querySelector('.fs-btn .material-icons-outlined');
+    if (btn) btn.textContent = el.classList.contains('pm-fullscreen') ? 'fullscreen_exit' : 'fullscreen';
+}
+
 async function loadMappings() {
     const tbody = document.getElementById('mappingsTableBody');
     try {
@@ -10,7 +70,7 @@ async function loadMappings() {
         const data = await res.json();
         allMappings = data.success ? data.data : [];
         renderMappingsTable();
-    } catch (e) { tbody.innerHTML = '<tr><td colspan="5" class="empty">Error loading mappings</td></tr>'; }
+    } catch (e) { if(tbody) tbody.innerHTML = '<tr><td colspan="5" class="empty">Error loading mappings</td></tr>'; }
     loadUnmappedCustomerParts();
 }
 
@@ -67,12 +127,16 @@ function renderUnmappedTable() {
         );
     }
     if (!filtered.length) { container.innerHTML = '<div class="empty" style="padding:12px">All customer part numbers are mapped ✅</div>'; return; }
-    container.innerHTML = `<table class="data-table"><thead><tr><th>Customer Part #</th><th>From PO</th><th>Action</th></tr></thead><tbody>` +
-        filtered.map(u => `<tr>
-            <td><strong>${esc(u.customer_part_number)}</strong></td>
-            <td>${esc(u.po_number)}</td>
-            <td><button class="btn-outline btn-sm" onclick="openAddMappingWithCust('${esc(u.customer_part_number)}')"><span class="material-icons-outlined">add_link</span> Map</button></td>
-        </tr>`).join('') + `</tbody></table>`;
+    container.innerHTML = `<table class="data-table"><thead><tr><th>Customer Part #</th><th>From PO</th><th>Source</th><th>Action</th></tr></thead><tbody>` +
+        filtered.map(u => {
+            const srcBadge = '<span style="font-size:10px;padding:2px 7px;border-radius:4px;background:#e8f5e9;color:#2e7d32;font-weight:600;">Project PO</span>';
+            return `<tr>
+                <td><strong>${esc(u.customer_part_number)}</strong></td>
+                <td>${esc(u.po_number)}</td>
+                <td>${srcBadge}</td>
+                <td><button class="btn-outline btn-sm" onclick="openAddMappingWithCust('${esc(u.customer_part_number)}')"><span class="material-icons-outlined">add_link</span> Map</button></td>
+            </tr>`;
+        }).join('') + `</tbody></table>`;
 }
 
 function filterUnmapped() { renderUnmappedTable(); }
@@ -121,12 +185,34 @@ function selectInternalPart(partNum, desc) {
     document.getElementById('mapIntResults').innerHTML = '';
     document.getElementById('mapIntSelLabel').innerHTML = `<strong>${partNum}</strong> — ${desc}`;
     document.getElementById('mapIntSelected').style.display = 'flex';
+    
+    // Check existing mappings
+    const existing = allMappings.filter(m => m.internal_part_number === partNum);
+    const notice = document.getElementById('mapIntMappingNotice');
+    if (notice) {
+        if (existing.length > 0) {
+            const custParts = existing.map(m => m.customer_part_number).join(', ');
+            notice.innerHTML = `<div style="font-size:12px;color:#e65100;background:#fff3e0;padding:8px 12px;border-radius:6px;margin-top:6px;border-left:4px solid #f57c00;line-height:1.4">
+                ⚠️ <strong>Already Mapped</strong>: This internal part is already mapped to <strong>${existing.length}</strong> customer part${existing.length > 1 ? 's' : ''}: <code>${esc(custParts)}</code>. 
+                Adding this mapping will map it to <strong>${existing.length + 1}</strong> customer parts.
+            </div>`;
+            notice.style.display = 'block';
+        } else {
+            notice.style.display = 'none';
+            notice.innerHTML = '';
+        }
+    }
 }
 
 function clearMapInt() {
     document.getElementById('mapIntPartNum').value = '';
     document.getElementById('mapIntDesc').value = '';
     document.getElementById('mapIntSelected').style.display = 'none';
+    const notice = document.getElementById('mapIntMappingNotice');
+    if (notice) {
+        notice.style.display = 'none';
+        notice.innerHTML = '';
+    }
 }
 
 // ─── SEARCH CUSTOMER PARTS ───
@@ -183,7 +269,11 @@ async function saveMapping(e) {
     };
     const res = await fetch(API + '/mappings', { method: 'POST', headers: HEADERS, body: JSON.stringify(body) });
     const data = await res.json();
-    if (data.success) { partCloseModal('addMappingModal'); loadMappings(); alert('Mapping created & synced to POs!'); }
+    if (data.success) {
+        partCloseModal('addMappingModal');
+        loadMappings();
+        alert('Mapping created & synced to POs!');
+    }
     else { alert(data.message); }
 }
 

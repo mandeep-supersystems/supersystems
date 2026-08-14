@@ -421,3 +421,7 @@ CREATE INDEX IF NOT EXISTS idx_boms_part ON manufacturing.boms(fg_part_number, t
 CREATE INDEX IF NOT EXISTS idx_prod_orders_status ON manufacturing.production_orders(status, tenant_id);
 CREATE INDEX IF NOT EXISTS idx_shop_floor_order ON manufacturing.shop_floor_logs(production_order_no, tenant_id);
 CREATE INDEX IF NOT EXISTS idx_routings_part ON manufacturing.routings(part_number, tenant_id);
+
+-- project_id on production_orders: links a production run back to the project that triggered it
+ALTER TABLE manufacturing.production_orders ADD COLUMN IF NOT EXISTS project_id VARCHAR(36) DEFAULT NULL;
+CREATE INDEX IF NOT EXISTS idx_prod_orders_project ON manufacturing.production_orders(project_id) WHERE project_id IS NOT NULL;

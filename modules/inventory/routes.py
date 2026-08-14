@@ -858,58 +858,58 @@ def location_detail(lid):
         bin_code = loc[7]
         warehouse_code = loc[8]
 
-        # Current stock at this bin — only rows with qty_on_hand > 0
+        # Current stock from inventory_stock_levels
         stock_rows = db.session.execute(db.text(
-            f"SELECT part_number, part_description, item_type, qty_on_hand, qty_reserved, "
-            f"qty_available, unit, unit_cost, total_value, last_movement_at "
-            f"FROM inventory_stock_levels "
-            f"WHERE bin_code = :bin AND warehouse_code = :wh "
-            f"AND qty_on_hand > 0 AND is_deleted = false AND {cond} "
-            f"ORDER BY part_number ASC"
-        ), {"bin": bin_code, "wh": warehouse_code, "tid": tenant_id}).fetchall()
+            "SELECT part_number, COALESCE(manufacturer,''), qty_on_hand, qty_available, unit "
+            "FROM inventory_stock_levels "
+            "WHERE bin_code = :bin AND qty_on_hand > 0 AND is_deleted = false "
+            "ORDER BY part_number ASC"
+        ), {"bin": bin_code}).fetchall()
 
         current_stock = [{
-            "part_number": r[0], "part_description": r[1] or "",
-            "item_type": r[2] or "PART",
-            "qty_on_hand": float(r[3] or 0), "qty_reserved": float(r[4] or 0),
-            "qty_available": float(r[5] or 0), "unit": r[6] or "pcs",
-            "unit_cost": float(r[7] or 0), "total_value": float(r[8] or 0),
-            "last_movement_at": str(r[9]) if r[9] else "-"
+            "part_number": r[0], "manufacturer": r[1] or "-",
+            "qty_on_hand": float(r[2] or 0),
+            "qty_available": float(r[3] or 0),
+            "unit": r[4] or "pcs"
         } for r in stock_rows]
 
-        # Movements strictly referencing this bin with a non-null, non-empty bin code
-        mov_rows = db.session.execute(db.text(
-            f"SELECT movement_no, movement_type, part_number, qty, unit, "
-            f"from_bin_code, to_bin_code, from_warehouse_code, to_warehouse_code, "
-            f"reference_no, performed_by, created_at "
-            f"FROM inventory_stock_movements "
-            f"WHERE (from_bin_code = :bin OR to_bin_code = :bin) "
-            f"AND from_bin_code IS NOT NULL AND from_bin_code != '' "
-            f"AND to_bin_code IS NOT NULL AND to_bin_code != '' "
-            f"AND is_deleted = false AND {cond} "
-            f"ORDER BY created_at DESC LIMIT 200"
-        ), {"bin": bin_code, "tid": tenant_id}).fetchall()
+        # Movements
+        try:
+            mov_rows = db.session.execute(db.text(
+                "SELECT movement_no, movement_type, part_number, qty, unit, "
+                "from_bin_code, to_bin_code, from_warehouse_code, to_warehouse_code, "
+                "reference_no, performed_by, created_at "
+                "FROM inventory_stock_movements "
+                "WHERE (from_bin_code=:bin OR to_bin_code=:bin) AND is_deleted=false "
+                "ORDER BY created_at DESC LIMIT 200"
+            ), {"bin": bin_code}).fetchall()
+        except Exception:
+            db.session.rollback()
+            mov_rows = []
 
         movements = [{
             "movement_no": r[0] or "-", "movement_type": r[1],
             "part_number": r[2], "qty": float(r[3] or 0), "unit": r[4] or "pcs",
-            "from_bin": r[5], "to_bin": r[6],
+            "from_bin": r[5] or "-", "to_bin": r[6] or "-",
             "from_wh": r[7] or "-", "to_wh": r[8] or "-",
-            "reference_no": r[9] or "-",
-            "performed_by": r[10] or "System",
+            "reference_no": r[9] or "-", "performed_by": r[10] or "System",
             "created_at": str(r[11]) if r[11] else "-",
             "direction": "IN" if r[6] == bin_code else "OUT"
         } for r in mov_rows]
 
-        # Check-ins assigned to this bin
-        checkin_rows = db.session.execute(db.text(
-            f"SELECT checkin_no, po_no, supplier_name, part_or_rm_code, "
-            f"received_qty, iqc_status, iqc_passed_qty, iqc_rejected_qty, "
-            f"checked_in_by, checkin_time "
-            f"FROM inventory_stock_checkins "
-            f"WHERE bin_code = :bin AND is_deleted = false AND {cond} "
-            f"ORDER BY checkin_time DESC"
-        ), {"bin": bin_code, "tid": tenant_id}).fetchall()
+        # Check-ins
+        try:
+            checkin_rows = db.session.execute(db.text(
+                f"SELECT checkin_no, po_no, supplier_name, part_or_rm_code, "
+                f"received_qty, iqc_status, iqc_passed_qty, iqc_rejected_qty, "
+                f"checked_in_by, checkin_time "
+                f"FROM inventory_stock_checkins "
+                f"WHERE bin_code = :bin AND is_deleted = false AND {cond} "
+                f"ORDER BY checkin_time DESC"
+            ), {"bin": bin_code, "tid": tenant_id}).fetchall()
+        except Exception:
+            db.session.rollback()
+            checkin_rows = []
 
         checkins = [{
             "checkin_no": r[0], "po_no": r[1], "supplier_name": r[2],
@@ -919,8 +919,8 @@ def location_detail(lid):
             "checked_in_by": r[8] or "-", "checkin_time": str(r[9]) if r[9] else "-"
         } for r in checkin_rows]
 
-        total_value = sum(s["total_value"] for s in current_stock)
         total_qty = sum(s["qty_on_hand"] for s in current_stock)
+        total_value = 0
 
         return jsonify({"success": True, "data": {
             "location": {

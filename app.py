@@ -70,7 +70,6 @@ def create_app(config_name="development"):
 
     # Business Module Blueprints
     from modules.inventory.routes import inventory_bp
-    from modules.procurement.routes import procurement_bp
     from modules.finance.routes import finance_bp
     from modules.hr.routes import hr_bp
     from modules.manufacturing.routes import manufacturing_bp
@@ -92,10 +91,11 @@ def create_app(config_name="development"):
     from modules.machine.routes import machine_bp
     from modules.workflow_costing.routes import workflow_bp
     from modules.purchase.routes import purchase_bp
+    from modules.planning import planning_bp
 
     app.register_blueprint(inventory_bp, url_prefix="/api/v1/inventory")
-    app.register_blueprint(procurement_bp, url_prefix="/api/v1/procurement")
     app.register_blueprint(purchase_bp, url_prefix="/api/v1/purchase")
+    app.register_blueprint(planning_bp, url_prefix="/api/v1/planning")
     app.register_blueprint(finance_bp, url_prefix="/api/v1/finance")
     app.register_blueprint(hr_bp, url_prefix="/api/v1/hr")
     app.register_blueprint(manufacturing_bp, url_prefix="/api/v1/manufacturing")
@@ -121,6 +121,29 @@ def create_app(config_name="development"):
     def login_page():
         return render_template("login.html")
 
+    def _check_module_access(module_code):
+        """Return True if current user (from JWT in localStorage via cookie/header) has access to module."""
+        from flask_jwt_extended import decode_token
+        import json as _json
+        token = request.cookies.get('access_token') or request.headers.get('Authorization', '').replace('Bearer ', '')
+        if not token:
+            return False
+        try:
+            decoded = decode_token(token)
+            raw = decoded.get('sub', '{}')
+            identity = _json.loads(raw) if isinstance(raw, str) else raw
+            if identity.get('is_super_admin'):
+                return True
+            user_id = identity.get('user_id')
+            if not user_id:
+                return False
+            row = db.session.execute(db.text(
+                "SELECT id FROM iam.module_access WHERE user_id = :uid AND LOWER(module) = LOWER(:mod) AND is_active = true LIMIT 1"
+            ), {"uid": user_id, "mod": module_code}).first()
+            return row is not None
+        except Exception:
+            return False
+
     def _require_auth():
         """Check JWT token from cookie or Authorization header for page routes."""
         from flask_jwt_extended import decode_token
@@ -142,75 +165,124 @@ def create_app(config_name="development"):
     @app.route("/part")
     @app.route("/part/<section>")
     def part_page(section=None):
+        if not _check_module_access('Part Management'):
+            return redirect('/?access=denied&module=Part+Management')
         return render_template("part/part.html")
 
     @app.route("/part/detail/<part_number>")
     def part_detail_page(part_number):
+        if not _check_module_access('Part Management'):
+            return redirect('/?access=denied&module=Part+Management')
         return render_template("part/part_detail.html", part_number=part_number)
 
     @app.route("/auth")
     @app.route("/auth/<section>")
     def auth_security_page(section=None):
+        if not _check_module_access('auth_security'):
+            return redirect('/?access=denied&module=Auth+%26+Security')
         return render_template("auth/auth_security.html")
 
     @app.route("/hr")
     @app.route("/hr/<section>")
     def hr_page(section=None):
+        if not _check_module_access('Human Resources'):
+            return redirect('/?access=denied&module=Human+Resources')
         return render_template("hr/hr.html")
 
     @app.route("/hr/employee/<emp_id>")
     def hr_employee_detail(emp_id):
+        if not _check_module_access('Human Resources'):
+            return redirect('/?access=denied&module=Human+Resources')
         return render_template("hr/employee_detail.html", emp_id=emp_id)
 
     @app.route("/project")
     @app.route("/project/<section>")
-    def project_page(section=None):
+    @app.route("/project/projectdetail/<project_id>")
+    def project_page(section=None, project_id=None):
+        if not _check_module_access('Project Management'):
+            return redirect('/?access=denied&module=Project+Management')
         return render_template("project/project.html")
 
     @app.route("/rawmaterial")
     @app.route("/rawmaterial/<section>")
     def rawmaterial_page(section=None):
+        if not _check_module_access('Raw Material Management'):
+            return redirect('/?access=denied&module=Raw+Material+Management')
         return render_template("rawmaterial/rawmaterial.html")
 
-    @app.route("/procurement")
-    @app.route("/procurement/<section>")
-    def procurement_page(section=None):
-        return render_template("procurement/procurement.html")
-
     @app.route("/supplier")
-    @app.route("/supplier/<section>")
-    def supplier_page(section=None):
+    def supplier_page():
+        if not _check_module_access('Supplier Management'):
+            return redirect('/?access=denied&module=Supplier+Management')
         return render_template("supplier/supplier.html")
+
+    @app.route("/supplier/overview")
+    def supplier_overview_page():
+        if not _check_module_access('Supplier Management'):
+            return redirect('/?access=denied&module=Supplier+Management')
+        return render_template("supplier/supplier_overview.html")
+
+    @app.route("/supplier/moduleusers")
+    def supplier_moduleusers_page():
+        if not _check_module_access('Supplier Management'):
+            return redirect('/?access=denied&module=Supplier+Management')
+        return render_template("supplier/supplier_moduleusers.html")
 
     @app.route("/supplier/detail/<sid>")
     def supplier_detail_page(sid):
+        if not _check_module_access('Supplier Management'):
+            return redirect('/?access=denied&module=Supplier+Management')
         return render_template("supplier/supplier_detail.html", supplier_id=sid)
 
     @app.route("/supplier/evaluation")
     def supplier_evaluation_page():
+        if not _check_module_access('Supplier Management'):
+            return redirect('/?access=denied&module=Supplier+Management')
         return render_template("supplier/supplier_evaluation.html")
 
     @app.route("/supplier/contracts")
     def supplier_contracts_page():
+        if not _check_module_access('Supplier Management'):
+            return redirect('/?access=denied&module=Supplier+Management')
         return render_template("supplier/supplier_contracts.html")
 
     @app.route("/supplier/performance")
     def supplier_performance_page():
+        if not _check_module_access('Supplier Management'):
+            return redirect('/?access=denied&module=Supplier+Management')
         return render_template("supplier/supplier_performance.html")
+
+    @app.route("/supplier/auditlogs")
+    def supplier_auditlogs_page():
+        if not _check_module_access('Supplier Management'):
+            return redirect('/?access=denied&module=Supplier+Management')
+        return render_template("supplier/supplier_auditlogs.html")
 
     @app.route("/machine")
     @app.route("/machine/<section>")
     def machine_page(section=None):
+        if not _check_module_access('Machine Management'):
+            return redirect('/?access=denied&module=Machine+Management')
         return render_template("machine/machine.html")
 
     @app.route("/workflow")
     @app.route("/workflow/<section>")
     def workflow_page(section=None):
+        if not _check_module_access('Workflow & Costing'):
+            return redirect('/?access=denied&module=Workflow+%26+Costing')
         return render_template("workflow/workflow.html")
 
     @app.route("/workflow/routing/<rid>")
     def workflow_routing_detail(rid):
+        if not _check_module_access('Workflow & Costing'):
+            return redirect('/?access=denied&module=Workflow+%26+Costing')
         return render_template("workflow/routing_detail.html", routing_id=rid)
+
+    @app.route("/workflow/processes")
+    def workflow_processes_page():
+        if not _check_module_access('Workflow & Costing'):
+            return redirect('/?access=denied&module=Workflow+%26+Costing')
+        return render_template("workflow/processes.html")
 
     def _render_section(module_name, section):
         sec = section or "overview"
@@ -223,58 +295,103 @@ def create_app(config_name="development"):
     @app.route("/inventory")
     @app.route("/inventory/<section>")
     def inventory_portal(section=None):
+        if not _check_module_access('Inventory Management'):
+            return redirect('/?access=denied&module=Inventory+Management')
         return render_template("inventory/inventory.html")
 
     @app.route("/inventory/checkin/<cid>")
     def inventory_checkin_detail(cid):
+        if not _check_module_access('Inventory Management'):
+            return redirect('/?access=denied&module=Inventory+Management')
         return render_template("inventory/checkin_detail.html", checkin_id=cid)
 
     @app.route("/inventory/stock-level/<slid>")
     def inventory_stocklevel_detail(slid):
+        if not _check_module_access('Inventory Management'):
+            return redirect('/?access=denied&module=Inventory+Management')
         return render_template("inventory/stocklevel_detail.html", stock_id=slid)
+
+    @app.route("/logistics")
+    @app.route("/logistics/<section>")
+    def logistics_page(section=None):
+        if not _check_module_access('Logistics'):
+            return redirect('/?access=denied&module=Logistics')
+        return render_template("logistics/logistics.html")
 
     @app.route("/warehouse")
     @app.route("/warehouse/<section>")
     def warehouse_page(section=None):
+        if not _check_module_access('Warehouse Management'):
+            return redirect('/?access=denied&module=Warehouse+Management')
         return render_template("warehouse/warehouse.html")
+
+    @app.route("/asset")
+    @app.route("/asset/<section>")
+    def asset_page(section=None):
+        return render_template("asset/asset.html")
 
     @app.route("/warehouse/bin/<bin_code>")
     def warehouse_bin_detail(bin_code):
+        if not _check_module_access('Warehouse Management'):
+            return redirect('/?access=denied&module=Warehouse+Management')
         return render_template("warehouse/bin_detail.html", bin_code=bin_code)
 
     @app.route("/manufacturing")
     @app.route("/manufacturing/<section>")
     def manufacturing_page(section=None):
+        if not _check_module_access('Manufacturing'):
+            return redirect('/?access=denied&module=Manufacturing')
         return render_template("manufacturing/manufacturing.html")
+
+    @app.route("/planning")
+    @app.route("/planning/<section>")
+    def planning_page(section=None):
+        if not _check_module_access('Planning'):
+            return redirect('/?access=denied&module=Planning')
+        return render_template("planning/planning.html")
 
     @app.route("/purchase")
     @app.route("/purchase/<section>")
     def purchase_page(section=None):
+        if not _check_module_access('Purchase Management'):
+            return redirect('/?access=denied&module=Purchase+Management')
         return render_template("purchase/purchase.html", section=section)
 
     @app.route("/purchase/demand/<did>")
     def purchase_demand_detail(did):
+        if not _check_module_access('Purchase Management'):
+            return redirect('/?access=denied&module=Purchase+Management')
         return render_template("purchase/demand_detail.html", demand_id=did)
 
     @app.route("/purchase/supplier/<sid>")
     def purchase_supplier_detail(sid):
+        if not _check_module_access('Purchase Management'):
+            return redirect('/?access=denied&module=Purchase+Management')
         return render_template("purchase/supplier_detail.html", supplier_id=sid)
 
     @app.route("/purchase/requisition/<rid>")
     def purchase_requisition_detail(rid):
+        if not _check_module_access('Purchase Management'):
+            return redirect('/?access=denied&module=Purchase+Management')
         return render_template("purchase/requisition_detail.html", req_id=rid)
 
     @app.route("/purchase/order/<poid>")
     def purchase_order_detail(poid):
+        if not _check_module_access('Purchase Management'):
+            return redirect('/?access=denied&module=Purchase+Management')
         return render_template("purchase/order_detail.html", po_id=poid)
 
     @app.route("/quality")
     @app.route("/quality/<section>")
     def quality_page(section=None):
+        if not _check_module_access('Quality Management'):
+            return redirect('/?access=denied&module=Quality+Management')
         return render_template("quality/quality.html", section=section)
 
     @app.route("/quality/iqc/<cid>")
     def quality_iqc_detail(cid):
+        if not _check_module_access('Quality Management'):
+            return redirect('/?access=denied&module=Quality+Management')
         return render_template("quality/iqc_detail.html", checkin_id=cid)
 
     @app.route("/superadmin")
@@ -478,7 +595,7 @@ def create_app(config_name="development"):
             db.session.rollback()
             return {"success": True, "data": [
                 {"name": "Part Management",     "code": "PART",     "category": "Manufacturing", "is_available": True},
-                {"name": "RM Management",       "code": "RM",       "category": "Manufacturing", "is_available": True},
+                {"name": "Raw Material Management", "code": "RM",       "category": "Manufacturing", "is_available": True},
                 {"name": "Machine Management",  "code": "MACHINE",  "category": "Manufacturing", "is_available": True},
                 {"name": "Workflow & Costing",  "code": "WORKFLOW",  "category": "Manufacturing", "is_available": True},
                 {"name": "Procurement",         "code": "PROC",     "category": "Supply Chain",  "is_available": True},
@@ -689,17 +806,34 @@ def create_app(config_name="development"):
 
         work_summary = {r[0]: r[1] for r in work_counts}
 
-        # Module activity breakdown
+        # Module activity breakdown (with per-action counts)
         if is_super:
             module_rows = db.session.execute(db.text(
-                f"SELECT module, COUNT(*) FROM audit.logs WHERE 1=1 {time_filter} GROUP BY module ORDER BY COUNT(*) DESC LIMIT 10"
+                f"SELECT module, COUNT(*) FROM audit.logs WHERE 1=1 {time_filter} GROUP BY module ORDER BY COUNT(*) DESC"
             ))
         else:
             module_rows = db.session.execute(db.text(
-                f"SELECT module, COUNT(*) FROM audit.logs WHERE (user_id = :uid OR user_email = :email) {time_filter} GROUP BY module ORDER BY COUNT(*) DESC LIMIT 10"
+                f"SELECT module, COUNT(*) FROM audit.logs WHERE (user_id = :uid OR user_email = :email) {time_filter} GROUP BY module ORDER BY COUNT(*) DESC"
             ), {"uid": user_id, "email": user_email})
 
         module_activity = [{"module": r[0], "count": r[1]} for r in module_rows]
+
+        # Per-module action breakdown for dashboard tiles
+        if is_super:
+            mod_action_rows = db.session.execute(db.text(
+                f"SELECT module, action, COUNT(*) FROM audit.logs WHERE 1=1 {time_filter} GROUP BY module, action"
+            ))
+        else:
+            mod_action_rows = db.session.execute(db.text(
+                f"SELECT module, action, COUNT(*) FROM audit.logs WHERE (user_id = :uid OR user_email = :email) {time_filter} GROUP BY module, action"
+            ), {"uid": user_id, "email": user_email})
+
+        module_action_breakdown = {}
+        for r in mod_action_rows:
+            mod = r[0]
+            if mod not in module_action_breakdown:
+                module_action_breakdown[mod] = {"CREATE": 0, "UPDATE": 0, "DELETE": 0}
+            module_action_breakdown[mod][r[1]] = r[2]
 
         # User info
         user_info = {}
@@ -723,6 +857,7 @@ def create_app(config_name="development"):
             "recent_activity": audit_list,
             "work_summary": work_summary,
             "module_activity": module_activity,
+            "module_action_breakdown": module_action_breakdown,
             "total_actions": sum(work_summary.values()) if work_summary else 0
         }}
 

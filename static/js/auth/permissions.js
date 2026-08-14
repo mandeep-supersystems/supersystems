@@ -24,6 +24,23 @@ const MODULE_SECTIONS = {
         { id: 'obsolete',     label: 'Obsolete Parts',     icon: 'block' },
         { id: 'moduleusers',  label: 'User Management',    icon: 'manage_accounts' },
     ],
+    'Raw Material Management': [
+        { id: 'overview',     label: 'Overview',           icon: 'dashboard' },
+        { id: 'criteria',     label: 'Code Criteria',      icon: 'rule' },
+        { id: 'master',       label: 'RM Master',          icon: 'inventory_2' },
+        { id: 'partmapping',  label: 'RM-Part Mapping',    icon: 'link' },
+        { id: 'inventory',    label: 'RM Inventory',       icon: 'warehouse' },
+        { id: 'moduleusers',  label: 'User Management',    icon: 'manage_accounts' },
+    ],
+    'Supplier Management': [
+        { id: 'overview',     label: 'Overview',           icon: 'dashboard' },
+        { id: 'suppliers',    label: 'Suppliers',          icon: 'storefront' },
+        { id: 'evaluations',  label: 'Evaluations',        icon: 'fact_check' },
+        { id: 'contracts',    label: 'Contracts',          icon: 'description' },
+        { id: 'performance',  label: 'Performance',        icon: 'leaderboard' },
+        { id: 'auditlogs',    label: 'Audit Logs',         icon: 'history' },
+        { id: 'moduleusers',  label: 'User Management',    icon: 'manage_accounts' },
+    ],
     'Auth & Security': [
         { id: 'overview',    label: 'Overview',          icon: 'dashboard' },
         { id: 'users',       label: 'Users',             icon: 'people' },
@@ -36,8 +53,9 @@ const MODULE_SECTIONS = {
 };
 
 const MODULE_ENTITIES = {
-    'Part Management':      ['categories', 'subcategories', 'parts', 'generate_part_code', 'part_mapping', 'audit_logs', 'obsolete_parts', 'user_management'],
-    'Auth & Security':      ['users', 'roles', 'modules', 'permissions', 'audit_logs'],
+    'Part Management':        ['categories', 'subcategories', 'parts', 'generate_part_code', 'part_mapping', 'audit_logs', 'obsolete_parts', 'user_management'],
+    'Raw Material Management':['criteria', 'rm_master', 'rm_part_mapping', 'user_management'],
+    'Auth & Security':        ['users', 'roles', 'modules', 'permissions', 'audit_logs'],
     'Inventory Management': ['stock_levels', 'stock_movements', 'transfers', 'adjustments', 'counts'],
     'Procurement':          ['requisitions', 'purchase_orders', 'goods_receipt', 'vendor_invoices', 'contracts'],
     'Finance':              ['general_ledger', 'accounts_payable', 'accounts_receivable', 'invoicing', 'payments'],
@@ -46,7 +64,7 @@ const MODULE_ENTITIES = {
     'Quality Management':   ['inspections', 'non_conformances', 'capa', 'quality_plans', 'certificates'],
     'Human Resources':      ['employees', 'leave', 'attendance', 'payroll', 'recruitment', 'performance'],
     'Project Management':   ['projects', 'tasks', 'milestones', 'resources', 'reports'],
-    'Supplier Management':  ['suppliers', 'contacts', 'contracts', 'evaluations', 'reports'],
+    'Supplier Management':  ['overview', 'suppliers', 'evaluations', 'contracts', 'performance', 'user_management'],
 };
 
 // Default sections per role for Part Management
@@ -54,6 +72,20 @@ const PART_ROLE_SECTIONS = {
     module_admin: ['overview','categories','subcategories','generate','allparts','partmapping','auditlogs','obsolete','moduleusers'],
     editor:       ['overview','categories','subcategories','generate','allparts','partmapping','auditlogs','obsolete'],
     viewer:       ['overview','allparts','obsolete'],
+};
+
+// Default sections per role for RM Management
+const RM_ROLE_SECTIONS = {
+    module_admin: ['overview', 'criteria', 'master', 'partmapping', 'moduleusers', 'inventory'],
+    editor:       ['overview', 'criteria', 'master', 'partmapping', 'inventory'],
+    viewer:       ['overview', 'master', 'inventory'],
+};
+
+// Default sections per role for Supplier Management
+const SUPPLIER_ROLE_SECTIONS = {
+    module_admin: ['overview', 'suppliers', 'evaluations', 'contracts', 'performance', 'auditlogs', 'moduleusers'],
+    editor:       ['overview', 'suppliers', 'evaluations', 'contracts', 'performance', 'auditlogs'],
+    viewer:       ['overview', 'suppliers'],
 };
 
 async function loadPermUsers() {
@@ -173,9 +205,22 @@ function openEditPermModal(uid) {
     const name = ((u.first_name || '') + ' ' + (u.last_name || '')).trim() || u.email;
     document.getElementById('epUserLabel').textContent = `${name} · ${u.email}${u.emp_code ? ' · ' + u.emp_code : ''}`;
 
-    const assignedNames = new Set(u.modules.map(m => m.module));
+    const CODE_TO_NAME = {
+        'auth_security':'Auth & Security','part_management':'Part Management',
+        'rm_management':'Raw Material Management','supplier':'Supplier Management',
+        'machine_management':'Machine Management','workflow_costing':'Workflow & Costing',
+        'project':'Project Management','hr':'Human Resources','procurement':'Procurement',
+        'purchase':'Purchase Management','purchase_management':'Purchase Management',
+        'inventory':'Inventory Management','warehouse':'Warehouse Management',
+        'manufacturing':'Manufacturing','planning':'Planning','quality':'Quality Management',
+        'logistics':'Logistics','plm':'Product Lifecycle','finance':'Finance',
+        'analytics':'Analytics & Reporting','treasury':'Treasury','maintenance':'Maintenance',
+        'asset':'Asset Management','customer_service':'Customer Service',
+        'governance':'Governance & Risk','ehs':'EHS',
+    };
+    const assignedDisplayNames = new Set(u.modules.map(m => CODE_TO_NAME[m.module] || m.module));
     const assignedBlocks = u.modules.map((m, i) => _buildAssignedBlock(m, i)).join('');
-    const unassigned = _allModules.filter(mod => !assignedNames.has(mod.name));
+    const unassigned = _allModules.filter(mod => !assignedDisplayNames.has(mod.name));
     const addSection = unassigned.length ? `
         <div class="ep-add-section">
             <div class="ep-add-header"><span class="material-icons-outlined">add_circle_outline</span><strong>Add Module Access</strong></div>
@@ -356,6 +401,12 @@ function onEpRoleChange(idx, moduleName) {
     if (moduleName === 'Part Management' && PART_ROLE_SECTIONS[role]) {
         const defaults = PART_ROLE_SECTIONS[role];
         secCbs.forEach(cb => cb.checked = defaults.includes(cb.value));
+    } else if (moduleName === 'Raw Material Management' && RM_ROLE_SECTIONS[role]) {
+        const defaults = RM_ROLE_SECTIONS[role];
+        secCbs.forEach(cb => cb.checked = defaults.includes(cb.value));
+    } else if (moduleName === 'Supplier Management' && SUPPLIER_ROLE_SECTIONS[role]) {
+        const defaults = SUPPLIER_ROLE_SECTIONS[role];
+        secCbs.forEach(cb => cb.checked = defaults.includes(cb.value));
     } else {
         secCbs.forEach(cb => cb.checked = (role === 'module_admin' || role === 'editor'));
     }
@@ -393,6 +444,12 @@ function onNewRoleChange(safeId, moduleName) {
     const secCbs = document.querySelectorAll(`.ep-new-sec-cb[data-module="${moduleName}"]`);
     if (moduleName === 'Part Management' && PART_ROLE_SECTIONS[role]) {
         const defaults = PART_ROLE_SECTIONS[role];
+        secCbs.forEach(cb => cb.checked = defaults.includes(cb.value));
+    } else if (moduleName === 'Raw Material Management' && RM_ROLE_SECTIONS[role]) {
+        const defaults = RM_ROLE_SECTIONS[role];
+        secCbs.forEach(cb => cb.checked = defaults.includes(cb.value));
+    } else if (moduleName === 'Supplier Management' && SUPPLIER_ROLE_SECTIONS[role]) {
+        const defaults = SUPPLIER_ROLE_SECTIONS[role];
         secCbs.forEach(cb => cb.checked = defaults.includes(cb.value));
     } else {
         secCbs.forEach(cb => cb.checked = (role === 'module_admin' || role === 'editor'));

@@ -111,21 +111,15 @@ async function openLocationDetail(lid, locationCode, binCode) {
                     ? '<p style="text-align:center; color:var(--text-muted); padding:20px;">No stock currently at this location.</p>'
                     : `<div class="table-responsive"><table class="data-table">
                         <thead><tr>
-                            <th>Part Number</th><th>Description</th><th>Type</th>
-                            <th>On Hand</th><th>Reserved</th><th>Available</th>
-                            <th>Unit Cost</th><th>Total Value</th><th>Last Movement</th>
+                            <th>Part Number</th><th>Manufacturer</th>
+                            <th>On Hand</th><th>Available</th>
                         </tr></thead>
                         <tbody>${current_stock.map(s => `
                             <tr>
                                 <td><strong>${s.part_number}</strong></td>
-                                <td style="font-size:12px;">${s.part_description || '-'}</td>
-                                <td><span class="badge badge-info">${s.item_type}</span></td>
-                                <td><strong>${s.qty_on_hand} ${s.unit}</strong></td>
-                                <td>${s.qty_reserved}</td>
-                                <td><strong style="color:${s.qty_available <= 0 ? '#c62828' : 'var(--text-primary)'};">${s.qty_available}</strong></td>
-                                <td>₹${s.unit_cost}</td>
-                                <td><strong>₹${Number(s.total_value).toLocaleString()}</strong></td>
-                                <td style="font-size:11px; color:var(--text-muted);">${s.last_movement_at}</td>
+                                <td>${s.manufacturer || '-'}</td>
+                                <td><strong>${s.qty_on_hand} pcs</strong></td>
+                                <td><strong>${s.qty_available} pcs</strong></td>
                             </tr>`).join('')}
                         </tbody></table></div>`
                 }

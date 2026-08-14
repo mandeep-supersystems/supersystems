@@ -2,6 +2,7 @@
 <html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quality Management - SUPERSYSTEMS</title>
     <link rel="stylesheet" href="/static/css/header.css">
@@ -162,12 +163,13 @@
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th>Check-In No</th>
+                                <th>GRN No</th>
                                 <th>PO Ref</th>
-                                <th>Supplier Info</th>
-                                <th>Part / RM Code</th>
+                                <th>Supplier</th>
+                                <th>Item Code</th>
+                                <th>Placement</th>
                                 <th>Rec Qty</th>
-                                <th>Checked In Time</th>
+                                <th>GRN Date</th>
                                 <th>IQC Status</th>
                                 <th>OK Qty</th>
                                 <th>NG Qty</th>
@@ -192,23 +194,7 @@
                 <p style="font-size:13px; color:var(--text-muted); margin-bottom:12px;">
                     Configure quality parameters, target specs, and tolerance boundaries per Part / Raw Material code.
                 </p>
-                <div class="table-responsive">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Part / RM Code</th>
-                                <th>Criterion Name</th>
-                                <th>Target Specification</th>
-                                <th>Min / Max Tolerance</th>
-                                <th>Inspection Method / Gauge</th>
-                                <th>Mandatory Check</th>
-                            </tr>
-                        </thead>
-                        <tbody id="criteriaBody">
-                            <tr><td colspan="6" style="text-align:center;">Loading inspection criteria...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
+                <div id="criteriaContainer" style="margin-top:8px;">Loading inspection criteria...</div>
             </div>
         </section>
 

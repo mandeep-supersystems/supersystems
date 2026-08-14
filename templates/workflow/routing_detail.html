@@ -2,18 +2,20 @@
 <html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Routing Detail - SUPERSYSTEMS</title>
+    <title>Process Routing — SUPERSYSTEMS</title>
     <link rel="stylesheet" href="/static/css/header.css">
     <link rel="stylesheet" href="/static/css/workflow/workflow.css">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
 </head>
 <body>
+
 <header class="header">
     <div class="header-left">
         <div class="logo">
             <img class="logo-light" src="/static/img/light_mode_logo.png" alt="SUPERSYSTEMS" height="36">
-            <img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <img class="logo-dark"  src="/static/img/Dark_mode_logo.png"  alt="SUPERSYSTEMS" height="36">
             <span class="logo-text">SUPERSYSTEMS</span>
         </div>
         <div class="nav-item services-trigger" onclick="toggleServices()">
@@ -41,6 +43,7 @@
         </div>
     </div>
 </header>
+
 <div class="services-panel" id="servicesPanel">
     <div class="services-panel-header">
         <h3>All Services</h3>
@@ -62,88 +65,129 @@
             <h3>Workflow & Costing</h3>
         </div>
         <nav class="sidebar-nav">
-            <a href="/workflow" class="sidebar-link"><span class="material-icons-outlined">arrow_back</span>All Routings</a>
+            <a href="/workflow" class="sidebar-link">
+                <span class="material-icons-outlined">arrow_back</span>All Routings
+            </a>
             <div class="sidebar-divider"></div>
-            <div class="sidebar-link active" style="cursor:default;flex-direction:column;align-items:flex-start;gap:2px">
-                <div style="display:flex;align-items:center;gap:8px">
-                    <span class="material-icons-outlined" style="font-size:18px">route</span>
-                    <span id="sbPartNumber" style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Loading...</span>
+
+            <div class="rd-part-card" id="sbPartCard">
+                <div class="rd-part-icon">
+                    <span class="material-icons-outlined">precision_manufacturing</span>
                 </div>
-                <span id="sbPartDesc" style="font-size:11px;color:var(--text-muted);padding-left:26px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%"></span>
+                <div class="rd-part-info">
+                    <div class="rd-part-no" id="sbPartNumber">Loading…</div>
+                    <div class="rd-part-desc" id="sbPartDesc"></div>
+                </div>
             </div>
+
             <div class="sidebar-divider"></div>
             <div class="sidebar-section-label">View</div>
-            <button class="sidebar-link" onclick="switchTab('routing')"><span class="material-icons-outlined">account_tree</span>Process Routing</button>
-            <button class="sidebar-link" onclick="switchTab('costing')"><span class="material-icons-outlined">calculate</span>View Costing</button>
+
+            <button class="sidebar-link active" id="navRouting" onclick="switchTab('routing')">
+                <span class="material-icons-outlined">account_tree</span>Process Routing
+            </button>
+            <button class="sidebar-link" id="navCosting" onclick="switchTab('costing')">
+                <span class="material-icons-outlined">calculate</span>Cost Breakdown
+            </button>
+
             <div class="sidebar-divider"></div>
-            <div class="sidebar-section-label">Edit</div>
-            <button class="sidebar-link" id="sbEditBtn" onclick="toggleEditMode()"><span class="material-icons-outlined">edit</span>Edit Routing</button>
-            <div class="sidebar-divider"></div>
-            <a href="/machine" class="sidebar-link"><span class="material-icons-outlined">memory</span>Machines ↗</a>
+            <div class="sidebar-section-label">Actions</div>
+
+            <button class="sidebar-link" id="sbEditBtn" onclick="toggleEditMode()">
+                <span class="material-icons-outlined">edit</span>Edit Routing
+            </button>
+            <a href="/machine" class="sidebar-link">
+                <span class="material-icons-outlined">memory</span>Machine Master
+            </a>
         </nav>
     </aside>
 
     <!-- MAIN -->
     <main class="wf-content">
 
-        <div id="rdLoading" style="padding:60px;text-align:center;color:var(--text-muted)">
-            <span class="material-icons-outlined" style="font-size:40px;display:block;margin-bottom:8px;animation:spin 1s linear infinite">autorenew</span>
-            Loading routing...
+        <!-- LOADING -->
+        <div id="rdLoading" class="rd-loading">
+            <span class="material-icons-outlined rd-spin">autorenew</span>
+            <span>Loading routing…</span>
         </div>
 
+        <!-- CONTENT (hidden until loaded) -->
         <div id="rdContent" style="display:none">
 
-            <!-- PART INFO CARD -->
-            <div class="rd-info-card">
-                <div class="rd-info-left">
-                    <div class="rd-info-pn" id="rdPartNumber">—</div>
-                    <div class="rd-info-desc" id="rdPartDesc">—</div>
+            <!-- BREADCRUMB -->
+            <div class="rd-breadcrumb">
+                <a href="/workflow">Workflow & Costing</a>
+                <span class="material-icons-outlined">chevron_right</span>
+                <a href="/workflow">Process Routings</a>
+                <span class="material-icons-outlined">chevron_right</span>
+                <span id="rdBreadPart">—</span>
+            </div>
+
+            <!-- HERO CARD -->
+            <div class="rd-hero">
+                <div class="rd-hero-icon">
+                    <span class="material-icons-outlined">route</span>
                 </div>
-                <div class="rd-info-stats" id="rdInfoStats"></div>
-                <div class="rd-info-right">
-                    <span id="rdStatusBadge" class="rd-status-badge">—</span>
-                    <span id="rdRevBadge" class="rd-rev-badge">Rev —</span>
-                    <button class="rd-edit-toggle" id="rdEditToggle" onclick="toggleEditMode()">
-                        <span class="material-icons-outlined">edit</span> Edit
-                    </button>
+                <div class="rd-hero-body">
+                    <div class="rd-hero-top">
+                        <div>
+                            <div class="rd-hero-pn" id="rdPartNumber">—</div>
+                            <div class="rd-hero-desc" id="rdPartDesc">—</div>
+                        </div>
+                        <div class="rd-hero-meta">
+                            <span class="rd-status-badge" id="rdStatusBadge">—</span>
+                            <span class="rd-rev-badge" id="rdRevBadge">Rev —</span>
+                            <button class="rd-edit-toggle" id="rdEditToggle" onclick="toggleEditMode()">
+                                <span class="material-icons-outlined">edit</span>Edit
+                            </button>
+                        </div>
+                    </div>
+                    <div class="rd-hero-stats" id="rdInfoStats"></div>
                 </div>
             </div>
 
             <!-- TAB BAR -->
             <div class="rd-tabs">
                 <button class="rd-tab active" id="tab-routing" onclick="switchTab('routing')">
-                    <span class="material-icons-outlined">account_tree</span> Process Routing
+                    <span class="material-icons-outlined">account_tree</span>Process Routing
                 </button>
                 <button class="rd-tab" id="tab-costing" onclick="switchTab('costing')">
-                    <span class="material-icons-outlined">calculate</span> View Costing
+                    <span class="material-icons-outlined">calculate</span>Cost Breakdown
                 </button>
+                <div style="flex:1"></div>
+                <div class="rd-edit-pill" id="rdEditPill" style="display:none">
+                    <span class="material-icons-outlined">edit</span>Edit Mode
+                </div>
             </div>
 
-            <!-- TAB: ROUTING — two-panel -->
+            <!-- PANEL: ROUTING -->
             <div class="rd-tab-panel active" id="panel-routing">
                 <div class="rd-two-panel">
 
-                    <!-- LEFT: TREE 30% -->
+                    <!-- LEFT: PROCESS TREE -->
                     <div class="rd-panel-tree">
                         <div class="rd-panel-head">
                             <span>Process Tree</span>
-                            <div style="display:flex;gap:4px">
-                                <button class="rd-toolbar-btn" onclick="expandAll()" title="Expand all"><span class="material-icons-outlined">unfold_more</span></button>
-                                <button class="rd-toolbar-btn" onclick="collapseAll()" title="Collapse all"><span class="material-icons-outlined">unfold_less</span></button>
+                            <div style="display:flex;align-items:center;gap:8px">
+                                <span class="rd-panel-head-count" id="rdTreeHeadCount"></span>
+                                <div style="display:flex;gap:4px">
+                                    <button class="rd-toolbar-btn" onclick="expandAll()" title="Expand all"><span class="material-icons-outlined">unfold_more</span></button>
+                                    <button class="rd-toolbar-btn" onclick="collapseAll()" title="Collapse all"><span class="material-icons-outlined">unfold_less</span></button>
+                                </div>
                             </div>
                         </div>
                         <div class="rd-tree-scroll" id="rdTree"></div>
                     </div>
 
-                    <!-- RIGHT: DETAIL 70% -->
+                    <!-- RIGHT: STEP DETAIL -->
                     <div class="rd-panel-detail">
-                        <div class="rd-panel-head">
-                            <span id="rdDetailTitle">Select a process</span>
-                        </div>
+                        <div class="rd-panel-head"><span>Step Detail</span></div>
+                        <div id="rdDetailTitle"></div>
                         <div class="rd-detail-scroll" id="rdDetail">
                             <div class="rd-detail-empty">
                                 <span class="material-icons-outlined">touch_app</span>
-                                Click any process or sub-process in the tree to view its machines
+                                <strong>Select a process</strong>
+                                Click any step in the tree to view its machine assignments
                             </div>
                         </div>
                     </div>
@@ -151,20 +195,20 @@
                 </div>
             </div>
 
-            <!-- TAB: COSTING -->
+            <!-- PANEL: COSTING -->
             <div class="rd-tab-panel" id="panel-costing">
                 <div id="rdCostPanel">
-                    <div class="rd-detail-empty" style="padding:48px">
+                    <div class="rd-detail-empty" style="padding:64px 24px">
                         <span class="material-icons-outlined">calculate</span>
                         Click <strong>Load Cost Breakdown</strong> to calculate
                         <button class="btn-primary" style="margin-top:16px" onclick="loadCost()">
-                            <span class="material-icons-outlined">calculate</span> Load Cost Breakdown
+                            <span class="material-icons-outlined">calculate</span>Load Cost Breakdown
                         </button>
                     </div>
                 </div>
             </div>
 
-        </div>
+        </div><!-- /rdContent -->
     </main>
 </div>
 
@@ -184,7 +228,7 @@
                 <input type="hidden" id="amSmId">
                 <div class="form-group" style="position:relative">
                     <label>Machine *</label>
-                    <input type="text" id="amMachineSearch" placeholder="Type to search machines..." autocomplete="off" oninput="searchMachines(this.value)">
+                    <input type="text" id="amMachineSearch" placeholder="Type to search machines…" autocomplete="off" oninput="searchMachines(this.value)">
                     <div id="amMachineDropdown" class="part-search-dropdown" style="display:none"></div>
                     <input type="hidden" id="amMachineId">
                     <div id="amMachineSelected" style="font-size:11px;color:var(--accent);margin-top:3px"></div>
@@ -201,9 +245,30 @@
                 </div>
                 <div class="form-actions">
                     <button type="button" class="btn-secondary" onclick="closeM('assignMachineModal')">Cancel</button>
-                    <button type="submit" class="btn-primary">Assign Machine</button>
+                    <button type="submit" class="btn-primary"><span class="material-icons-outlined">check</span>Assign Machine</button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- CYCLE TIME MODAL -->
+<div class="modal-overlay" id="ctModal">
+    <div class="modal">
+        <div class="modal-header">
+            <div>
+                <h3>Set Cycle Times</h3>
+                <div id="ctModalLabel" style="font-size:11px;color:var(--text-muted);margin-top:2px"></div>
+            </div>
+            <button class="close-btn" onclick="closeM('ctModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <p style="font-size:12px;color:var(--text-muted);margin-bottom:14px">Enter the cycle time (minutes) for each machine on this part.</p>
+            <div id="ctMachineRows"></div>
+            <div class="form-actions" style="margin-top:16px">
+                <button class="btn-secondary" onclick="closeM('ctModal')">Cancel</button>
+                <button class="btn-primary" onclick="confirmCTAndSave()"><span class="material-icons-outlined">check</span>Add Step</button>
+            </div>
         </div>
     </div>
 </div>
@@ -211,19 +276,24 @@
 <!-- DELETE CONFIRM -->
 <div class="modal-overlay" id="deleteModal">
     <div class="modal">
-        <div class="modal-header"><h3>Confirm Delete</h3><button class="close-btn" onclick="closeM('deleteModal')"><span class="material-icons-outlined">close</span></button></div>
+        <div class="modal-header">
+            <h3>Confirm Delete</h3>
+            <button class="close-btn" onclick="closeM('deleteModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
         <div class="modal-body">
             <p id="deleteMsg" style="font-size:13px;color:var(--text-secondary);margin-bottom:16px"></p>
             <div class="form-actions">
                 <button class="btn-secondary" onclick="closeM('deleteModal')">Cancel</button>
-                <button class="btn-primary" style="background:#e53935" id="deleteConfirmBtn">Delete</button>
+                <button class="btn-primary" style="background:#e53935" id="deleteConfirmBtn">
+                    <span class="material-icons-outlined">delete</span>Delete
+                </button>
             </div>
         </div>
     </div>
 </div>
 
-<style>@keyframes spin { to { transform:rotate(360deg); } }</style>
 <div class="wf-toast" id="wfToast"></div>
+
 <script src="/static/js/header.js"></script>
 <script>const ROUTING_ID = {{ routing_id | tojson }};</script>
 <script src="/static/js/workflow/routing_detail.js"></script>

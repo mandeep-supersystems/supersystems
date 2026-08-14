@@ -2,6 +2,7 @@
 <html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Supplier Detail - SUPERSYSTEMS</title>
     <link rel="stylesheet" href="/static/css/header.css">
@@ -97,6 +98,10 @@
                 <span class="material-icons-outlined">precision_manufacturing</span> <span id="navPartsLabel">Items</span>
                 <span class="nav-count" id="navCountParts">0</span>
             </button>
+            <button class="sup-detail-nav-link" data-tab="purchase-orders" onclick="switchTab('purchase-orders')">
+                <span class="material-icons-outlined">shopping_bag</span> Purchase Orders
+                <span class="nav-count" id="navCountPOs">0</span>
+            </button>
             <button class="sup-detail-nav-link" data-tab="history" onclick="switchTab('history')">
                 <span class="material-icons-outlined">history</span> History
                 <span class="nav-count" id="navCountHistory">0</span>
@@ -111,8 +116,11 @@
             <button class="btn-primary" onclick="openEditSupplierModal()" style="justify-content:center">
                 <span class="material-icons-outlined">edit</span> Edit Supplier
             </button>
-            <a href="/supplier" id="backToListBtn" class="btn-secondary" style="text-align:center;text-decoration:none;display:block">
-                ← Back to Suppliers
+            <a href="/supplier" id="backToListBtn" class="btn-secondary" style="text-align:center;text-decoration:none;display:block;margin-top:10px;">
+                &#8592; Back to Suppliers
+            </a>
+            <a href="/supplier/moduleusers" class="btn-secondary admin-only" style="text-align:center;text-decoration:none;display:none;margin-top:10px;justify-content:center;gap:6px;">
+                <span class="material-icons-outlined" style="font-size:18px;">group</span> Module Users
             </a>
         </div>
     </aside>
@@ -164,7 +172,13 @@
             <div class="sup-detail-section" id="tab-addresses">
                 <div class="sup-section-hdr">
                     <h3>Addresses</h3>
-                    <button class="btn-primary" onclick="openAddAddressModal()"><span class="material-icons-outlined">add</span> Add Address</button>
+                    <div style="display:flex; gap:10px;">
+                        <button class="btn-outline" onclick="viewDetailedHistory('addresses')"><span class="material-icons-outlined">history</span> History</button>
+                        <button class="btn-secondary" onclick="exportData('addresses')"><span class="material-icons-outlined">download</span> Export</button>
+                        <button class="btn-secondary" onclick="downloadTemplate('addresses')"><span class="material-icons-outlined">description</span> Template</button>
+                        <button class="btn-secondary" onclick="triggerImport('addresses')"><span class="material-icons-outlined">upload</span> Import</button>
+                        <button class="btn-primary" onclick="openAddAddressModal()"><span class="material-icons-outlined">add</span> Add Address</button>
+                    </div>
                 </div>
                 <div class="table-container">
                     <table class="data-table">
@@ -188,7 +202,13 @@
             <div class="sup-detail-section" id="tab-contacts">
                 <div class="sup-section-hdr">
                     <h3>Contacts</h3>
-                    <button class="btn-primary" onclick="openAddContactModal()"><span class="material-icons-outlined">add</span> Add Contact</button>
+                    <div style="display:flex; gap:10px;">
+                        <button class="btn-outline" onclick="viewDetailedHistory('contacts')"><span class="material-icons-outlined">history</span> History</button>
+                        <button class="btn-secondary" onclick="exportData('contacts')"><span class="material-icons-outlined">download</span> Export</button>
+                        <button class="btn-secondary" onclick="downloadTemplate('contacts')"><span class="material-icons-outlined">description</span> Template</button>
+                        <button class="btn-secondary" onclick="triggerImport('contacts')"><span class="material-icons-outlined">upload</span> Import</button>
+                        <button class="btn-primary" onclick="openAddContactModal()"><span class="material-icons-outlined">add</span> Add Contact</button>
+                    </div>
                 </div>
                 <div class="table-container">
                     <table class="data-table">
@@ -247,7 +267,13 @@
             <div class="sup-detail-section" id="tab-contracts">
                 <div class="sup-section-hdr">
                     <h3>Supplier Contracts</h3>
-                    <button class="btn-primary" onclick="openAddContractModal()"><span class="material-icons-outlined">add</span> Add Contract</button>
+                    <div style="display:flex; gap:10px;">
+                        <button class="btn-outline" onclick="viewDetailedHistory('contracts')"><span class="material-icons-outlined">history</span> History</button>
+                        <button class="btn-secondary" onclick="exportData('contracts')"><span class="material-icons-outlined">download</span> Export</button>
+                        <button class="btn-secondary" onclick="downloadTemplate('contracts')"><span class="material-icons-outlined">description</span> Template</button>
+                        <button class="btn-secondary" onclick="triggerImport('contracts')"><span class="material-icons-outlined">upload</span> Import</button>
+                        <button class="btn-primary" onclick="openAddContractModal()"><span class="material-icons-outlined">add</span> Add Contract</button>
+                    </div>
                 </div>
                 <div class="table-container">
                     <table class="data-table">
@@ -304,13 +330,45 @@
             <div class="sup-detail-section" id="tab-parts">
                 <div class="sup-section-hdr">
                     <h3 id="partsTabTitle">Items</h3>
-                    <button class="btn-primary" onclick="openAddPartModal()"><span class="material-icons-outlined">add</span> <span id="addItemBtnLabel">Add Item</span></button>
+                    <div style="display:flex; gap:10px;">
+                        <button class="btn-outline" onclick="viewDetailedHistory('parts')"><span class="material-icons-outlined">history</span> History</button>
+                        <button class="btn-secondary" onclick="exportData('parts')"><span class="material-icons-outlined">download</span> Export</button>
+                        <button class="btn-secondary" onclick="downloadTemplate('parts')"><span class="material-icons-outlined">description</span> Template</button>
+                        <button class="btn-secondary" onclick="triggerImport('parts')"><span class="material-icons-outlined">upload</span> Import</button>
+                        <button class="btn-primary" onclick="openAddPartModal()"><span class="material-icons-outlined">add</span> <span id="addItemBtnLabel">Add Item</span></button>
+                    </div>
                 </div>
                 <div class="table-container">
                     <table class="data-table" id="partsTable">
                         <thead id="partsTableHead"></thead>
                         <tbody id="partsBody">
                             <tr><td colspan="10" class="empty">No items added.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB: PURCHASE ORDERS -->
+            <div class="sup-detail-section" id="tab-purchase-orders">
+                <div class="sup-section-hdr">
+                    <h3>Purchase Orders</h3>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>PO No</th>
+                                <th>PR No</th>
+                                <th>Item Code</th>
+                                <th>Qty</th>
+                                <th>Total Value</th>
+                                <th>Promised Date</th>
+                                <th>PO Date</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="supplierPOsBody">
+                            <tr><td colspan="8" class="empty">Loading...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -731,6 +789,45 @@
     </div>
 </div>
 
+
+<!-- DETAILED HISTORY MODAL -->
+<div class="modal-overlay" id="detailedHistoryModal">
+    <div class="modal" style="max-width: 800px;">
+        <div class="modal-header">
+            <h3 id="dhTitle">Detailed History</h3>
+            <button class="close-btn" onclick="closeModal('detailedHistoryModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>User</th>
+                            <th>Action</th>
+                            <th>Changes (From &rarr; To)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dhBody">
+                        <tr><td colspan="4" class="empty">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- PO DETAIL MODAL -->
+<div class="modal-overlay" id="poDetailModal">
+    <div class="modal" style="max-width:780px;">
+        <div class="modal-header">
+            <h3 id="poDetailTitle">Purchase Order</h3>
+            <button class="close-btn" onclick="closeModal('poDetailModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body" id="poDetailBody" style="padding:0;"></div>
+    </div>
+</div>
+
 <!-- DELETE CONFIRM -->
 <div class="modal-overlay" id="deleteModal">
     <div class="modal">
@@ -753,10 +850,27 @@
 <script src="/static/js/header.js"></script>
 <script>requireAuth();</script>
 <script src="/static/js/supplier/common.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        try {
+            const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token') || '';
+            const res = await fetch('/api/v1/auth/me/access?module=Supplier+Management', { 
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (data.success && data.data && data.data.role === 'module_admin') {
+                document.querySelectorAll('.admin-only').forEach(el => {
+                    el.style.display = (el.tagName === 'A' || el.tagName === 'BUTTON') ? 'flex' : 'block';
+                });
+            }
+        } catch (e) {}
+    });
+</script>
 <script src="/static/js/supplier/supplier_detail.js"></script>
 <script>
     const SUPPLIER_ID = {{ supplier_id | tojson }};
     loadSupplierDetail(SUPPLIER_ID);
 </script>
+    <input type="file" id="importFileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleImportFile(this)">
 </body>
 </html>

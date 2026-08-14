@@ -2,6 +2,7 @@
 <html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Warehouse Management - SUPERSYSTEMS</title>
     <link rel="stylesheet" href="/static/css/header.css">
@@ -32,6 +33,7 @@
         </div>
     </div>
     <div class="header-right">
+        <button class="header-icon-btn" title="Notifications"><span class="material-icons-outlined">notifications</span></button>
         <button class="header-icon-btn theme-toggle" title="Toggle Dark Mode" onclick="toggleTheme()">
             <span class="material-icons-outlined icon-light">dark_mode</span>
             <span class="material-icons-outlined icon-dark">light_mode</span>
@@ -75,26 +77,23 @@
             <a class="sidebar-link active" data-section="overview" href="/warehouse#overview">
                 <span class="material-icons-outlined">dashboard</span>Overview
             </a>
-            <a class="sidebar-link" data-section="zones" href="/warehouse#zones">
-                <span class="material-icons-outlined">grid_view</span>Warehouse Zones
-            </a>
             <a class="sidebar-link" data-section="bins" href="/warehouse#bins">
-                <span class="material-icons-outlined">qr_code</span>Bin Management & QR
+                <span class="material-icons-outlined">qr_code</span>Bin Management
             </a>
-            <a class="sidebar-link" data-section="picklists" href="/warehouse#picklists">
-                <span class="material-icons-outlined">checklist</span>Pick Lists
-            </a>
-            <a class="sidebar-link" data-section="putaway" href="/warehouse#putaway">
-                <span class="material-icons-outlined">move_to_inbox</span>Putaway
-            </a>
-            <a class="sidebar-link" data-section="receiving" href="/warehouse#receiving">
-                <span class="material-icons-outlined">input</span>Goods Receiving
+            <a class="sidebar-link" data-section="bin-capacity" href="/warehouse#bin-capacity">
+                <span class="material-icons-outlined">straighten</span>Bin Capacity
             </a>
             <a class="sidebar-link" data-section="packing" href="/warehouse#packing">
                 <span class="material-icons-outlined">inventory</span>Packing
             </a>
             <a class="sidebar-link" data-section="shipping" href="/warehouse#shipping">
                 <span class="material-icons-outlined">local_shipping</span>Shipping & Dispatch
+            </a>
+            <a class="sidebar-link" data-section="batches" href="/warehouse#batches">
+                <span class="material-icons-outlined">qr_code_2</span>Batch Tracking
+            </a>
+            <a class="sidebar-link" data-section="serials" href="/warehouse#serials">
+                <span class="material-icons-outlined">tag</span>Serial Numbers
             </a>
             <div class="sidebar-divider"></div>
             <a class="sidebar-link" data-section="auditlogs" href="/warehouse#auditlogs">
@@ -118,150 +117,95 @@
             </div>
             <div class="overview-stats">
                 <div class="stat-card">
-                    <span class="material-icons-outlined">grid_view</span>
-                    <div class="stat-info">
-                        <div class="value" id="statZones">0</div>
-                        <div class="label">Warehouse Zones</div>
-                    </div>
-                </div>
-                <div class="stat-card">
                     <span class="material-icons-outlined">qr_code</span>
                     <div class="stat-info">
                         <div class="value" id="statBins">0</div>
                         <div class="label">Active Storage Bins</div>
                     </div>
                 </div>
-                <div class="stat-card">
-                    <span class="material-icons-outlined">checklist</span>
-                    <div class="stat-info">
-                        <div class="value" id="statPickLists">0</div>
-                        <div class="label">Open Pick Lists</div>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <span class="material-icons-outlined">move_to_inbox</span>
-                    <div class="stat-info">
-                        <div class="value" id="statPutaways">0</div>
-                        <div class="label">Pending Putaways</div>
-                    </div>
-                </div>
+
             </div>
         </section>
 
-        <!-- ZONES -->
-        <section id="sec-zones" class="content-section">
-            <div class="section-header">
-                <h2>Warehouse Zones</h2>
-                <button class="btn-primary" onclick="openNewZoneModal()"><span class="material-icons-outlined">add</span>Add Zone</button>
-            </div>
-            <div class="card">
-                <div class="table-responsive">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Zone Code</th>
-                                <th>Name</th>
-                                <th>Zone Type</th>
-                                <th>Warehouse</th>
-                                <th>Capacity</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="zonesBody">
-                            <tr><td colspan="6" style="text-align:center;">Loading zones...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-        <!-- BINS & QR -->
+        <!-- BINS -->
         <section id="sec-bins" class="content-section">
             <div class="section-header">
-                <h2>Bin Management & Server-side QR Codes</h2>
+                <h2>Bin Management</h2>
                 <div class="section-actions">
-                    <button class="btn-outline" onclick="openPrintLabelSheet()"><span class="material-icons-outlined">print</span>Print Label Sheet</button>
-                    <button class="btn-primary" onclick="openNewBinModal()"><span class="material-icons-outlined">add</span>Add Bin</button>
+                    <button class="btn-outline" onclick="loadBins()"><span class="material-icons-outlined">refresh</span>Refresh</button>
+                    <button class="btn-primary" onclick="openNewBinModal()"><span class="material-icons-outlined">add</span>Add New Bin</button>
                 </div>
             </div>
-            <div class="bin-grid" id="binGridContainer">
-                <!-- Bins rendered dynamically -->
+            <!-- Stat Tiles -->
+            <div class="overview-stats" style="margin-bottom:20px;">
+                <div class="stat-card">
+                    <span class="material-icons-outlined">inventory_2</span>
+                    <div class="stat-info"><div class="value" id="binStatTotal">0</div><div class="label">Total Bins</div></div>
+                </div>
+                <div class="stat-card">
+                    <span class="material-icons-outlined" style="color:#388e3c;">check_circle</span>
+                    <div class="stat-info"><div class="value" id="binStatEmpty">0</div><div class="label">Empty</div></div>
+                </div>
+                <div class="stat-card">
+                    <span class="material-icons-outlined" style="color:#c62828;">error</span>
+                    <div class="stat-info"><div class="value" id="binStatFull">0</div><div class="label">Filled</div></div>
+                </div>
+                <div class="stat-card">
+                    <span class="material-icons-outlined" style="color:#f57c00;">donut_large</span>
+                    <div class="stat-info"><div class="value" id="binStatPartial">0</div><div class="label">Partially Filled</div></div>
+                </div>
+                <div class="stat-card">
+                    <span class="material-icons-outlined" style="color:#aaa;">delete</span>
+                    <div class="stat-info"><div class="value" id="binStatTrashed">0</div><div class="label">Trashed</div></div>
+                </div>
+            </div>
+            <!-- Search -->
+            <div class="card" style="padding:12px 16px;margin-bottom:12px;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <span class="material-icons-outlined" style="color:var(--text-muted);">search</span>
+                    <input type="text" id="binSearch" placeholder="Search by bin code, location, type..." oninput="filterBins()" style="flex:1;border:none;outline:none;background:transparent;font-size:14px;">
+                </div>
+            </div>
+            <!-- Bin List -->
+            <div class="card" style="padding:0;overflow:hidden;">
+                <div class="bin-list-header">
+                    <span>Bin Code</span>
+                    <span>Location</span>
+                    <span>Fill Level</span>
+                    <span>Type</span>
+                    <span>Status</span>
+                    <span></span>
+                </div>
+                <div id="binListContainer">
+                    <div style="padding:20px;text-align:center;color:var(--text-muted);">Loading bins...</div>
+                </div>
             </div>
         </section>
 
-        <!-- PICK LISTS -->
-        <section id="sec-picklists" class="content-section">
+        <!-- BIN CAPACITY -->
+        <section id="sec-bin-capacity" class="content-section">
             <div class="section-header">
-                <h2>Pick Lists</h2>
-                <button class="btn-primary" onclick="openNewPickListModal()"><span class="material-icons-outlined">add</span>Create Pick List</button>
+                <h2>Bin Capacity Rules</h2>
+                <button class="btn-primary" onclick="openNewCapacityModal()"><span class="material-icons-outlined">add</span>Add Rule</button>
+            </div>
+            <div style="color:var(--text-muted);font-size:13px;margin-bottom:16px;">
+                Define how many units of each part fit in Small, Medium, and Large bins.
             </div>
             <div class="card">
                 <div class="table-responsive">
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th>Pick List No</th>
-                                <th>Ref Order</th>
-                                <th>Assigned To</th>
-                                <th>Due Date</th>
-                                <th>Status</th>
+                                <th>Part Code</th>
+                                <th>Description</th>
+                                <th>Small Bin</th>
+                                <th>Medium Bin</th>
+                                <th>Large Bin</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="pickListsBody">
-                            <tr><td colspan="6" style="text-align:center;">Loading pick lists...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-        <!-- PUTAWAY -->
-        <section id="sec-putaway" class="content-section">
-            <div class="section-header">
-                <h2>Putaway Tasks</h2>
-            </div>
-            <div class="card">
-                <div class="table-responsive">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Task No</th>
-                                <th>Receipt Ref</th>
-                                <th>Part Number</th>
-                                <th>Qty</th>
-                                <th>Suggested Bin</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="putawayBody">
-                            <tr><td colspan="6" style="text-align:center;">Loading putaway tasks...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-        <!-- RECEIVING -->
-        <section id="sec-receiving" class="content-section">
-            <div class="section-header">
-                <h2>Goods Receiving (PO Receipt)</h2>
-                <button class="btn-primary" onclick="openNewReceiptModal()"><span class="material-icons-outlined">add</span>Receive PO Shipment</button>
-            </div>
-            <div class="card">
-                <div class="table-responsive">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Receipt No</th>
-                                <th>PO Number</th>
-                                <th>Supplier</th>
-                                <th>Receipt Date</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="receiptsBody">
-                            <tr><td colspan="5" style="text-align:center;">Loading receipts...</td></tr>
+                        <tbody id="binCapacityBody">
+                            <tr><td colspan="6" style="text-align:center;">Loading...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -314,6 +258,67 @@
                         </thead>
                         <tbody id="shippingBody">
                             <tr><td colspan="6" style="text-align:center;">Loading shipments...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- BATCH TRACKING SECTION -->
+        <section id="sec-batches" class="content-section">
+            <div class="section-header">
+                <h2>Batch & Lot Tracking</h2>
+                <button class="btn-primary" onclick="openNewBatchModal()"><span class="material-icons-outlined">add</span>Create Batch</button>
+            </div>
+            <!-- Search -->
+            <div class="card" style="padding:12px 16px;margin-bottom:12px;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <span class="material-icons-outlined" style="color:var(--text-muted);">search</span>
+                    <input type="text" id="batchSearch" placeholder="Search by batch no, part number, supplier lot..." oninput="filterBatches()" style="flex:1;border:none;outline:none;background:transparent;font-size:14px;">
+                </div>
+            </div>
+            <div class="card">
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Batch No</th>
+                                <th>Parts</th>
+                                <th>Supplier Lot</th>
+                                <th>Mfg Date</th>
+                                <th>Expiry</th>
+                                <th>Qty Remaining / Received</th>
+                                <th>Warehouse</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="batchesBody">
+                            <tr><td colspan="8" style="text-align:center;">Loading batches...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- SERIAL NUMBERS SECTION -->
+        <section id="sec-serials" class="content-section">
+            <div class="section-header">
+                <h2>Serial Number Tracking</h2>
+            </div>
+            <div class="card">
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Serial No</th>
+                                <th>Part Number</th>
+                                <th>Batch No</th>
+                                <th>Warehouse / Bin</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="serialsBody">
+                            <tr><td colspan="5" style="text-align:center;">Loading serial numbers...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -373,6 +378,26 @@
             </div>
         </section>
     </main>
+</div>
+
+<!-- BATCH DETAIL SLIDE-OVER PANEL -->
+<div id="batchPanelOverlay" class="bin-panel-overlay" onclick="closeBatchPanel()"></div>
+<div id="batchDetailPanel" class="bin-detail-panel">
+    <div class="bin-panel-topbar">
+        <span style="font-weight:600;font-size:15px;">Batch Detail</span>
+        <button class="btn-action" onclick="closeBatchPanel()" style="margin-left:auto;"><span class="material-icons-outlined">close</span></button>
+    </div>
+    <div id="batchPanelContent" style="flex:1;overflow-y:auto;"></div>
+</div>
+
+<!-- BIN DETAIL SLIDE-OVER PANEL -->
+<div id="binPanelOverlay" class="bin-panel-overlay" onclick="closeBinPanel()"></div>
+<div id="binDetailPanel" class="bin-detail-panel">
+    <div class="bin-panel-topbar">
+        <span style="font-weight:600;font-size:15px;">Bin Detail</span>
+        <button class="btn-action" onclick="closeBinPanel()" style="margin-left:auto;"><span class="material-icons-outlined">close</span></button>
+    </div>
+    <div id="binPanelContent" style="flex:1;overflow-y:auto;"></div>
 </div>
 
 <!-- TOAST & MODAL -->
@@ -476,13 +501,11 @@
 <script>requireAuth();</script>
 <script src="/static/js/warehouse/common.js"></script>
 <script src="/static/js/warehouse/overview.js"></script>
-<script src="/static/js/warehouse/zones.js"></script>
 <script src="/static/js/warehouse/bins.js"></script>
-<script src="/static/js/warehouse/picklists.js"></script>
-<script src="/static/js/warehouse/putaway.js"></script>
-<script src="/static/js/warehouse/receiving.js"></script>
 <script src="/static/js/warehouse/packing.js"></script>
 <script src="/static/js/warehouse/shipping.js"></script>
+<script src="/static/js/warehouse/batches.js"></script>
+<script src="/static/js/warehouse/serials.js"></script>
 <script src="/static/js/warehouse/auditlogs.js"></script>
 <script src="/static/js/warehouse/moduleusers.js"></script>
 

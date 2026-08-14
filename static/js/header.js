@@ -8,19 +8,18 @@ if (typeof window.esc !== 'function') {
 
 // All services ordered by row layout
 const services = [
-    // ─── ROW 1 ───
     {
-        name: "Auth & Security",
-        icon: "security",
+        name: "Project Management",
+        icon: "assignment",
         comingSoon: false,
-        route: "/auth",
+        route: "/project",
         items: [
-            { label: "Overview", route: "/auth/overview" },
-            { label: "Users", route: "/auth/users" },
-            { label: "Module Access", route: "/auth/modules" },
-            { label: "Roles & Permissions", route: "/auth/roles" },
-            { label: "Permission Matrix", route: "/auth/matrix" },
-            { label: "Audit Logs", route: "/auth/auditlogs" }
+            { label: "Overview", route: "/project/overview" },
+            { label: "All Projects", route: "/project/projects" },
+            { label: "Add Project", route: "/project/addproject" },
+            { label: "Organizations", route: "/project/organizations" },
+            { label: "Audit Logs", route: "/project/auditlogs" },
+            { label: "User Management", route: "/project/moduleusers" }
         ]
     },
     {
@@ -40,7 +39,7 @@ const services = [
         ]
     },
     {
-        name: "RM Management",
+        name: "Raw Material Management",
         icon: "science",
         comingSoon: false,
         route: "/rawmaterial",
@@ -50,6 +49,90 @@ const services = [
             { label: "RM Master", route: "/rawmaterial/master" },
             { label: "RM-Part Mapping", route: "/rawmaterial/partmapping" },
             "RM Inventory"
+        ]
+    },
+    {
+        name: "Supplier Management",
+        icon: "handshake",
+        comingSoon: false,
+        route: "/supplier",
+        items: [
+            { label: "All Suppliers", route: "/supplier" },
+            { label: "Supplier Evaluation", route: "/supplier/evaluation" },
+            { label: "Supplier Contracts", route: "/supplier/contracts" },
+            { label: "Performance Scoring", route: "/supplier/performance" }
+        ]
+    },
+    {
+        name: "Planning",
+        icon: "event_note",
+        comingSoon: false,
+        route: "/planning",
+        items: [
+            { label: "Overview", route: "/planning#overview" },
+            { label: "Generate PR", route: "/planning#customer-orders" },
+            { label: "Purchase Requests", route: "/planning#purchase-requests" },
+            { label: "Audit Logs", route: "/planning#auditlogs" },
+            { label: "User Management", route: "/planning#moduleusers" },
+            { label: "Notifications", route: "/planning#notifications" }
+        ]
+    },
+    {
+        name: "Purchase Management",
+        icon: "shopping_cart",
+        comingSoon: false,
+        route: "/purchase",
+        items: [
+            { label: "Overview", route: "/purchase/overview" },
+            { label: "Purchase Requests", route: "/purchase/pr-inbox" },
+            { label: "Buy Material", route: "/purchase/buy-material" },
+            { label: "Supplier POs & Lead Time", route: "/purchase/orders" },
+            { label: "Supplier SOP & SQP", route: "/purchase/suppliers" },
+            { label: "Audit Logs", route: "/purchase/auditlogs" },
+            { label: "Module Users", route: "/purchase/moduleusers" }
+        ]
+    },
+    {
+        name: "Logistics",
+        icon: "local_shipping",
+        comingSoon: false,
+        route: "/logistics",
+        items: [
+            { label: "Overview", route: "/logistics#overview" },
+            { label: "Pending POs", route: "/logistics#pending-pos" },
+            { label: "Material In (GRN)", route: "/logistics#grn" },
+            { label: "Handover to Inventory", route: "/logistics#handover" }
+        ]
+    },
+    {
+        name: "Quality Management",
+        icon: "verified",
+        comingSoon: false,
+        route: "/quality",
+        items: [
+            { label: "Overview", route: "/quality/overview" },
+            { label: "Incoming Quality Control (IQC)", route: "/quality/iqc" },
+            { label: "IQC Criteria Master", route: "/quality/criteria" },
+            { label: "Non-Conformance Reports (NCR)", route: "/quality/ncr" },
+            { label: "Audit Logs", route: "/quality/auditlogs" },
+            { label: "Module Users", route: "/quality/moduleusers" }
+        ]
+    },
+    {
+        name: "Warehouse Management",
+        icon: "warehouse",
+        comingSoon: false,
+        route: "/warehouse",
+        items: [
+            { label: "Overview", route: "/warehouse#overview" },
+            { label: "Bin Management", route: "/warehouse#bins" },
+            { label: "Bin Capacity", route: "/warehouse#bin-capacity" },
+            { label: "Packing", route: "/warehouse#packing" },
+            { label: "Shipping & Dispatch", route: "/warehouse#shipping" },
+            { label: "Batch Tracking", route: "/warehouse#batches" },
+            { label: "Serial Numbers", route: "/warehouse#serials" },
+            { label: "Audit Logs", route: "/warehouse#auditlogs" },
+            { label: "Module Users", route: "/warehouse#moduleusers" }
         ]
     },
     {
@@ -66,42 +149,10 @@ const services = [
             { label: "Stock Transfers", route: "/inventory/transfers" },
             { label: "Stock Adjustments", route: "/inventory/adjustments" },
             { label: "Stock Counts", route: "/inventory/counts" },
-            { label: "Batch Tracking", route: "/inventory/batches" },
-            { label: "Serial Numbers", route: "/inventory/serials" },
             { label: "Reorder Rules", route: "/inventory/reorder" },
             { label: "Valuation & Reports", route: "/inventory/reports" },
             { label: "Audit Logs", route: "/inventory/auditlogs" },
             { label: "Module Users", route: "/inventory/moduleusers" }
-        ]
-    },
-    {
-        name: "Warehouse Management",
-        icon: "warehouse",
-        comingSoon: false,
-        route: "/warehouse",
-        items: [
-            { label: "Overview", route: "/warehouse/overview" },
-            { label: "Warehouse Zones", route: "/warehouse/zones" },
-            { label: "Bin Management", route: "/warehouse/bins" },
-            { label: "Pick Lists", route: "/warehouse/picklists" },
-            { label: "Putaway", route: "/warehouse/putaway" },
-            { label: "Packing", route: "/warehouse/packing" },
-            { label: "Shipping", route: "/warehouse/shipping" },
-            { label: "Receiving", route: "/warehouse/receiving" },
-            { label: "Audit Logs", route: "/warehouse/auditlogs" },
-            { label: "Module Users", route: "/warehouse/moduleusers" }
-        ]
-    },
-    {
-        name: "Supplier Management",
-        icon: "handshake",
-        comingSoon: false,
-        route: "/supplier",
-        items: [
-            { label: "All Suppliers", route: "/supplier" },
-            { label: "Supplier Evaluation", route: "/supplier/evaluation" },
-            { label: "Supplier Contracts", route: "/supplier/contracts" },
-            { label: "Performance Scoring", route: "/supplier/performance" }
         ]
     },
     {
@@ -143,32 +194,33 @@ const services = [
         ]
     },
     {
-        name: "Quality Management",
-        icon: "verified",
+        name: "Human Resources",
+        icon: "people",
         comingSoon: false,
-        route: "/quality",
+        route: "/hr",
         items: [
-            { label: "Overview", route: "/quality/overview" },
-            { label: "Incoming Quality Control (IQC)", route: "/quality/iqc" },
-            { label: "IQC Criteria Master", route: "/quality/criteria" },
-            { label: "Non-Conformance Reports (NCR)", route: "/quality/ncr" },
-            { label: "Audit Logs", route: "/quality/auditlogs" },
-            { label: "Module Users", route: "/quality/moduleusers" }
+            { label: "Employee Code Criteria", route: "/hr/codecriteria" },
+            { label: "Employee Management", route: "/hr/employees" },
+            "Leave Management",
+            "Attendance",
+            "Payroll",
+            "Recruitment",
+            "Performance",
+            "Training"
         ]
     },
     {
-        name: "Purchase Management",
-        icon: "shopping_cart",
+        name: "Auth & Security",
+        icon: "security",
         comingSoon: false,
-        route: "/purchase",
+        route: "/auth",
         items: [
-            { label: "Overview", route: "/purchase/overview" },
-            { label: "Demand & Stock", route: "/purchase/demand" },
-            { label: "Supplier SOP & SQP", route: "/purchase/suppliers" },
-            { label: "Req Orders (Requisitions)", route: "/purchase/requisitions" },
-            { label: "Purchase Orders & Lead Time", route: "/purchase/orders" },
-            { label: "Audit Logs", route: "/purchase/auditlogs" },
-            { label: "Module Users", route: "/purchase/moduleusers" }
+            { label: "Overview", route: "/auth/overview" },
+            { label: "Users", route: "/auth/users" },
+            { label: "Module Access", route: "/auth/modules" },
+            { label: "Roles & Permissions", route: "/auth/roles" },
+            { label: "Permission Matrix", route: "/auth/matrix" },
+            { label: "Audit Logs", route: "/auth/auditlogs" }
         ]
     },
     {
@@ -183,7 +235,6 @@ const services = [
             "PLM Reports"
         ]
     },
-    // ─── ROW 2 ───
     {
         name: "Finance",
         icon: "account_balance",
@@ -201,48 +252,6 @@ const services = [
         ]
     },
     {
-        name: "Project Management",
-        icon: "assignment",
-        comingSoon: false,
-        route: "/project",
-        items: [
-            { label: "Overview", route: "/project/overview" },
-            { label: "All Projects", route: "/project/projects" },
-            { label: "Add Project", route: "/project/addproject" },
-            { label: "Organizations", route: "/project/organizations" },
-            { label: "Audit Logs", route: "/project/auditlogs" },
-            { label: "User Management", route: "/project/moduleusers" }
-        ]
-    },
-    {
-        name: "Quality Management",
-        icon: "verified",
-        comingSoon: false,
-        route: "/quality",
-        items: [
-            { label: "Overview", route: "/quality/overview" },
-            { label: "Incoming Quality Control (IQC)", route: "/quality/iqc" },
-            { label: "IQC Criteria Master", route: "/quality/criteria" },
-            { label: "Non-Conformance Reports (NCR)", route: "/quality/ncr" },
-            { label: "Audit Logs", route: "/quality/auditlogs" },
-            { label: "Module Users", route: "/quality/moduleusers" }
-        ]
-    },
-    {
-        name: "Logistics",
-        icon: "local_shipping",
-        comingSoon: true,
-        items: [
-            "Shipments",
-            "Delivery Notes",
-            "Fleet Management",
-            "Route Planning",
-            "Tracking",
-            "Freight Management",
-            "Logistics Reports"
-        ]
-    },
-    {
         name: "Analytics & Reporting",
         icon: "analytics",
         comingSoon: true,
@@ -255,7 +264,6 @@ const services = [
             "Predictive Analytics"
         ]
     },
-    // ─── ROW 3 ───
     {
         name: "Treasury",
         icon: "savings",
@@ -285,14 +293,16 @@ const services = [
     {
         name: "Asset Management",
         icon: "business",
-        comingSoon: true,
+        comingSoon: false,
+        route: "/asset",
         items: [
-            "Asset Register",
-            "Depreciation",
-            "Asset Transfers",
-            "Asset Disposal",
-            "Maintenance Schedule",
-            "Asset Reports"
+            { label: "Overview",            route: "/asset#overview" },
+            { label: "Asset Register",       route: "/asset#register" },
+            { label: "Depreciation",         route: "/asset#depreciation" },
+            { label: "Asset Transfers",      route: "/asset#transfers" },
+            { label: "Asset Disposal",       route: "/asset#disposal" },
+            { label: "Maintenance Schedule", route: "/asset#maintenance" },
+            { label: "Module Users",         route: "/asset#moduleusers" }
         ]
     },
     {
@@ -306,38 +316,6 @@ const services = [
             "Customer Portal",
             "Escalations",
             "Service Reports"
-        ]
-    },
-    {
-        name: "Human Resources",
-        icon: "people",
-        comingSoon: false,
-        route: "/hr",
-        items: [
-            { label: "Employee Code Criteria", route: "/hr/codecriteria" },
-            { label: "Employee Management", route: "/hr/employees" },
-            "Leave Management",
-            "Attendance",
-            "Payroll",
-            "Recruitment",
-            "Performance",
-            "Training"
-        ]
-    },
-    // ─── ROW 4+ ───
-    {
-        name: "Procurement / Purchase",
-        icon: "shopping_cart",
-        comingSoon: false,
-        route: "/purchase",
-        items: [
-            { label: "Overview", route: "/purchase/overview" },
-            { label: "Demand & Stock", route: "/purchase/demand" },
-            { label: "Supplier SOP & SQP", route: "/purchase/suppliers" },
-            { label: "Req Orders (Requisitions)", route: "/purchase/requisitions" },
-            { label: "Purchase Orders & Lead Time", route: "/purchase/orders" },
-            { label: "Audit Logs", route: "/purchase/auditlogs" },
-            { label: "Module Users", route: "/purchase/moduleusers" }
         ]
     },
     {
@@ -372,16 +350,18 @@ const services = [
 const MODULE_ROUTES = {
     'Auth & Security':        '/auth',
     'Part Management':        '/part',
-    'RM Management':          '/rawmaterial',
+    'Raw Material Management':          '/rawmaterial',
     'Supplier Management':    '/supplier',
     'Machine Management':     '/machine',
     'Workflow & Costing':     '/workflow',
     'Project Management':     '/project',
     'Human Resources':        '/hr',
     'Procurement':            '/procurement',
+    'Purchase Management':    '/purchase',
     'Inventory Management':   '/inventory',
     'Warehouse Management':   '/warehouse',
     'Manufacturing':          '/manufacturing',
+    'Planning':                '/planning',
     'Product Lifecycle':      '/plm',
     'Finance':                '/finance',
     'Quality Management':     '/quality',
@@ -431,15 +411,42 @@ async function renderServices() {
         }
     } catch (e) { /* fail open */ }
 
-    const visibleServices = allowedModules === null ? services : services.filter(svc => {
-        if (allowedModules.has(svc.name)) return true;
-        if ((svc.name.includes('Purchase') || svc.name.includes('Procurement')) && 
-            (allowedModules.has('Purchase Management') || allowedModules.has('Purchase') || allowedModules.has('Procurement') || allowedModules.has('Procurement / Purchase'))) {
-            return true;
-        }
-        return false;
-    });
+    // Map from DB module codes → service display names
+    const CODE_TO_NAME = {
+        'auth_security':        'Auth & Security',
+        'part_management':      'Part Management',
+        'rm_management':        'Raw Material Management',
+        'supplier':             'Supplier Management',
+        'machine_management':   'Machine Management',
+        'workflow_costing':     'Workflow & Costing',
+        'project':              'Project Management',
+        'hr':                   'Human Resources',
+        'procurement':          'Procurement',
+        'purchase':             'Purchase Management',
+        'purchase_management':  'Purchase Management',
+        'inventory':            'Inventory Management',
+        'warehouse':            'Warehouse Management',
+        'manufacturing':        'Manufacturing',
+        'planning':             'Planning',
+        'quality':              'Quality Management',
+        'logistics':            'Logistics',
+        'plm':                  'Product Lifecycle',
+        'finance':              'Finance',
+        'analytics':            'Analytics & Reporting',
+        'treasury':             'Treasury',
+        'maintenance':          'Maintenance',
+        'asset':                'Asset Management',
+        'customer_service':     'Customer Service',
+        'governance':           'Governance & Risk',
+        'ehs':                  'EHS',
+    };
+    // Build a set of allowed display names from DB codes
+    const allowedNames = allowedModules === null ? null : new Set(
+        [...allowedModules].map(code => CODE_TO_NAME[code] || code)
+    );
+    const visibleServices = allowedNames === null ? services : services.filter(svc => allowedNames.has(svc.name));
 
+    if (!grid) return;
     grid.innerHTML = visibleServices.map((service, i) => `
         <div class="service-category" id="svc-${i}">
             <div class="service-category-header" onclick="toggleServiceCard(${i})">
@@ -681,6 +688,7 @@ async function logout() {
     localStorage.removeItem('user_email');
     localStorage.removeItem('user_name');
     sessionStorage.clear();
+    document.cookie = 'access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     window.location.href = '/login';
 }
 
@@ -735,7 +743,6 @@ function _autoTrackCurrentModule() {
         { prefix: '/part', name: 'Part Management', icon: 'settings_input_component' },
         { prefix: '/auth', name: 'Auth & Security', icon: 'security' },
         { prefix: '/project', name: 'Project Management', icon: 'assignment' },
-        { prefix: '/procurement', name: 'Procurement', icon: 'shopping_cart' },
         { prefix: '/hr', name: 'Human Resources', icon: 'people' },
         { prefix: '/rawmaterial', name: 'Raw Materials', icon: 'inventory_2' },
         { prefix: '/machine', name: 'Machine Management', icon: 'precision_manufacturing' },
@@ -743,6 +750,8 @@ function _autoTrackCurrentModule() {
         { prefix: '/workflow', name: 'Process Routings', icon: 'account_tree' },
         { prefix: '/inventory', name: 'Inventory Management', icon: 'warehouse' },
         { prefix: '/finance', name: 'Finance', icon: 'account_balance' },
+        { prefix: '/planning', name: 'Planning', icon: 'event_note' },
+        { prefix: '/asset', name: 'Asset Management', icon: 'business' },
     ];
 
     const matched = KNOWN_ROUTES.find(r => path.startsWith(r.prefix));
@@ -768,10 +777,21 @@ function requireAuth() {
     return true;
 }
 
+// ─── SYNC TOKEN TO COOKIE (so Flask server-side guards can read it) ───
+function _syncTokenCookie() {
+    const token = localStorage.getItem('access_token');
+    if (token) {
+        document.cookie = `access_token=${token}; path=/; SameSite=Lax`;
+    } else {
+        document.cookie = 'access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    }
+}
+
 // Init
 (function () {
     const saved = localStorage.getItem('theme') || 'light';
     document.documentElement.setAttribute('data-theme', saved);
+    _syncTokenCookie();
     renderServices();
     _autoTrackCurrentModule();
     const user = JSON.parse(localStorage.getItem('user') || '{}');

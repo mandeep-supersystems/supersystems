@@ -378,3 +378,48 @@ def create_policy():
     db.session.add(policy)
     db.session.commit()
     return success_response(policy.to_dict(), "Policy created", 201)
+
+@auth_bp.route("/me/access", methods=["GET"])
+@jwt_required(optional=True)
+def my_access():
+    module = request.args.get("module")
+    user_email = request.headers.get("X-User-Email", "").strip().lower()
+    
+    if not user_email:
+        # try jwt
+        try:
+            raw = get_jwt_identity()
+            if raw:
+                if isinstance(raw, str):
+                    import json
+                    raw = json.loads(raw)
+                user_email = raw.get("email", "").strip().lower()
+        except Exception as e:
+            print("JWT Parse error:", e)
+            
+    if not user_email:
+        return error_response("Unauthorized", 401)
+        
+    user = db.session.execute(db.text("SELECT id FROM iam.users WHERE LOWER(email) = :email"), {"email": user_email}).first()
+    if not user:
+        # Check super admin
+        from core.super_admin.models import SuperAdmin
+        admin = SuperAdmin.query.filter(db.func.lower(SuperAdmin.email) == user_email).first()
+        if admin:
+            return success_response({"role": "module_admin", "permissions": {}})
+        return error_response("User not found", 404)
+        
+    acc = db.session.execute(db.text(
+        "SELECT role, permissions FROM iam.module_access WHERE user_id = :uid AND module = :mod AND is_active = true"
+    ), {"uid": str(user[0]), "mod": module}).first()
+    
+    if not acc:
+        return success_response(None)
+        
+    perms = acc[1]
+    if isinstance(perms, str):
+        import json
+        try: perms = json.loads(perms)
+        except: perms = {}
+        
+    return success_response({"role": acc[0], "permissions": perms})

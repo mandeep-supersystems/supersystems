@@ -37,13 +37,12 @@ function buildPreview(prefix, psep, num, ssep, suffix) {
 }
 
 // ─── INIT ───
-(function() {
-    const valid = ['overview', 'codecriteria', 'employees'];
-    const hash = location.hash.replace('#', '') || 'overview';
-    showSection(valid.includes(hash) ? hash : 'overview');
-})();
+const _HR_VALID = ['overview', 'codecriteria', 'employees'];
 window.addEventListener('hashchange', () => {
-    const valid = ['overview', 'codecriteria', 'employees'];
     const hash = location.hash.replace('#', '') || 'overview';
-    showSection(valid.includes(hash) ? hash : 'overview');
+    showSection(_HR_VALID.includes(hash) ? hash : 'overview');
+});
+document.addEventListener('DOMContentLoaded', () => {
+    const hash = location.hash.replace('#', '') || 'overview';
+    showSection(_HR_VALID.includes(hash) ? hash : 'overview');
 });

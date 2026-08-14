@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
+
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Purchase Management - SUPERSYSTEMS</title>
     <link rel="stylesheet" href="/static/css/header.css">
@@ -9,410 +11,626 @@
     <link rel="stylesheet" href="/static/css/purchase/purchase.css">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
 </head>
+
 <body>
 
-<!-- FIXED HEADER -->
-<header class="header">
-    <div class="header-left">
-        <div class="logo">
-            <img class="logo-light" src="/static/img/light_mode_logo.png" alt="SUPERSYSTEMS" height="36">
-            <img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SUPERSYSTEMS" height="36">
-            <span class="logo-text">SUPERSYSTEMS</span>
+    <!-- SERVICES PANEL -->
+    <div class="services-panel" id="servicesPanel">
+        <div class="services-panel-header">
+            <h3>All Services</h3>
+            <button class="btn-outline" id="toggleAllServicesBtn" onclick="toggleAllServices()">
+                <span class="material-icons-outlined">unfold_less</span> Collapse All
+            </button>
         </div>
-        <div class="nav-item services-trigger" onclick="toggleServices()">
-            <span class="material-icons-outlined">apps</span>
-            <span>Services</span>
-            <span class="material-icons-outlined arrow">expand_more</span>
+        <div class="services-grid" id="servicesGrid"></div>
+    </div>
+    <div class="overlay" id="overlay" onclick="toggleServices()"></div>
+
+    <!-- SEARCH RESULTS -->
+    <div class="search-results" id="searchResults"></div>
+
+    <!-- FIXED HEADER -->
+    <header class="header">
+        <div class="header-left">
+            <div class="logo">
+                <img class="logo-light" src="/static/img/light_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+                <img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+                <span class="logo-text">SUPERSYSTEMS</span>
+            </div>
+            <div class="nav-item services-trigger" onclick="toggleServices()">
+                <span class="material-icons-outlined">apps</span>
+                <span>Services</span>
+                <span class="material-icons-outlined arrow">expand_more</span>
+            </div>
+        </div>
+        <div class="header-center">
+            <div class="search-box">
+                <span class="material-icons-outlined">search</span>
+                <input type="text" placeholder="Search purchase orders, requisitions, customer demands..."
+                    id="globalSearch" oninput="handleSearch(this.value)">
+            </div>
+        </div>
+        <div class="header-right">
+            <button class="header-icon-btn" title="Notifications"><span
+                    class="material-icons-outlined">notifications</span></button>
+            <button class="header-icon-btn theme-toggle" title="Toggle Dark Mode" onclick="toggleTheme()">
+                <span class="material-icons-outlined icon-light">dark_mode</span>
+                <span class="material-icons-outlined icon-dark">light_mode</span>
+            </button>
+            <div class="user-menu" id="userMenu">
+                <div class="user-avatar" onclick="toggleUserMenu()">
+                    <span class="material-icons-outlined">person</span>
+                </div>
+                <div class="user-dropdown" id="userDropdown">
+                    <a href="#" onclick="openProfile()"><span class="material-icons-outlined">person</span>Profile</a>
+                    <a href="#" onclick="openAccount()"><span
+                            class="material-icons-outlined">manage_accounts</span>Account</a>
+                    <div class="dropdown-divider"></div>
+                    <a href="#" onclick="logout()"><span class="material-icons-outlined">logout</span>Logout</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN LAYOUT -->
+    <div class="purchase-layout">
+        <!-- SIDEBAR -->
+        <aside class="purchase-sidebar">
+            <div class="sidebar-header">
+                <span class="material-icons-outlined">shopping_cart</span>
+                <h3>Purchase Management</h3>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/" class="sidebar-link">
+                    <span class="material-icons-outlined">arrow_back</span>Home
+                </a>
+                <div class="sidebar-divider"></div>
+                <a class="sidebar-link active" data-section="overview" onclick="showSection('overview')">
+                    <span class="material-icons-outlined">dashboard</span>Overview
+                </a>
+                <a class="sidebar-link" data-section="pr-inbox" onclick="showSection('pr-inbox')">
+                    <span class="material-icons-outlined">inbox</span>Purchase Requests
+                </a>
+                <a class="sidebar-link" data-section="buy-material" onclick="showSection('buy-material')">
+                    <span class="material-icons-outlined">shopping_basket</span>Buy Material
+                </a>
+                <a class="sidebar-link" data-section="orders" onclick="showSection('orders')">
+                    <span class="material-icons-outlined">shopping_bag</span>Supplier POs
+                </a>
+                <a class="sidebar-link" data-section="lead-times" onclick="showSection('lead-times')">
+                    <span class="material-icons-outlined">schedule</span>Supplier Lead Times
+                </a>
+                <a class="sidebar-link" data-section="invoices" onclick="showSection('invoices')">
+                    <span class="material-icons-outlined">receipt</span>Supplier Invoices
+                </a>
+                <a class="sidebar-link" data-section="history" onclick="showSection('history')">
+                    <span class="material-icons-outlined">history</span>History
+                </a>
+                <div class="sidebar-divider"></div>
+                <a class="sidebar-link" data-section="auditlogs" onclick="showSection('auditlogs')">
+                    <span class="material-icons-outlined">manage_search</span>Audit Logs
+                </a>
+                <a class="sidebar-link" data-section="moduleusers" onclick="showSection('moduleusers')">
+                    <span class="material-icons-outlined">people</span>Module Users
+                </a>
+            </nav>
+        </aside>
+
+        <!-- CONTENT AREA -->
+        <main class="purchase-content">
+            <!-- OVERVIEW SECTION -->
+            <section id="sec-overview" class="content-section active">
+                <div class="section-header">
+                    <h2>Purchase Dashboard Overview</h2>
+
+                </div>
+                <div class="overview-stats">
+                    <div class="stat-card">
+                        <span class="material-icons-outlined">inbox</span>
+                        <div class="stat-info">
+                            <div class="value" id="statPendingPRs">0</div>
+                            <div class="label">Pending Purchase Requests</div>
+                            <div class="subtext" id="subtextPendingPRs">0 received today</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="material-icons-outlined">task_alt</span>
+                        <div class="stat-info">
+                            <div class="value" id="statConvertedPRs">0</div>
+                            <div class="label">Converted Requests</div>
+                            <div class="subtext" id="subtextConvertedPRs">0 processed today</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="material-icons-outlined">local_shipping</span>
+                        <div class="stat-info">
+                            <div class="value" id="statActivePOs">0</div>
+                            <div class="label">Active Supplier POs</div>
+                            <div class="subtext" id="subtextActivePOs">0 drafts pending</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="material-icons-outlined">error_outline</span>
+                        <div class="stat-info">
+                            <div class="value" id="statLeadTimeRevisions">0</div>
+                            <div class="label">Total Delay Days</div>
+                            <div class="subtext" id="subtextLeadTimeRevisions">Across active logistics</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="material-icons-outlined">receipt_long</span>
+                        <div class="stat-info">
+                            <div class="value" id="statPendingInvoices">0</div>
+                            <div class="label">Pending Invoices</div>
+                            <div class="subtext" id="subtextPendingInvoices">0 received today</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SUPPLIER LEAD TIMES -->
+            <section id="sec-lead-times" class="content-section">
+                <div class="section-header">
+                    <h2>Supplier Lead Times</h2>
+                    <div style="display:flex;gap:10px;align-items:center;">
+                        <div style="display:flex;align-items:center;gap:6px;">
+                            <label style="font-size:12px;color:var(--text-muted);">Order Date:</label>
+                            <input type="date" id="ltOrderDateInput" style="font-size:12px;padding:4px 8px;border:1px solid var(--border-color);border-radius:4px;" oninput="reCheckLeadTimes()">
+                        </div>
+                        <div style="display:flex;align-items:center;gap:6px;">
+                            <label style="font-size:12px;color:var(--text-muted);">Check against date:</label>
+                            <input type="date" id="ltCheckDate" style="font-size:12px;padding:4px 8px;border:1px solid var(--border-color);border-radius:4px;" oninput="reCheckLeadTimes()">
+                        </div>
+                        <button class="btn-outline" onclick="loadLeadTimes()"><span class="material-icons-outlined">refresh</span> Refresh</button>
+                        <button class="btn-primary" onclick="openAddLeadTimeModal()"><span class="material-icons-outlined">add</span> Add Lead Time</button>
+                    </div>
+                </div>
+                <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;padding:0 2px;">
+                    Shows each supplier's lead time per item. <strong>Delivery = Order Date + Lead Time.</strong> Set a required date above to check if delivery is feasible.
+                </div>
+                <div class="card">
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Item Code</th>
+                                    <th>Supplier</th>
+                                    <th>Lead Time (Days)</th>
+                                    <th>Order Date</th>
+                                    <th>Expected Delivery</th>
+                                    <th>Check Date</th>
+                                    <th>Feasibility</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="leadTimesBody">
+                                <tr><td colspan="8" style="text-align:center;">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ADD LEAD TIME MODAL -->
+            <div class="modal-overlay" id="addLeadTimeModal">
+                <div class="modal modal-lg">
+                    <div class="modal-header">
+                        <h3 id="ltModalTitle">Add Supplier Lead Time</h3>
+                        <button class="close-btn" onclick="closeModal('addLeadTimeModal')"><span class="material-icons-outlined">close</span></button>
+                    </div>
+                    <div class="modal-body">
+                        <form onsubmit="saveLeadTime(event)">
+                            <input type="hidden" id="ltId">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Item / Part Code *</label>
+                                    <input type="text" id="ltItemCode" required placeholder="e.g. RM-STEEL-316L">
+                                </div>
+                                <div class="form-group">
+                                    <label>Supplier Name *</label>
+                                    <input type="text" id="ltSupplierName" required placeholder="Supplier name">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Lead Time (Days) *</label>
+                                    <input type="number" id="ltDays" required min="1" step="1" placeholder="e.g. 7">
+                                </div>
+                                <div class="form-group">
+                                    <label>Order Date (today if blank)</label>
+                                    <input type="date" id="ltOrderDate">
+                                </div>
+                            </div>
+                            <div class="form-actions">
+                                <button type="button" class="btn-secondary" onclick="closeModal('addLeadTimeModal')">Cancel</button>
+                                <button type="submit" class="btn-primary">Save</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PURCHASE REQUESTS FROM PLANNING -->
+            <section id="sec-pr-inbox" class="content-section">
+                <div class="section-header">
+                    <h2>Purchase Requests (Planning Orders Received)</h2>
+                    <div style="display:flex;gap:10px;align-items:center;">
+                        <button class="btn-outline" onclick="openPrHistoryModal()" style="display:flex;align-items:center;gap:4px;">
+                            <span class="material-icons-outlined" style="font-size:16px;">history</span> Revision History
+                        </button>
+                        <label style="font-size:13px;color:var(--text-muted);display:flex;align-items:center;gap:6px;cursor:pointer;">
+                            <input type="checkbox" id="chkSelectAllPrs" onchange="prsSelectAll(this.checked)"> Select All
+                        </label>
+                        <button class="btn-primary" id="btnProceedToBuy" onclick="proceedToBuyMaterial()" disabled>
+                            Proceed to Buy Selected (0)
+                        </button>
+                        <button class="btn-primary" onclick="buyAllPendingPRs()" style="background:#2e7d32; border-color:#2e7d32;">
+                            Buy All Pending
+                        </button>
+                    </div>
+                </div>
+                <div id="purchaseRequestsBody">Loading purchase requests...</div>
+            </section>
+
+            <!-- BUY MATERIAL GROUPING WORKFLOW -->
+            <section id="sec-buy-material" class="content-section">
+                <div class="section-header">
+                    <h2>Buy Material — Supplier Matching & PO Suggestion</h2>
+                </div>
+                <div id="buyMaterialContainer">
+                    <div style="text-align:center; padding:30px; font-weight:600; color:var(--text-muted);">
+                        Select items from Purchase Requests page to continue.
+                    </div>
+                </div>
+            </section>
+
+            <!-- SUPPLIER POs -->
+            <section id="sec-orders" class="content-section">
+                <div class="section-header">
+                    <h2>Supplier POs</h2>
+                </div>
+
+                <!-- Quick Filter Tabs -->
+                <div class="section-tabs" style="display:flex; gap:10px; margin-bottom:15px; border-bottom:1px solid var(--border-color); padding-bottom:10px;">
+                    <button class="btn-outline active" id="tab-po-all" onclick="filterPoList('all')" style="padding:6px 16px; border-radius:20px; font-size:12px; cursor:pointer;">All POs</button>
+                    <button class="btn-outline" id="tab-po-sent" onclick="filterPoList('sent')" style="padding:6px 16px; border-radius:20px; font-size:12px; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                        <span style="display:inline-block; width:8px; height:8px; background:#1976d2; border-radius:50%;"></span>
+                        Sent to Supplier (Awaiting Receipt)
+                    </button>
+                    <button class="btn-outline" id="tab-po-received" onclick="filterPoList('received')" style="padding:6px 16px; border-radius:20px; font-size:12px; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                        <span style="display:inline-block; width:8px; height:8px; background:#2e7d32; border-radius:50%;"></span>
+                        Fully Received
+                    </button>
+                    <button class="btn-outline" id="tab-po-draft" onclick="filterPoList('draft')" style="padding:6px 16px; border-radius:20px; font-size:12px; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                        <span style="display:inline-block; width:8px; height:8px; background:#757575; border-radius:50%;"></span>
+                        Draft
+                    </button>
+                </div>
+                <div class="card">
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>PO No</th>
+                                    <th>PR No</th>
+                                    <th>Supplier</th>
+                                    <th>Item Code</th>
+                                    <th>Qty</th>
+                                    <th>Total Value</th>
+                                    <th>Original ETD</th>
+                                    <th>Current ETD</th>
+                                    <th>Delay</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="purchaseOrdersBody">
+                                <tr>
+                                    <td colspan="11" style="text-align:center;">Loading purchase orders...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- UPDATE ETD MODAL -->
+            <div class="modal-overlay" id="updateEtdModal">
+                <div class="modal">
+                    <div class="modal-header">
+                        <h3>Update Delivery Date (ETD)</h3>
+                        <button class="close-btn" onclick="closeModal('updateEtdModal')"><span class="material-icons-outlined">close</span></button>
+                    </div>
+                    <div class="modal-body">
+                        <div style="margin-bottom:12px;font-size:13px;">
+                            <strong id="etdPoNo"></strong>
+                            <div style="margin-top:6px;color:var(--text-muted);font-size:12px;">Original ETD: <span id="etdOriginal" style="font-weight:600;color:var(--text-color);"></span></div>
+                        </div>
+                        <div class="form-group">
+                            <label>New ETD *</label>
+                            <input type="date" id="etdNewDate" oninput="calcEtdDelay()">
+                        </div>
+                        <div id="etdDelayPreview" style="display:none;margin-bottom:16px;padding:10px 14px;border-radius:6px;font-size:13px;"></div>
+                        <div class="form-actions">
+                            <button class="btn-secondary" onclick="closeModal('updateEtdModal')">Cancel</button>
+                            <button class="btn-primary" onclick="saveEtd()">Save ETD</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SUPPLIER INVOICES -->
+            <section id="sec-invoices" class="content-section">
+                <div class="section-header">
+                    <h2>Supplier Invoices</h2>
+                    <p style="font-size:13px;color:var(--text-muted);margin:0">Invoices received from suppliers against
+                        Purchase Orders. Select a PO from the list to add or view invoices.</p>
+                </div>
+                <div class="card">
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>PO No</th>
+                                    <th>Supplier</th>
+                                    <th>Item</th>
+                                    <th>Invoice No</th>
+                                    <th>Invoice Date</th>
+                                    <th>Invoice Amount</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="invoicesBody">
+                                <tr>
+                                    <td colspan="8" style="text-align:center;">Loading invoices...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PURCHASE HISTORY -->
+            <section id="sec-history" class="content-section">
+                <div class="section-header">
+                    <h2>Revision & Update History</h2>
+                    <button class="btn-outline" onclick="loadPurchaseHistory()"><span class="material-icons-outlined">refresh</span> Refresh</button>
+                </div>
+                <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;padding:0 2px;">
+                    Tracks all lead time revisions and promised delivery date updates across purchase orders.
+                </div>
+                <div class="card">
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>PO No</th>
+                                    <th>Old Lead Time</th>
+                                    <th>New Lead Time</th>
+                                    <th>Change Reason</th>
+                                    <th>Remarks</th>
+                                    <th>Changed By</th>
+                                    <th>Changed At</th>
+                                </tr>
+                            </thead>
+                            <tbody id="purchaseHistoryBody">
+                                <tr><td colspan="7" style="text-align:center;">Loading history...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- AUDIT LOGS -->
+            <section id="sec-auditlogs" class="content-section">
+                <div class="section-header">
+                    <h2>Purchase Audit Logs</h2>
+                    <button class="btn-outline" onclick="loadAuditLogs()"><span
+                            class="material-icons-outlined">refresh</span>Refresh</button>
+                </div>
+                <div class="card">
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Action</th>
+                                    <th>Entity / ID</th>
+                                    <th>User</th>
+                                    <th>IP Address</th>
+                                    <th>Timestamp</th>
+                                </tr>
+                            </thead>
+                            <tbody id="auditLogsBody">
+                                <tr>
+                                    <td colspan="5" style="text-align:center;">Loading audit logs...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- MODULE USERS -->
+            <section id="sec-moduleusers" class="content-section">
+                <div class="section-header">
+                    <h2>Purchase User Access Management</h2>
+                    <button class="btn-primary" onclick="openAddUserModal()"><span
+                            class="material-icons-outlined">person_add</span>Add User Access</button>
+                </div>
+                <div class="card">
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Role</th>
+                                    <th>Allowed Sections</th>
+                                    <th>Status</th>
+                                    <th>Granted Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="moduleUsersBody">
+                                <tr>
+                                    <td colspan="6" style="text-align:center;">Loading module users...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- TOAST & MODAL OVERLAY -->
+    <div id="toast" class="part-toast"></div>
+
+    <div class="modal-overlay" id="purchaseModalOverlay">
+        <div class="modal modal-lg">
+            <div class="modal-header">
+                <h3 id="modalTitle">Purchase Modal</h3>
+                <span class="material-icons-outlined modal-close" onclick="closeModal()">close</span>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
         </div>
     </div>
-    <div class="header-center">
-        <div class="search-box">
-            <span class="material-icons-outlined">search</span>
-            <input type="text" placeholder="Search purchase orders, requisitions, customer demands..." id="globalSearch">
+
+    <!-- ADD MODULE USER MODAL -->
+    <div class="modal-overlay" id="addModuleUserModal">
+        <div class="modal modal-lg">
+            <div class="modal-header">
+                <h3>Add User Access to Purchase Management</h3>
+                <button class="close-btn" onclick="closeModal('addModuleUserModal')">
+                    <span class="material-icons-outlined">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form onsubmit="saveModuleUser(event)">
+                    <div class="form-group">
+                        <label>Search User (by name, email, or employee code) *</label>
+                        <input type="text" id="muUserSearch" placeholder="Type to search employees..."
+                            oninput="searchEmployeesForModule(this.value)" autocomplete="off">
+                        <input type="hidden" id="muUserSelect">
+                        <div id="muUserResults" class="emp-search-results"></div>
+                        <div id="muUserSelected" class="emp-selected-inline" style="display:none"><span
+                                id="muUserSelLabel"></span><button type="button" class="btn-icon"
+                                onclick="clearMuUser()"><span class="material-icons-outlined">close</span></button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Role *</label>
+                        <select id="muRole" required onchange="onMuRoleChange()">
+                            <option value="viewer">Viewer (View & export only)</option>
+                            <option value="editor">Editor (Create, edit, export, import)</option>
+                            <option value="module_admin">Module Admin (Full control + manage users)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Allowed Sections <span class="form-hint-inline">(sidebar items visible to
+                                user)</span></label>
+                        <div class="section-checkboxes" id="muSectionCheckboxes"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Entity Permissions <span class="form-hint-inline">(actions user can
+                                perform)</span></label>
+                        <div class="perm-matrix-wrap" id="muPermMatrix"></div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-outline"
+                            onclick="closeModal('addModuleUserModal')">Cancel</button>
+                        <button type="submit" class="btn-primary">Grant Access</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
-    <div class="header-right">
-        <button class="header-icon-btn theme-toggle" title="Toggle Dark Mode" onclick="toggleTheme()">
-            <span class="material-icons-outlined icon-light">dark_mode</span>
-            <span class="material-icons-outlined icon-dark">light_mode</span>
-        </button>
-        <div class="user-menu" id="userMenu">
-            <div class="user-avatar" onclick="toggleUserMenu()">
-                <span class="material-icons-outlined">person</span>
+
+    <!-- EDIT MODULE USER MODAL -->
+    <div class="modal-overlay" id="editModuleUserModal">
+        <div class="modal modal-lg">
+            <div class="modal-header">
+                <h3>Edit User Access & Permissions</h3>
+                <button class="close-btn" onclick="closeModal('editModuleUserModal')">
+                    <span class="material-icons-outlined">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form onsubmit="saveEditModuleUser(event)">
+                    <input type="hidden" id="emuAccessId">
+                    <div class="form-group">
+                        <label>User</label>
+                        <div class="form-static" id="emuUserName">-</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Role *</label>
+                        <select id="emuRole" required onchange="onEmuRoleChange()">
+                            <option value="viewer">Viewer</option>
+                            <option value="editor">Editor</option>
+                            <option value="module_admin">Module Admin</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Allowed Sections</label>
+                        <div class="section-checkboxes" id="emuSectionCheckboxes"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Entity Permissions</label>
+                        <div class="perm-matrix-wrap" id="emuPermMatrix"></div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-outline"
+                            onclick="closeModal('editModuleUserModal')">Cancel</button>
+                        <button type="submit" class="btn-primary">Save Changes</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
-</header>
 
-<!-- MAIN LAYOUT -->
-<div class="purchase-layout">
-    <!-- SIDEBAR -->
-    <aside class="purchase-sidebar">
-        <div class="sidebar-header">
-            <span class="material-icons-outlined">shopping_cart</span>
-            <h3>Purchase</h3>
-        </div>
-        <nav class="sidebar-nav">
-            <a href="/" class="sidebar-link">
-                <span class="material-icons-outlined">arrow_back</span>Home
-            </a>
-            <div class="sidebar-divider"></div>
-            <a class="sidebar-link active" data-section="overview" onclick="showSection('overview')">
-                <span class="material-icons-outlined">dashboard</span>Overview
-            </a>
-            <a class="sidebar-link" data-section="demand" onclick="showSection('demand')">
-                <span class="material-icons-outlined">calculate</span>Demand & Stock
-            </a>
-            <a class="sidebar-link" data-section="suppliers" onclick="showSection('suppliers')">
-                <span class="material-icons-outlined">storefront</span>Supplier SOP & SQP Rules
-            </a>
-            <a class="sidebar-link" data-section="requisitions" onclick="showSection('requisitions')">
-                <span class="material-icons-outlined">request_quote</span>Req Orders (Requisitions)
-            </a>
-            <a class="sidebar-link" data-section="orders" onclick="showSection('orders')">
-                <span class="material-icons-outlined">shopping_bag</span>Purchase Orders & Lead Time
-            </a>
-            <div class="sidebar-divider"></div>
-            <a class="sidebar-link" data-section="auditlogs" onclick="showSection('auditlogs')">
-                <span class="material-icons-outlined">history</span>Audit Logs
-            </a>
-            <a class="sidebar-link" data-section="moduleusers" onclick="showSection('moduleusers')">
-                <span class="material-icons-outlined">people</span>Module Users
-            </a>
-        </nav>
-    </aside>
-
-    <!-- CONTENT AREA -->
-    <main class="purchase-content">
-        <!-- OVERVIEW SECTION -->
-        <section id="sec-overview" class="content-section active">
-            <div class="section-header">
-                <h2>Purchase Dashboard Overview</h2>
-                <button class="btn-primary" onclick="openNewDemandModal()"><span class="material-icons-outlined">add</span>New Customer Demand</button>
+    <!-- PR HISTORY MODAL -->
+    <div class="modal-overlay" id="prHistoryModal">
+        <div class="modal modal-lg">
+            <div class="modal-header">
+                <h3>Purchase Requests History</h3>
+                <button class="close-btn" onclick="closeModal('prHistoryModal')">
+                    <span class="material-icons-outlined">close</span>
+                </button>
             </div>
-            <div class="overview-stats">
-                <div class="stat-card">
-                    <span class="material-icons-outlined">assignment</span>
-                    <div class="stat-info">
-                        <div class="value" id="statTotalDemands">0</div>
-                        <div class="label">Customer Demands</div>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <span class="material-icons-outlined">lock</span>
-                    <div class="stat-info">
-                        <div class="value" id="statOccupiedQty">0</div>
-                        <div class="label">Occupied Stock Qty</div>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <span class="material-icons-outlined">shopping_cart_checkout</span>
-                    <div class="stat-info">
-                        <div class="value" id="statNetShortage">0</div>
-                        <div class="label">Net Shortage to Buy</div>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <span class="material-icons-outlined">local_shipping</span>
-                    <div class="stat-info">
-                        <div class="value" id="statActivePOs">0</div>
-                        <div class="label">Active Supplier POs</div>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <span class="material-icons-outlined">edit_calendar</span>
-                    <div class="stat-info">
-                        <div class="value" id="statLeadTimeRevisions">0</div>
-                        <div class="label">Lead Time Changes</div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- DEMAND & STOCK RESERVATION CALCULATOR -->
-        <section id="sec-demand" class="content-section">
-            <div class="section-header">
-                <h2>Demand & Stock Reservation Calculator</h2>
-                <button class="btn-primary" onclick="openNewDemandModal()"><span class="material-icons-outlined">add</span>Log Customer Order Demand</button>
-            </div>
-            <div class="card">
-                <p style="font-size:13px; color:var(--text-muted); margin-bottom:14px;">
-                    Calculates required Parts and Raw Materials (RM) ordered by customers. Choose whether to <strong>Occupy Stock</strong> (reserve existing inventory) or <strong>Do Not Occupy</strong> (keep inventory untouched and queue full order to buy).
-                </p>
-                <div class="table-responsive">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Demand No</th>
-                                <th>Customer Name</th>
-                                <th>Ordered Part Code</th>
-                                <th>Mapped Raw Material (RM)</th>
-                                <th>Ordered Qty</th>
-                                <th>Stock Available</th>
-                                <th>Occupy Option</th>
-                                <th>Occupied Qty</th>
-                                <th>Remaining Stock</th>
-                                <th>Shortage to Buy RM</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="demandsBody">
-                            <tr><td colspan="11" style="text-align:center;">Loading customer demands...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-        <!-- SUPPLIER SOP & SQP RULES -->
-        <section id="sec-suppliers" class="content-section">
-            <div class="section-header">
-                <h2>Supplier Selection & SOP / SQP Rules</h2>
-                <button class="btn-primary" onclick="openNewSupplierRuleModal()"><span class="material-icons-outlined">add</span>Add Supplier Rule</button>
-            </div>
-            <div class="card">
-                <div class="table-responsive">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Part / RM Code</th>
-                                <th>Supplier Name</th>
-                                <th>Unit Price (SOP)</th>
-                                <th>Lead Time (Days)</th>
-                                <th>Min Order Qty (MOQ)</th>
-                                <th>Standard Pack (SQP)</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="supplierRulesBody">
-                            <tr><td colspan="7" style="text-align:center;">Loading supplier SOP/SQP rules...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-        <!-- REQUISITIONS (REQ ORDERS) -->
-        <section id="sec-requisitions" class="content-section">
-            <div class="section-header">
-                <h2>Requisition Orders (Purchaser Requests to Supplier)</h2>
-                <button class="btn-primary" onclick="openNewRequisitionModal()"><span class="material-icons-outlined">add</span>Create Req Order</button>
-            </div>
-            <div class="card">
-                <div class="table-responsive">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Req No</th>
-                                <th>Part / RM Code</th>
-                                <th>Supplier</th>
-                                <th>Effective Qty (MOQ/SQP)</th>
-                                <th>Unit Price</th>
-                                <th>Total Amount</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="requisitionsBody">
-                            <tr><td colspan="8" style="text-align:center;">Loading requisition orders...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-        <!-- PURCHASE ORDERS & LEAD TIME TRACKER -->
-        <section id="sec-orders" class="content-section">
-            <div class="section-header">
-                <h2>Purchase Orders & Lead Time Tracking</h2>
-            </div>
-            <div class="card">
-                <div class="table-responsive">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>PO No</th>
-                                <th>Req No</th>
-                                <th>Supplier Name</th>
-                                <th>Part / RM</th>
-                                <th>Qty</th>
-                                <th>Total Value</th>
-                                <th>Current Lead Time</th>
-                                <th>Delivery Date</th>
-                                <th>Lead Time Revisions</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="purchaseOrdersBody">
-                            <tr><td colspan="11" style="text-align:center;">Loading purchase orders...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-        <!-- AUDIT LOGS -->
-        <section id="sec-auditlogs" class="content-section">
-            <div class="section-header">
-                <h2>Purchase Audit Logs</h2>
-                <button class="btn-outline" onclick="loadAuditLogs()"><span class="material-icons-outlined">refresh</span>Refresh</button>
-            </div>
-            <div class="card">
+            <div class="modal-body">
                 <div class="table-responsive">
                     <table class="data-table">
                         <thead>
                             <tr>
                                 <th>Action</th>
-                                <th>Entity / ID</th>
+                                <th>PR No</th>
+                                <th>Details</th>
                                 <th>User</th>
-                                <th>IP Address</th>
-                                <th>Timestamp</th>
+                                <th>Time</th>
                             </tr>
                         </thead>
-                        <tbody id="auditLogsBody">
-                            <tr><td colspan="5" style="text-align:center;">Loading audit logs...</td></tr>
+                        <tbody id="prHistoryBody">
+                            <tr><td colspan="5" style="text-align:center;">Loading history...</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
-        </section>
-
-        <!-- MODULE USERS -->
-        <section id="sec-moduleusers" class="content-section">
-            <div class="section-header">
-                <h2>Purchase User Access Management</h2>
-                <button class="btn-primary" onclick="openAddUserModal()"><span class="material-icons-outlined">person_add</span>Add User Access</button>
-            </div>
-            <div class="card">
-                <div class="table-responsive">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>User</th>
-                                <th>Role</th>
-                                <th>Allowed Sections</th>
-                                <th>Status</th>
-                                <th>Granted Date</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="moduleUsersBody">
-                            <tr><td colspan="6" style="text-align:center;">Loading module users...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-    </main>
-</div>
-
-<!-- TOAST & MODAL OVERLAY -->
-<div id="toast" class="part-toast"></div>
-
-<div class="modal-overlay" id="purchaseModalOverlay">
-    <div class="modal modal-lg">
-        <div class="modal-header">
-            <h3 id="modalTitle">Purchase Modal</h3>
-            <span class="material-icons-outlined modal-close" onclick="closeModal()">close</span>
-        </div>
-        <div class="modal-body" id="modalBody"></div>
-    </div>
-</div>
-
-<!-- ADD MODULE USER MODAL -->
-<div class="modal-overlay" id="addModuleUserModal">
-    <div class="modal modal-lg">
-        <div class="modal-header">
-            <h3>Add User Access to Purchase Management</h3>
-            <button class="close-btn" onclick="closeModal('addModuleUserModal')">
-                <span class="material-icons-outlined">close</span>
-            </button>
-        </div>
-        <div class="modal-body">
-            <form onsubmit="saveModuleUser(event)">
-                <div class="form-group">
-                    <label>Search User (by name, email, or employee code) *</label>
-                    <input type="text" id="muUserSearch" placeholder="Type to search employees..." oninput="searchEmployeesForModule(this.value)" autocomplete="off">
-                    <input type="hidden" id="muUserSelect">
-                    <div id="muUserResults" class="emp-search-results"></div>
-                    <div id="muUserSelected" class="emp-selected-inline" style="display:none"><span id="muUserSelLabel"></span><button type="button" class="btn-icon" onclick="clearMuUser()"><span class="material-icons-outlined">close</span></button></div>
-                </div>
-                <div class="form-group">
-                    <label>Role *</label>
-                    <select id="muRole" required onchange="onMuRoleChange()">
-                        <option value="viewer">Viewer (View & export only)</option>
-                        <option value="editor">Editor (Create, edit, export, import)</option>
-                        <option value="module_admin">Module Admin (Full control + manage users)</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Allowed Sections <span class="form-hint-inline">(sidebar items visible to user)</span></label>
-                    <div class="section-checkboxes" id="muSectionCheckboxes"></div>
-                </div>
-                <div class="form-group">
-                    <label>Entity Permissions <span class="form-hint-inline">(actions user can perform)</span></label>
-                    <div class="perm-matrix-wrap" id="muPermMatrix"></div>
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="btn-outline" onclick="closeModal('addModuleUserModal')">Cancel</button>
-                    <button type="submit" class="btn-primary">Grant Access</button>
-                </div>
-            </form>
         </div>
     </div>
-</div>
 
-<!-- EDIT MODULE USER MODAL -->
-<div class="modal-overlay" id="editModuleUserModal">
-    <div class="modal modal-lg">
-        <div class="modal-header">
-            <h3>Edit User Access & Permissions</h3>
-            <button class="close-btn" onclick="closeModal('editModuleUserModal')">
-                <span class="material-icons-outlined">close</span>
-            </button>
-        </div>
-        <div class="modal-body">
-            <form onsubmit="saveEditModuleUser(event)">
-                <input type="hidden" id="emuAccessId">
-                <div class="form-group">
-                    <label>User</label>
-                    <div class="form-static" id="emuUserName">-</div>
-                </div>
-                <div class="form-group">
-                    <label>Role *</label>
-                    <select id="emuRole" required onchange="onEmuRoleChange()">
-                        <option value="viewer">Viewer</option>
-                        <option value="editor">Editor</option>
-                        <option value="module_admin">Module Admin</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Allowed Sections</label>
-                    <div class="section-checkboxes" id="emuSectionCheckboxes"></div>
-                </div>
-                <div class="form-group">
-                    <label>Entity Permissions</label>
-                    <div class="perm-matrix-wrap" id="emuPermMatrix"></div>
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="btn-outline" onclick="closeModal('editModuleUserModal')">Cancel</button>
-                    <button type="submit" class="btn-primary">Save Changes</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+    <script src="/static/js/header.js"></script>
+    <script src="/static/js/purchase/common.js"></script>
+    <script src="/static/js/purchase/overview.js"></script>
 
-<script src="/static/js/header.js"></script>
-<script src="/static/js/purchase/common.js"></script>
-<script src="/static/js/purchase/overview.js"></script>
-<script src="/static/js/purchase/demand.js"></script>
-<script src="/static/js/purchase/suppliers.js"></script>
-<script src="/static/js/purchase/requisitions.js"></script>
-<script src="/static/js/purchase/orders.js"></script>
-<script src="/static/js/purchase/auditlogs.js"></script>
-<script src="/static/js/purchase/moduleusers.js"></script>
+    <script src="/static/js/purchase/lead_times.js"></script>
+    <script src="/static/js/purchase/purchase_requests.js"></script>
+    <script src="/static/js/purchase/buy_material.js"></script>
+    <script src="/static/js/purchase/orders.js"></script>
+    <script src="/static/js/purchase/invoices.js"></script>
+    <script src="/static/js/purchase/history.js"></script>
+    <script src="/static/js/purchase/auditlogs.js"></script>
+    <script src="/static/js/purchase/moduleusers.js"></script>
 
 </body>
+
 </html>

@@ -4,11 +4,19 @@ let RM_HEADERS = { 'Content-Type': 'application/json', 'X-Tenant-ID': 'TEST' };
 
 (function setRmHeaders() {
     try {
+        const tenant = JSON.parse(localStorage.getItem('tenant') || '{}');
+        if (tenant && (tenant.id || tenant.code)) {
+            RM_HEADERS['X-Tenant-ID'] = tenant.id || tenant.code;
+        }
         const token = localStorage.getItem('token');
         if (token) {
             const payload = JSON.parse(atob(token.split('.')[1]));
             const identity = typeof payload.sub === 'string' ? JSON.parse(payload.sub) : payload.sub;
-            if (identity) { RM_HEADERS['X-User-Email'] = identity.email || ''; RM_HEADERS['X-User-Name'] = identity.name || identity.first_name || ''; }
+            if (identity) {
+                RM_HEADERS['X-User-Email'] = identity.email || '';
+                RM_HEADERS['X-User-Name'] = identity.name || identity.first_name || '';
+                if (identity.tenant_id) RM_HEADERS['X-Tenant-ID'] = identity.tenant_id;
+            }
         }
     } catch(e) {}
 })();
@@ -33,10 +41,12 @@ function rmShowSection(section) {
     history.pushState(null, '', '/rawmaterial/' + section);
     const s = RM_SECTIONS.find(x => x.id === section);
     if (s) trackModule(s.label, s.icon, '/rawmaterial/' + section);
-    if (section === 'overview') loadRmOverview();
-    if (section === 'criteria') loadCriteria();
-    if (section === 'master') loadRmMaster();
-    if (section === 'partmapping') loadRmPartMappings();
+    if (section === 'overview') { if (typeof loadRmOverview === 'function') loadRmOverview(); }
+    if (section === 'criteria') { if (typeof loadCriteria === 'function') loadCriteria(); }
+    if (section === 'master') { if (typeof loadRmMaster === 'function') loadRmMaster(); }
+    if (section === 'partmapping') { if (typeof loadRmPartMappings === 'function') loadRmPartMappings(); }
+    if (section === 'vendors') { if (typeof loadVendors === 'function') loadVendors(); }
+    if (section === 'moduleusers') { if (typeof loadModuleUsers === 'function') loadModuleUsers(); }
 }
 
 function esc(str) { if (!str) return ''; return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }

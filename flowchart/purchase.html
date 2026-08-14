@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Purchase Flow — SUPERSYSTEMS</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<nav class="top-nav">
+  <div class="nav-brand">
+    <div class="nav-logo">SUPER<span>SYSTEMS</span></div>
+    <div class="nav-sub">ERP Flow Navigator</div>
+  </div>
+  <div class="nav-right">
+    <div class="nav-links">
+      <a href="index.html"             class="nav-link">🔄 Main Flow</a>
+      <a href="part-rm.html"           class="nav-link">🔩 Part &amp; RM</a>
+      <a href="purchase.html"          class="nav-link active">🛒 Purchase</a>
+      <a href="logistics-quality.html" class="nav-link">🚚 Logistics &amp; Quality</a>
+      <a href="inventory.html"         class="nav-link">📦 Inventory</a>
+      <a href="manufacturing.html"     class="nav-link">🏭 Manufacturing</a>
+      <a href="all-modules.html"       class="nav-link">🗺️ All Modules</a>
+      <a href="vertical-flow.html"     class="nav-link">📊 Vertical Flow</a>
+    </div>
+    <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle dark/light mode">☀️</button>
+  </div>
+</nav>
+
+<div class="page-wrap">
+  <div class="page-header">
+    <h1>🛒 Purchase Flow</h1>
+    <p>Planning Demand → PR Created → Sent to Purchaser → PO Created → Sent to Supplier → Acknowledged → Lead Time Tracking</p>
+  </div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#6366f1"></div>Planning Module</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div>Purchase Module</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#10b981"></div>Supplier Action</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div>Notification</div>
+  </div>
+  <div class="flow-canvas"><svg id="svg2" xmlns="http://www.w3.org/2000/svg"></svg></div>
+</div>
+
+<script src="nav.js"></script>
+<script>
+const tip = initTooltip();
+
+const nodes = [
+  /* Row 0 — Planning side */
+  { id:'a1', col:0, row:0, fill:'#4338ca', icon:'📊', label:'Demand Plan',           sub:'planning.demand_plans',                   tip:[['API','POST /planning/demands'],['Auto-checks','inventory_stock_levels'],['Calculates','shortage_qty = required - available']] },
+  { id:'a2', col:1, row:0, fill:'#6366f1', icon:'📝', label:'Purchase Request (PR)', sub:'planning.purchase_requests  |  status: draft', tip:[['API','POST /planning/purchase-requests'],['Fields','item_code, required_qty, uom, required_date'],['Priority','normal / urgent / critical']] },
+  { id:'a3', col:2, row:0, fill:'#818cf8', icon:'📤', label:'Send PR to Purchaser',  sub:'status → sent_to_purchaser',              tip:[['API','POST /planning/purchase-requests/:id/send-to-purchaser'],['Notifies','Purchaser via planning.notifications'],['Status change','draft → sent_to_purchaser']] },
+
+  /* Row 0 — Purchase side */
+  { id:'b1', col:3, row:0, fill:'#b45309', icon:'📥', label:'PR Inbox',              sub:'purchase /pr-inbox  |  purchaser reviews',tip:[['API','GET /purchase/pr-inbox'],['Shows','PRs with status sent_to_purchaser'],['Action','Review → Create PO']] },
+  { id:'b2', col:4, row:0, fill:'#d97706', icon:'📋', label:'Supplier Rules',        sub:'SOP / SQP / MOQ / Lead Time',             tip:[['Table','purchase_supplier_quotations'],['Fields','unit_price, lead_time_days, min_order_qty, sqp_pack'],['Used in','PO line pricing']] },
+  { id:'b3', col:5, row:0, fill:'#f59e0b', icon:'🧾', label:'Create PO',             sub:'procurement.purchase_orders  |  draft',   tip:[['API','POST /purchase/pr-inbox/:id/create-po'],['Fields','supplier_name, unit_price, promised_date'],['Status','draft']] },
+  { id:'b4', col:6, row:0, fill:'#fbbf24', icon:'📤', label:'Send PO to Supplier',   sub:'po_status → sent_to_supplier',            tip:[['API','POST /purchase/po-list/:id/send-to-supplier'],['Notifies','Supplier (email)'],['Also Notifies','Logistics team']] },
+
+  /* Row 1 — Supplier side */
+  { id:'c1', col:6, row:2, fill:'#059669', icon:'✅', label:'Supplier Acknowledges', sub:'po_status → acknowledged',                tip:[['API','POST /purchase/po-list/:id/acknowledge'],['Notifies','Purchaser'],['Next','Supplier ships goods']] },
+  { id:'c2', col:5, row:2, fill:'#10b981', icon:'📦', label:'Goods Dispatched',      sub:'Supplier ships → Logistics notified',     tip:[['Action','Supplier ships goods'],['Logistics','Receives notification'],['Next','Create GRN in Logistics']] },
+
+  /* Row 1 — Lead Time */
+  { id:'d1', col:3, row:2, fill:'#0369a1', icon:'⏱️', label:'Lead Time Tracking',    sub:'purchase_lead_time_history',              tip:[['API','PUT /purchase/orders/:id/lead-time'],['Tracks','old_lead_time → new_lead_time'],['Count','lead_time_change_count increments']] },
+  { id:'d2', col:2, row:2, fill:'#0284c7', icon:'📅', label:'Promised Delivery Date',sub:'promised_delivery_date updated',          tip:[['Calculated','NOW() + new_lead_time_days'],['Stored in','purchase_orders.promised_delivery_date'],['History','Immutable log in lead_time_history']] },
+  { id:'d3', col:1, row:2, fill:'#38bdf8', icon:'🔔', label:'Notification Sent',     sub:'planning.notifications  |  purchaser',    tip:[['Table','planning.notifications'],['Recipients','purchaser, planner, supplier'],['Events','PO_CREATED, PO_SENT, PO_ACKNOWLEDGED, GRN_CREATED']] },
+
+  /* Audit */
+  { id:'e1', col:0, row:2, fill:'#475569', icon:'📜', label:'Audit Log',             sub:'audit.logs  |  module: Purchase',         tip:[['Table','audit.logs'],['Tracks','All PO actions with user, IP, timestamp'],['Module','Purchase / PROCUREMENT']] },
+];
+
+const edges = [
+  { from:'a1', to:'a2', label:'shortage → PR' },
+  { from:'a2', to:'a3', label:'planner sends' },
+  { from:'a3', to:'b1', label:'arrives in inbox' },
+  { from:'b2', to:'b3', label:'pricing rules' },
+  { from:'b1', to:'b3', label:'create PO' },
+  { from:'b3', to:'b4', label:'send to supplier' },
+  { from:'b4', to:'c1', label:'supplier confirms', color:'#10b981' },
+  { from:'c1', to:'c2', label:'ships goods', color:'#10b981' },
+  { from:'b4', to:'d1', label:'track lead time' },
+  { from:'d1', to:'d2', label:'update date' },
+  { from:'d2', to:'d3', label:'notify' },
+  { from:'d3', to:'e1', label:'log action' },
+  { from:'b3', to:'d3', label:'PO_CREATED notify' },
+];
+
+const CELL_W = 230, CELL_H = 140;
+const W = 7*CELL_W+40, H = 3*CELL_H+60;
+const svg = document.getElementById('svg2');
+svg.setAttribute('width', W); svg.setAttribute('height', H);
+svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+const pos = {};
+nodes.forEach(n => {
+  n.px = 20 + n.col * CELL_W;
+  n.py = 20 + n.row * CELL_H;
+  n.w = 200; n.h = 68;
+  pos[n.id] = { cx: n.px+100, cy: n.py+34 };
+});
+
+svg.innerHTML = `<defs>
+  <marker id="a"  markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#334155"/></marker>
+  <marker id="ag" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#10b981"/></marker>
+</defs>`;
+
+/* lane backgrounds */
+[{y:0,h:CELL_H+20,col:'rgba(99,102,241,0.05)',lbl:'PLANNING'},{y:CELL_H+20,h:CELL_H,col:'rgba(245,158,11,0.05)',lbl:'PURCHASE'},{y:2*CELL_H+20,h:CELL_H,col:'rgba(16,185,129,0.05)',lbl:'SUPPLIER / TRACKING'}].forEach(lane=>{
+  svg.innerHTML += `<rect x="0" y="${lane.y}" width="${W}" height="${lane.h}" fill="${lane.col}" rx="0"/>
+    <text x="12" y="${lane.y+16}" font-size="9" font-weight="700" letter-spacing="2" fill="#334155" font-family="Segoe UI,sans-serif" text-transform="uppercase">${lane.lbl}</text>`;
+});
+
+edges.forEach(e => {
+  const s = pos[e.from], t = pos[e.to];
+  const mx = (s.cx+t.cx)/2, my = (s.cy+t.cy)/2;
+  const col = e.color || '#334155';
+  const mid = e.color === '#10b981' ? 'ag' : 'a';
+  svg.innerHTML += `<path d="M${s.cx},${s.cy} C${mx},${s.cy} ${mx},${t.cy} ${t.cx},${t.cy}"
+    fill="none" stroke="${col}" stroke-width="1.8" stroke-dasharray="6,3" marker-end="url(#${mid})" opacity="0.75"/>
+    <text x="${mx}" y="${my-5}" text-anchor="middle" font-size="9" fill="${col}" opacity="0.85" font-family="Segoe UI,sans-serif">${e.label||''}</text>`;
+});
+
+nodes.forEach(n => {
+  const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+  g.setAttribute('class','node-group');
+  g.innerHTML = `
+    <rect class="node-body" x="${n.px}" y="${n.py}" width="${n.w}" height="${n.h}" rx="11"
+      fill="${n.fill}" opacity="0.93" stroke="${n.fill}" stroke-width="1.5"/>
+    <text x="${n.px+12}" y="${n.py+24}" font-size="17" font-family="Segoe UI Emoji,sans-serif">${n.icon}</text>
+    <text x="${n.px+36}" y="${n.py+24}" font-size="11.5" font-weight="700" fill="#fff" font-family="Segoe UI,sans-serif">${n.label}</text>
+    <text x="${n.px+12}" y="${n.py+42}" font-size="9" fill="rgba(255,255,255,0.58)" font-family="Segoe UI,sans-serif">${n.sub}</text>`;
+  g.addEventListener('mouseenter', () => showTip(tip, n.label, n.tip, n.why||''));
+  g.addEventListener('mouseleave', () => hideTip(tip));
+  svg.appendChild(g);
+});
+</script>
+</body>
+</html>

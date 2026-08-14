@@ -48,107 +48,55 @@ def overview_stats():
     tenant_id = _get_tenant()
     tid_cond = "(tenant_id = :tid OR tenant_id = 'TEST' OR tenant_id = 'b424df0e-f766-4e94-b3fd-05777e158958' OR tenant_id = '' OR tenant_id IS NULL)"
     try:
-        total_zones = db.session.execute(db.text(
-            f"SELECT COUNT(*) FROM warehouse_zones WHERE is_deleted = false AND {tid_cond}"
-        ), {"tid": tenant_id}).scalar() or 0
-
-        total_bins = db.session.execute(db.text(
-            f"SELECT COUNT(*) FROM warehouse_bins WHERE is_deleted = false AND {tid_cond}"
-        ), {"tid": tenant_id}).scalar() or 0
-
-        open_picks = db.session.execute(db.text(
-            f"SELECT COUNT(*) FROM warehouse_pick_lists WHERE status IN ('open', 'in_progress') AND is_deleted = false AND {tid_cond}"
-        ), {"tid": tenant_id}).scalar() or 0
-
-        pending_putaways = db.session.execute(db.text(
-            f"SELECT COUNT(*) FROM warehouse_putaway_tasks WHERE status = 'pending' AND is_deleted = false AND {tid_cond}"
-        ), {"tid": tenant_id}).scalar() or 0
-
-        receipts_today = db.session.execute(db.text(
-            f"SELECT COUNT(*) FROM warehouse_receipts WHERE is_deleted = false AND {tid_cond}"
-        ), {"tid": tenant_id}).scalar() or 0
-
-        return jsonify({
-            "success": True,
-            "data": {
-                "total_zones": total_zones,
-                "total_bins": total_bins,
-                "open_picks": open_picks,
-                "pending_putaways": pending_putaways,
-                "total_receipts": receipts_today
-            }
-        })
+        rows = db.session.execute(db.text(
+            f"SELECT COUNT(*) as total, "
+            f"SUM(CASE WHEN current_units = 0 THEN 1 ELSE 0 END) as empty, "
+            f"SUM(CASE WHEN current_units >= capacity_units AND capacity_units > 0 THEN 1 ELSE 0 END) as filled, "
+            f"SUM(CASE WHEN current_units > 0 AND current_units < capacity_units THEN 1 ELSE 0 END) as partial, "
+            f"SUM(CASE WHEN is_deleted = true THEN 1 ELSE 0 END) as trashed "
+            f"FROM warehouse_bins WHERE {tid_cond}"
+        ), {"tid": tenant_id}).first()
+        return jsonify({"success": True, "data": {
+            "total_bins": int(rows[0] or 0),
+            "empty": int(rows[1] or 0),
+            "filled": int(rows[2] or 0),
+            "partial": int(rows[3] or 0),
+            "trashed": int(rows[4] or 0)
+        }})
     except Exception as e:
         db.session.rollback()
         return jsonify({"success": False, "message": str(e)}), 500
-
-
-# 1. WAREHOUSE ZONES
-@warehouse_bp.route("/zones", methods=["GET"])
-def list_zones():
-    tenant_id = _get_tenant()
-    rows = db.session.execute(db.text(
-        "SELECT id, zone_code, name, zone_type, warehouse_code, capacity_units, description, is_active FROM warehouse_zones WHERE is_deleted = false AND tenant_id = :tid ORDER BY zone_code ASC"
-    ), {"tid": tenant_id}).fetchall()
-    zones = [{
-        "id": r[0], "zone_code": r[1], "name": r[2], "zone_type": r[3] or "GENERAL",
-        "warehouse_code": r[4] or "MAIN", "capacity_units": r[5] or 1000,
-        "description": r[6] or "", "is_active": r[7]
-    } for r in rows]
-    return jsonify({"success": True, "data": zones})
-
-
-@warehouse_bp.route("/zones", methods=["POST"])
-def create_zone():
-    tenant_id = _get_tenant()
-    data = request.get_json() or {}
-    zcode = data.get("zone_code")
-    name = data.get("name")
-    if not zcode or not name:
-        return jsonify({"success": False, "message": "Zone code and name required"}), 400
-
-    zid = str(uuid.uuid4())
-    db.session.execute(db.text(
-        "INSERT INTO warehouse_zones (id, zone_code, name, zone_type, warehouse_code, capacity_units, description, tenant_id) VALUES (:id, :zcode, :name, :ztype, :wh, :cap, :desc, :tid)"
-    ), {
-        "id": zid, "zcode": zcode, "name": name, "ztype": data.get("zone_type", "GENERAL"),
-        "wh": data.get("warehouse_code", "MAIN"), "cap": int(data.get("capacity_units", 1000)),
-        "desc": data.get("description", ""), "tid": tenant_id
-    })
-    db.session.commit()
-    return jsonify({"success": True, "message": "Zone created", "id": zid})
 
 
 # 2. BIN MANAGEMENT & QR CODES
 @warehouse_bp.route("/bins", methods=["GET"])
 def list_bins():
     tenant_id = _get_tenant()
-    zone = request.args.get("zone", "").strip()
+    tid_cond = "(tenant_id = :tid OR tenant_id = 'TEST' OR tenant_id = 'b424df0e-f766-4e94-b3fd-05777e158958' OR tenant_id = '' OR tenant_id IS NULL)"
     status = request.args.get("status", "").strip()
+    search = request.args.get("search", "").strip()
 
-    where_clause = "WHERE is_deleted = false AND tenant_id = :tid"
+    where = f"WHERE is_deleted = false AND {tid_cond}"
     params = {"tid": tenant_id}
-    if zone:
-        where_clause += " AND zone_code = :zone"
-        params["zone"] = zone
     if status:
-        where_clause += " AND status = :status"
+        where += " AND status = :status"
         params["status"] = status
+    if search:
+        where += " AND (bin_code ILIKE :s OR location_code ILIKE :s OR bin_type ILIKE :s)"
+        params["s"] = f"%{search}%"
 
     rows = db.session.execute(db.text(
-        f"SELECT id, bin_code, zone_code, warehouse_code, aisle, rack, level, capacity_units, current_units, status FROM warehouse_bins {where_clause} ORDER BY bin_code ASC"
+        f"SELECT id, bin_code, location_code, warehouse_code, aisle, rack, level, capacity_units, current_units, status, bin_type, bin_color FROM warehouse_bins {where} ORDER BY bin_code ASC"
     ), params).fetchall()
 
-    bins = []
-    for r in rows:
-        bin_code = r[1]
-        qr_img = _generate_qr_base64(f"/warehouse/bin/{bin_code}")
-        bins.append({
-            "id": r[0], "bin_code": bin_code, "zone_code": r[2], "warehouse_code": r[3],
-            "aisle": r[4] or "A", "rack": r[5] or "01", "level": r[6] or "01",
-            "capacity_units": r[7] or 500, "current_units": r[8] or 0,
-            "status": r[9] or "active", "qr_code": qr_img
-        })
+    bins = [{
+        "id": r[0], "bin_code": r[1], "location_code": r[2] or "",
+        "warehouse_code": r[3] or "MAIN",
+        "aisle": r[4] or "", "rack": r[5] or "", "level": r[6] or "",
+        "capacity_units": int(r[7] or 500), "current_units": int(r[8] or 0),
+        "status": r[9] or "active", "bin_type": r[10] or "medium",
+        "bin_color": r[11] or ""
+    } for r in rows]
     return jsonify({"success": True, "data": bins})
 
 
@@ -157,144 +105,317 @@ def create_bin():
     tenant_id = _get_tenant()
     data = request.get_json() or {}
     bcode = data.get("bin_code")
-    zcode = data.get("zone_code", "Z1")
+    location_code = data.get("location_code", "")
     wh = data.get("warehouse_code", "MAIN")
+    bin_type = data.get("bin_type", "medium")
 
     if not bcode:
         return jsonify({"success": False, "message": "Bin code required"}), 400
 
     bid = str(uuid.uuid4())
-    qr_data = f"/warehouse/bin/{bcode}"
     db.session.execute(db.text(
-        "INSERT INTO warehouse_bins (id, bin_code, zone_code, warehouse_code, aisle, rack, level, capacity_units, current_units, status, qr_data, tenant_id) "
-        "VALUES (:id, :bcode, :zcode, :wh, :aisle, :rack, :level, :cap, 0, 'active', :qr, :tid)"
+        "INSERT INTO warehouse_bins (id, bin_code, zone_code, location_code, warehouse_code, aisle, rack, level, capacity_units, current_units, status, bin_type, bin_color, tenant_id) "
+        "VALUES (:id, :bcode, :zone, :lcode, :wh, :aisle, :rack, :level, :cap, 0, 'active', :btype, :bcolor, :tid)"
     ), {
-        "id": bid, "bcode": bcode, "zcode": zcode, "wh": wh,
-        "aisle": data.get("aisle", "A"), "rack": data.get("rack", "01"), "level": data.get("level", "01"),
-        "cap": int(data.get("capacity_units", 500)), "qr": qr_data, "tid": tenant_id
+        "id": bid, "bcode": bcode, "zone": data.get("zone_code", "ZONE-A"),
+        "lcode": location_code, "wh": wh,
+        "aisle": data.get("aisle", ""), "rack": data.get("rack", ""), "level": data.get("level", ""),
+        "cap": int(data.get("capacity_units", 500)), "btype": bin_type,
+        "bcolor": data.get("bin_color", ""), "tid": tenant_id
     })
     db.session.commit()
     return jsonify({"success": True, "message": f"Bin {bcode} created", "id": bid})
 
 
-@warehouse_bp.route("/bins/<bin_code>/qr", methods=["GET"])
-def get_bin_qr(bin_code):
-    qr_base64 = _generate_qr_base64(f"/warehouse/bin/{bin_code}")
-    return jsonify({"success": True, "bin_code": bin_code, "qr_code": qr_base64})
-
-
 @warehouse_bp.route("/bins/<bin_code>/details", methods=["GET"])
 def get_bin_details(bin_code):
     tenant_id = _get_tenant()
+    tid_cond = "(tenant_id = :tid OR tenant_id = 'TEST' OR tenant_id = 'b424df0e-f766-4e94-b3fd-05777e158958' OR tenant_id = '' OR tenant_id IS NULL)"
     bin_row = db.session.execute(db.text(
-        "SELECT id, bin_code, zone_code, warehouse_code, capacity_units, current_units, status FROM warehouse_bins WHERE bin_code = :b AND tenant_id = :tid AND is_deleted = false"
+        f"SELECT id, bin_code, location_code, warehouse_code, capacity_units, current_units, status, bin_type, bin_color, qr_data "
+        f"FROM warehouse_bins WHERE bin_code = :b AND {tid_cond} AND is_deleted = false"
     ), {"b": bin_code, "tid": tenant_id}).first()
 
     if not bin_row:
-        # Return default mock if not seeded yet
-        bin_info = {"bin_code": bin_code, "zone_code": "Z1", "warehouse_code": "MAIN", "capacity_units": 500, "current_units": 0, "status": "active"}
-    else:
-        bin_info = {
-            "id": bin_row[0], "bin_code": bin_row[1], "zone_code": bin_row[2],
-            "warehouse_code": bin_row[3], "capacity_units": bin_row[4], "current_units": bin_row[5], "status": bin_row[6]
-        }
+        return jsonify({"success": False, "message": "Bin not found"}), 404
 
-    items = db.session.execute(db.text(
-        "SELECT part_number, part_description, qty_on_hand, unit FROM inventory_stock_levels WHERE bin_code = :b AND tenant_id = :tid AND is_deleted = false"
-    ), {"b": bin_code, "tid": tenant_id}).fetchall()
+    location_code = bin_row[2] or ""
+    warehouse_code = bin_row[3] or "MAIN"
 
-    stock_items = [{
-        "part_number": i[0], "description": i[1] or "", "qty": float(i[2] or 0), "unit": i[3] or "pcs"
-    } for i in items]
+    # QR code — use stored qr_data or generate
+    qr_img = bin_row[9] or _generate_qr_base64(f"/warehouse/bin/{bin_code}")
 
-    movements = db.session.execute(db.text(
-        "SELECT movement_no, movement_type, part_number, qty, created_at FROM inventory_stock_movements WHERE (from_bin_code = :b OR to_bin_code = :b) AND tenant_id = :tid ORDER BY created_at DESC LIMIT 10"
-    ), {"b": bin_code, "tid": tenant_id}).fetchall()
+    bin_info = {
+        "bin_code": bin_row[1], "location_code": location_code,
+        "warehouse_code": warehouse_code, "capacity_units": bin_row[4] or 500,
+        "current_units": bin_row[5] or 0, "status": bin_row[6] or "active",
+        "bin_type": bin_row[7] or "medium", "bin_color": bin_row[8] or "",
+        "qr_code": qr_img
+    }
 
-    mov_list = [{
-        "movement_no": m[0], "type": m[1], "part_number": m[2], "qty": float(m[3]), "time": str(m[4])
-    } for m in movements]
+    # Location detail
+    location = None
+    if location_code:
+        loc_row = db.session.execute(db.text(
+            "SELECT id, location_code, plant, floor_name, shelf_name, row_name, column_name, bin_code, warehouse_code "
+            "FROM inventory_locations WHERE location_code = :lc AND is_deleted = false LIMIT 1"
+        ), {"lc": location_code}).first()
+        if loc_row:
+            location = {
+                "id": loc_row[0], "location_code": loc_row[1], "plant": loc_row[2],
+                "floor_name": loc_row[3], "shelf_name": loc_row[4],
+                "row_name": loc_row[5], "column_name": loc_row[6],
+                "bin_code": loc_row[7], "warehouse_code": loc_row[8]
+            }
 
-    bin_info["stock"] = stock_items
-    bin_info["recent_movements"] = mov_list
-    bin_info["qr_code"] = _generate_qr_base64(f"/warehouse/bin/{bin_code}")
+    # Stock in bin
+    stock_rows = db.session.execute(db.text(
+        "SELECT part_number, COALESCE(manufacturer,'') as manufacturer, qty_on_hand, qty_available, unit "
+        "FROM inventory_stock_levels "
+        "WHERE bin_code = :b AND qty_on_hand > 0 AND is_deleted = false "
+        "ORDER BY part_number ASC"
+    ), {"b": bin_code}).fetchall()
 
-    return jsonify({"success": True, "data": bin_info})
+    stock = [{
+        "part_number": r[0], "description": r[1] or "",
+        "qty_on_hand": float(r[2] or 0), "qty_available": float(r[3] or 0),
+        "unit": r[4] or "pcs", "unit_cost": 0
+    } for r in stock_rows]
+
+    # Movements
+    try:
+        mov_rows = db.session.execute(db.text(
+            "SELECT movement_no, movement_type, part_number, qty, unit, "
+            "from_bin_code, to_bin_code, reference_no, performed_by, created_at "
+            "FROM inventory_stock_movements "
+            "WHERE (from_bin_code = :b OR to_bin_code = :b) AND is_deleted = false "
+            "ORDER BY created_at DESC LIMIT 50"
+        ), {"b": bin_code}).fetchall()
+        movements = [{
+            "movement_no": r[0] or "-", "movement_type": r[1],
+            "part_number": r[2], "qty": float(r[3] or 0), "unit": r[4] or "pcs",
+            "from_bin": r[5], "to_bin": r[6],
+            "reference_no": r[7] or "-", "performed_by": r[8] or "System",
+            "created_at": str(r[9]) if r[9] else "-",
+            "direction": "IN" if r[6] == bin_code else "OUT"
+        } for r in mov_rows]
+    except Exception:
+        db.session.rollback()
+        movements = []
+
+    # Scan history
+    try:
+        scan_rows = db.session.execute(db.text(
+            "SELECT performer_name, scan_action, bin_code, scan_time "
+            "FROM warehouse_bin_scans WHERE bin_code = :b "
+            "ORDER BY scan_time DESC LIMIT 30"
+        ), {"b": bin_code}).fetchall()
+        scan_history = [{
+            "scanned_by": r[0] or "Unknown", "scan_context": r[1] or "QR Scan",
+            "location_at_scan": location_code, "scanned_at": str(r[3]) if r[3] else "-"
+        } for r in scan_rows]
+    except Exception:
+        db.session.rollback()
+        scan_history = []
+
+    return jsonify({"success": True, "data": {
+        "bin": bin_info, "location": location,
+        "stock": stock, "movements": movements, "scan_history": scan_history
+    }})
 
 
-# 3. PICK LISTS
-@warehouse_bp.route("/pick-lists", methods=["GET"])
-def list_pick_lists():
+# 3. BIN CAPACITY RULES
+@warehouse_bp.route("/bin-capacity", methods=["GET"])
+def list_bin_capacity():
     tenant_id = _get_tenant()
+    tid_cond = "(tenant_id = :tid OR tenant_id = 'TEST' OR tenant_id = 'b424df0e-f766-4e94-b3fd-05777e158958' OR tenant_id = '' OR tenant_id IS NULL)"
     rows = db.session.execute(db.text(
-        "SELECT id, list_no, reference_type, reference_no, warehouse_code, assigned_to, due_date, status, notes FROM warehouse_pick_lists WHERE is_deleted = false AND tenant_id = :tid ORDER BY created_at DESC"
+        f"SELECT id, part_code, part_description, capacity_small, capacity_medium, capacity_large FROM warehouse_bin_capacity WHERE is_deleted = false AND {tid_cond} ORDER BY part_code ASC"
     ), {"tid": tenant_id}).fetchall()
-
-    lists = []
-    for r in rows:
-        items = db.session.execute(db.text(
-            "SELECT id, part_number, part_description, bin_code, qty_required, qty_picked, status FROM warehouse_pick_list_items WHERE pick_list_id = :pid"
-        ), {"pid": r[0]}).fetchall()
-
-        lists.append({
-            "id": r[0], "list_no": r[1], "reference_type": r[2] or "PRODUCTION_ORDER",
-            "reference_no": r[3] or "", "warehouse_code": r[4] or "MAIN", "assigned_to": r[5] or "Picker 1",
-            "due_date": r[6] or "", "status": r[7], "notes": r[8] or "",
-            "items": [{
-                "id": i[0], "part_number": i[1], "description": i[2] or "", "bin_code": i[3] or "A-01-01",
-                "qty_required": float(i[4] or 0), "qty_picked": float(i[5] or 0), "status": i[6]
-            } for i in items]
-        })
-    return jsonify({"success": True, "data": lists})
+    data = [{
+        "id": r[0], "part_code": r[1], "part_description": r[2] or "",
+        "capacity_small": int(r[3] or 100), "capacity_medium": int(r[4] or 150), "capacity_large": int(r[5] or 200)
+    } for r in rows]
+    return jsonify({"success": True, "data": data})
 
 
-@warehouse_bp.route("/pick-lists", methods=["POST"])
-def create_pick_list():
+@warehouse_bp.route("/bin-capacity", methods=["POST"])
+def create_bin_capacity():
     tenant_id = _get_tenant()
     data = request.get_json() or {}
-    pid = str(uuid.uuid4())
-    lno = f"PKL-{datetime.now().strftime('%Y%m%d%H%M')}"
-
+    part_code = data.get("part_code", "").strip()
+    if not part_code:
+        return jsonify({"success": False, "message": "Part code required"}), 400
+    rid = str(uuid.uuid4())
     db.session.execute(db.text(
-        "INSERT INTO warehouse_pick_lists (id, list_no, reference_type, reference_no, warehouse_code, assigned_to, due_date, status, notes, tenant_id) "
-        "VALUES (:id, :lno, :reftype, :refno, :wh, :assigned, :due, 'open', :notes, :tid)"
+        "INSERT INTO warehouse_bin_capacity (id, part_code, part_description, capacity_small, capacity_medium, capacity_large, tenant_id) "
+        "VALUES (:id, :pc, :desc, :sm, :md, :lg, :tid)"
     ), {
-        "id": pid, "lno": lno, "reftype": data.get("reference_type", "PRODUCTION_ORDER"),
-        "refno": data.get("reference_no", "ORD-1001"), "wh": data.get("warehouse_code", "MAIN"),
-        "assigned": data.get("assigned_to", "Warehouse Picker"), "due": data.get("due_date", ""),
-        "notes": data.get("notes", ""), "tid": tenant_id
+        "id": rid, "pc": part_code, "desc": data.get("part_description", ""),
+        "sm": int(data.get("capacity_small", 100)), "md": int(data.get("capacity_medium", 150)),
+        "lg": int(data.get("capacity_large", 200)), "tid": tenant_id
     })
-
-    items = data.get("items", [])
-    for it in items:
-        db.session.execute(db.text(
-            "INSERT INTO warehouse_pick_list_items (id, pick_list_id, part_number, part_description, bin_code, qty_required, qty_picked, status, tenant_id) "
-            "VALUES (:id, :pid, :p, :desc, :bin, :req, 0, 'pending', :tid)"
-        ), {
-            "id": str(uuid.uuid4()), "pid": pid, "p": it.get("part_number"), "desc": it.get("part_description", ""),
-            "bin": it.get("bin_code", "A-01-01"), "req": float(it.get("qty_required", 1)), "tid": tenant_id
-        })
-
     db.session.commit()
-    return jsonify({"success": True, "message": f"Pick list {lno} created", "id": pid})
+    return jsonify({"success": True, "message": f"Capacity rule for {part_code} created", "id": rid})
 
 
-# 4. PUTAWAY TASKS
-@warehouse_bp.route("/putaway", methods=["GET"])
-def list_putaway():
+@warehouse_bp.route("/bin-capacity/<rid>", methods=["PUT"])
+def update_bin_capacity(rid):
+    data = request.get_json() or {}
+    updates, params = [], {"id": rid}
+    for field in ["capacity_small", "capacity_medium", "capacity_large"]:
+        if field in data:
+            updates.append(f"{field}=:{field}")
+            params[field] = int(data[field])
+    if not updates:
+        return jsonify({"success": False, "message": "Nothing to update"}), 400
+    db.session.execute(db.text(f"UPDATE warehouse_bin_capacity SET {', '.join(updates)} WHERE id=:id"), params)
+    db.session.commit()
+    return jsonify({"success": True, "message": "Capacity rule updated"})
+
+
+# 5. BATCH TRACKING
+@warehouse_bp.route("/batches", methods=["GET"])
+def list_batches():
     tenant_id = _get_tenant()
+    tid_cond = "(tenant_id = :tid OR tenant_id = 'TEST' OR tenant_id = 'b424df0e-f766-4e94-b3fd-05777e158958' OR tenant_id = '' OR tenant_id IS NULL)"
+    search = request.args.get("search", "").strip()
+    where = f"WHERE is_deleted = false AND {tid_cond}"
+    params = {"tid": tenant_id}
+    if search:
+        where += " AND (batch_no ILIKE :s OR part_number ILIKE :s OR supplier_lot ILIKE :s)"
+        params["s"] = f"%{search}%"
+
+    # One row per batch_no — aggregate parts, sum qty
     rows = db.session.execute(db.text(
-        "SELECT id, task_no, receipt_ref, part_number, part_description, qty, suggested_bin, actual_bin, warehouse_code, status, performed_by FROM warehouse_putaway_tasks WHERE is_deleted = false AND tenant_id = :tid ORDER BY created_at DESC"
-    ), {"tid": tenant_id}).fetchall()
-    tasks = [{
-        "id": r[0], "task_no": r[1], "receipt_ref": r[2] or "", "part_number": r[3],
-        "part_description": r[4] or "", "qty": float(r[5] or 0), "suggested_bin": r[6] or "A-01-01",
-        "actual_bin": r[7] or "", "warehouse_code": r[8] or "MAIN", "status": r[9], "performed_by": r[10] or ""
+        f"SELECT batch_no, "
+        f"  array_agg(DISTINCT part_number ORDER BY part_number) AS parts, "
+        f"  MAX(supplier_lot) AS supplier_lot, "
+        f"  MAX(manufacture_date) AS manufacture_date, "
+        f"  MAX(expiry_date) AS expiry_date, "
+        f"  SUM(qty_received) AS qty_received, "
+        f"  SUM(qty_remaining) AS qty_remaining, "
+        f"  MAX(warehouse_code) AS warehouse_code, "
+        f"  MAX(status) AS status, "
+        f"  MAX(created_at) AS created_at "
+        f"FROM inventory_batches {where} "
+        f"GROUP BY batch_no ORDER BY MAX(created_at) DESC"
+    ), params).fetchall()
+
+    data = [{
+        "batch_no": r[0],
+        "parts": r[1] or [],
+        "parts_count": len(r[1] or []),
+        "supplier_lot": r[2] or "",
+        "manufacture_date": str(r[3]) if r[3] else "",
+        "expiry_date": str(r[4]) if r[4] else "",
+        "qty_received": float(r[5] or 0),
+        "qty_remaining": float(r[6] or 0),
+        "warehouse_code": r[7] or "",
+        "status": r[8] or "active",
+        "created_at": str(r[9]) if r[9] else ""
     } for r in rows]
-    return jsonify({"success": True, "data": tasks})
+    return jsonify({"success": True, "data": data})
 
 
-# 5. RECEIVING (PO RECEIPT & QC)
+@warehouse_bp.route("/batches/<batch_no>/detail", methods=["GET"])
+def get_batch_detail(batch_no):
+    tenant_id = _get_tenant()
+    tid_cond = "(tenant_id = :tid OR tenant_id = 'TEST' OR tenant_id = 'b424df0e-f766-4e94-b3fd-05777e158958' OR tenant_id = '' OR tenant_id IS NULL)"
+
+    # All rows for this batch_no
+    part_rows = db.session.execute(db.text(
+        f"SELECT id, batch_no, part_number, supplier_lot, manufacture_date, expiry_date, "
+        f"qty_received, qty_remaining, warehouse_code, bin_code, status, created_at "
+        f"FROM inventory_batches WHERE batch_no = :bn AND is_deleted = false AND {tid_cond} "
+        f"ORDER BY part_number ASC"
+    ), {"bn": batch_no, "tid": tenant_id}).fetchall()
+
+    if not part_rows:
+        return jsonify({"success": False, "message": "Batch not found"}), 404
+
+    parts = [{
+        "id": r[0], "batch_no": r[1], "part_number": r[2],
+        "supplier_lot": r[3] or "", "manufacture_date": str(r[4]) if r[4] else "",
+        "expiry_date": str(r[5]) if r[5] else "",
+        "qty_received": float(r[6] or 0), "qty_remaining": float(r[7] or 0),
+        "warehouse_code": r[8] or "", "bin_code": r[9] or "",
+        "status": r[10] or "active", "created_at": str(r[11]) if r[11] else ""
+    } for r in part_rows]
+
+    first = part_rows[0]
+    batch_summary = {
+        "batch_no": first[1],
+        "supplier_lot": first[3] or "",
+        "manufacture_date": str(first[4]) if first[4] else "",
+        "expiry_date": str(first[5]) if first[5] else "",
+        "warehouse_code": first[8] or "",
+        "status": first[10] or "active",
+        "qty_received": sum(float(r[6] or 0) for r in part_rows),
+        "qty_remaining": sum(float(r[7] or 0) for r in part_rows),
+        "parts_count": len(parts)
+    }
+
+    part_numbers = [r[2] for r in part_rows]
+    pn_placeholders = ", ".join(f":p{i}" for i in range(len(part_numbers)))
+    pn_params = {f"p{i}": pn for i, pn in enumerate(part_numbers)}
+
+    # Stock for all parts in this batch
+    stock_rows = db.session.execute(db.text(
+        f"SELECT part_number, warehouse_code, bin_code, location_code, qty_on_hand, qty_available, unit "
+        f"FROM inventory_stock_levels "
+        f"WHERE part_number IN ({pn_placeholders}) AND qty_on_hand > 0 AND is_deleted = false "
+        f"AND {tid_cond} ORDER BY part_number, warehouse_code ASC"
+    ), {**pn_params, "tid": tenant_id}).fetchall()
+    stock = [{
+        "part_number": s[0], "warehouse_code": s[1] or "",
+        "bin_code": s[2] or "", "location_code": s[3] or "",
+        "qty_on_hand": float(s[4] or 0), "qty_available": float(s[5] or 0),
+        "unit": s[6] or "pcs"
+    } for s in stock_rows]
+
+    # Movements for all parts in this batch
+    mov_rows = db.session.execute(db.text(
+        f"SELECT movement_no, movement_type, part_number, qty, unit, "
+        f"from_warehouse_code, from_bin_code, to_warehouse_code, to_bin_code, "
+        f"reference_type, reference_no, performed_by, created_at "
+        f"FROM inventory_stock_movements "
+        f"WHERE part_number IN ({pn_placeholders}) AND is_deleted = false "
+        f"AND {tid_cond} ORDER BY created_at DESC LIMIT 100"
+    ), {**pn_params, "tid": tenant_id}).fetchall()
+    movements = [{
+        "movement_no": m[0] or "-", "movement_type": m[1],
+        "part_number": m[2], "qty": float(m[3] or 0), "unit": m[4] or "pcs",
+        "from_warehouse": m[5] or "-", "from_bin": m[6] or "-",
+        "to_warehouse": m[7] or "-", "to_bin": m[8] or "-",
+        "reference_type": m[9] or "", "reference_no": m[10] or "-",
+        "performed_by": m[11] or "System",
+        "created_at": str(m[12]) if m[12] else "-"
+    } for m in mov_rows]
+
+    # GRN source
+    grn_source = []
+    try:
+        grn_rows = db.session.execute(db.text(
+            "SELECT g.grn_number, g.po_number, g.supplier_name, g.received_date, g.status "
+            "FROM procurement.grn g "
+            "WHERE g.batch_no = :bn LIMIT 10"
+        ), {"bn": batch_no}).fetchall()
+        grn_source = [{
+            "grn_number": g[0], "po_number": g[1] or "",
+            "supplier_name": g[2] or "", "received_date": str(g[3]) if g[3] else "",
+            "status": g[4] or ""
+        } for g in grn_rows]
+    except Exception:
+        grn_source = []
+
+    return jsonify({"success": True, "data": {
+        "batch": batch_summary, "parts": parts,
+        "stock": stock, "movements": movements, "grn_source": grn_source
+    }})
+
+
+# 6. PACKING & SHIPPING
 @warehouse_bp.route("/receipts", methods=["GET"])
 def list_receipts():
     tenant_id = _get_tenant()
@@ -325,20 +446,8 @@ def create_receipt():
         "rdate": data.get("receipt_date", datetime.now().strftime('%Y-%m-%d')), "notes": data.get("notes", ""), "tid": tenant_id
     })
 
-    # Auto generate Putaway task for received item
-    part_num = data.get("part_number", "601-0-000001")
-    qty_rec = float(data.get("qty_received", 100))
-
-    db.session.execute(db.text(
-        "INSERT INTO warehouse_putaway_tasks (id, task_no, receipt_ref, part_number, qty, suggested_bin, warehouse_code, status, tenant_id) "
-        "VALUES (:id, :tno, :rref, :p, :qty, 'A-01-01', 'MAIN', 'pending', :tid)"
-    ), {
-        "id": str(uuid.uuid4()), "tno": f"PUT-{datetime.now().strftime('%Y%m%d%H%M')}", "rref": rno,
-        "p": part_num, "qty": qty_rec, "tid": tenant_id
-    })
-
     db.session.commit()
-    return jsonify({"success": True, "message": f"Goods Receipt {rno} logged & putaway task generated", "receipt_no": rno})
+    return jsonify({"success": True, "message": f"Goods Receipt {rno} logged", "receipt_no": rno})
 
 
 # 6. PACKING & SHIPPING

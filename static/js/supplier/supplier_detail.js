@@ -1,14 +1,20 @@
 // ─── SUPPLIER DETAIL PAGE ───
 let SD = {};
 
-function switchTab(tab) {
+function switchTab(tab, updateHistory = true) {
     document.querySelectorAll('.sup-detail-nav-link').forEach(l => l.classList.toggle('active', l.dataset.tab === tab));
     document.querySelectorAll('.sup-detail-section').forEach(s => s.classList.toggle('active', s.id === 'tab-' + tab));
-    // Update URL hash without reload
-    history.replaceState(null, '', '#' + tab);
-    // Update breadcrumb trail
+    if (updateHistory) {
+        history.pushState(null, '', '#' + tab);
+    }
     _updateBreadcrumb(tab);
 }
+
+window.addEventListener('popstate', () => {
+    const hash = window.location.hash.replace('#', '');
+    const validTabs = ['info','addresses','contacts','evaluations','contracts','performance','parts','purchase-orders','history','audit'];
+    switchTab(validTabs.includes(hash) ? hash : 'info', false);
+});
 
 function _updateBreadcrumb(tab) {
     const typeLabel = 'Suppliers';
@@ -20,6 +26,7 @@ function _updateBreadcrumb(tab) {
         contracts: 'Contracts',
         performance: 'Performance',
         parts: 'Items',
+        'purchase-orders': 'Purchase Orders',
         history: 'History',
         audit: 'Audit Logs'
     };
@@ -52,6 +59,7 @@ async function loadSupplierDetail(sid) {
     renderParts(SD.items || []);
     renderHistory(SD.history || []);
     renderAudit(SD.audit_logs || []);
+    loadSupplierPOs(sid);
     document.getElementById('navCountAddr').textContent = (SD.addresses || []).length;
     document.getElementById('navCountContacts').textContent = (SD.contacts || []).length;
     document.getElementById('navCountEvaluations').textContent = (SD.evaluations || []).length;
@@ -62,7 +70,7 @@ async function loadSupplierDetail(sid) {
     document.getElementById('navCountAudit').textContent = (SD.audit_logs || []).length;
     // Restore tab from URL hash or default to info
     const hash = window.location.hash.replace('#', '');
-    const validTabs = ['info','addresses','contacts','evaluations','contracts','performance','parts','history','audit'];
+    const validTabs = ['info','addresses','contacts','evaluations','contracts','performance','parts','purchase-orders','history','audit'];
     switchTab(validTabs.includes(hash) ? hash : 'info');
 }
 
@@ -91,14 +99,27 @@ function _applyTypeLabels() {
 }
 
 function renderSidebar(s) {
-    document.getElementById('sdCode').textContent = s.supplier_code;
-    document.getElementById('sdName').textContent = s.brand_name;
-    document.getElementById('sdType').textContent = s.company_type || '—';
-    document.getElementById('sdRating').textContent = stars(s.rating);
+    const codeEl = document.getElementById('sdCode');
+    if (codeEl) codeEl.textContent = s.supplier_code;
+
+    const nameEl = document.getElementById('sdName');
+    if (nameEl) nameEl.textContent = s.brand_name;
+
+    const typeEl = document.getElementById('sdType');
+    if (typeEl) typeEl.textContent = s.company_type || '—';
+
+    const ratingEl = document.getElementById('sdRating');
+    if (ratingEl) ratingEl.textContent = stars(s.rating);
+
     const sb = document.getElementById('sdStatus');
-    sb.textContent = s.status;
-    sb.className = `status-badge status-${s.status}`;
-    document.getElementById('topbarName').textContent = s.brand_name;
+    if (sb) {
+        sb.textContent = s.status;
+        sb.className = `status-badge status-${s.status}`;
+    }
+
+    const topbarNameEl = document.getElementById('topbarName');
+    if (topbarNameEl) topbarNameEl.textContent = s.brand_name;
+
     document.title = `${s.brand_name} - Supplier Detail`;
 }
 
@@ -232,6 +253,7 @@ function renderParts(list) {
         <th>Sample Qty</th><th>Sample ₹</th><th>₹/Unit</th>
         <th>SPQ</th><th>SPQ ₹</th><th>₹/Unit</th>
         <th>MOQ</th><th>MOQ ₹</th><th>₹/Unit</th>
+        <th>Added On</th>
         <th>Actions</th>
     </tr>`;
 
@@ -240,28 +262,88 @@ function renderParts(list) {
         return;
     }
 
-    tbody.innerHTML = list.map(p => {
-        const unit = p.unit ? `<span style="font-size:11px;color:var(--text-muted)">${esc(p.unit)}</span>` : '—';
-        return `<tr>
-            <td>${esc((p.item_type || 'part').toUpperCase())}</td>
-            <td><span class="sup-code">${esc(p.part_code || '—')}</span></td>
-            <td>${esc(p.mpn || '—')}</td>
-            <td>${esc(p.make || '—')}</td>
-            <td>${unit}</td>
-            <td>${fmtNum(p.sample_qty)}</td>
-            <td>₹${fmtNum(p.sample_price)}</td>
-            <td class="ppu-cell">${_ppu(p.sample_qty, p.sample_price)}</td>
-            <td>${fmtNum(p.spq)}</td>
-            <td>₹${fmtNum(p.spq_price)}</td>
-            <td class="ppu-cell">${_ppu(p.spq, p.spq_price)}</td>
-            <td>${fmtNum(p.moq)}</td>
-            <td>₹${fmtNum(p.moq_price)}</td>
-            <td class="ppu-cell">${_ppu(p.moq, p.moq_price)}</td>
-            <td class="actions-cell">
-                <button class="btn-action" onclick="editPart(${JSON.stringify(p).replace(/"/g,'&quot;')})"><span class="material-icons-outlined">edit</span></button>
-                <button class="btn-action btn-danger" onclick="deleteItem('part','${p.id}','${esc(p.part_code || 'this item')}')"><span class="material-icons-outlined">delete</span></button>
+    // Group items by item_type and part_code
+    const grouped = {};
+    list.forEach(p => {
+        const key = p.item_type + '_' + (p.part_code || 'unspecified');
+        if (!grouped[key]) grouped[key] = { type: p.item_type, code: p.part_code, items: [] };
+        grouped[key].items.push(p);
+    });
+
+    // We will render only the latest item as the main row, 
+    // and older items as hidden historical rows that can be toggled.
+    let groupIndex = 0;
+    tbody.innerHTML = Object.values(grouped).map(g => {
+        // Sort items by created_at descending so the newest is first
+        g.items.sort((a, b) => {
+            const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+            const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+            return dateB - dateA; // descending
+        });
+        
+        const latest = g.items[0];
+        const history = g.items.slice(1);
+        const hasHistory = history.length > 0;
+        const groupId = 'group-' + groupIndex++;
+        
+        const unitLatest = latest.unit ? `<span style="font-size:11px;color:var(--text-muted)">${esc(latest.unit)}</span>` : '—';
+        
+        let html = `<tr style="border-top: 2px solid var(--border-color); ${hasHistory ? 'cursor:pointer; background-color:#f9fbff' : ''}" ${hasHistory ? `onclick="toggleHistory('${groupId}')"` : ''}>
+            <td>${esc((latest.item_type || 'part').toUpperCase())}</td>
+            <td>
+                <div style="display:flex; align-items:center; gap:4px">
+                    <span class="sup-code">${esc(latest.part_code || '—')}</span>
+                    ${hasHistory ? `<span id="icon-${groupId}" class="material-icons-outlined" style="font-size:16px; color:var(--primary); transition:transform 0.2s">expand_more</span> <span style="font-size:11px; color:var(--text-muted)">(${history.length} old)</span>` : ''}
+                </div>
+            </td>
+            <td><strong>${esc(latest.mpn || '—')}</strong></td>
+            <td>${esc(latest.make || '—')}</td>
+            <td>${unitLatest}</td>
+            <td>${fmtNum(latest.sample_qty)}</td>
+            <td>₹${fmtNum(latest.sample_price)}</td>
+            <td class="ppu-cell">${_ppu(latest.sample_qty, latest.sample_price)}</td>
+            <td>${fmtNum(latest.spq)}</td>
+            <td>₹${fmtNum(latest.spq_price)}</td>
+            <td class="ppu-cell">${_ppu(latest.spq, latest.spq_price)}</td>
+            <td>${fmtNum(latest.moq)}</td>
+            <td>₹${fmtNum(latest.moq_price)}</td>
+            <td class="ppu-cell">${_ppu(latest.moq, latest.moq_price)}</td>
+            <td style="font-size:11px; color:var(--text-muted)">
+                ${latest.created_at ? new Date(latest.created_at).toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}) : '—'}
+                <br><span style="color:var(--primary); font-weight:600">Latest</span>
+            </td>
+            <td class="actions-cell" onclick="event.stopPropagation()">
+                <button class="btn-action" onclick="editPart(${JSON.stringify(latest).replace(/"/g,'&quot;')})"><span class="material-icons-outlined">edit</span></button>
+                <button class="btn-action btn-danger" onclick="deleteItem('part','${latest.id}','${esc(latest.part_code || 'this item')}')"><span class="material-icons-outlined">delete</span></button>
             </td>
         </tr>`;
+        
+        if (hasHistory) {
+            html += history.map(p => {
+                const unit = p.unit ? `<span style="font-size:11px;color:var(--text-muted)">${esc(p.unit)}</span>` : '—';
+                return `<tr class="history-row-${groupId}" style="display:none; background-color:#fafafa; opacity:0.8">
+                    <td></td>
+                    <td></td>
+                    <td>${esc(p.mpn || '—')}</td>
+                    <td>${esc(p.make || '—')}</td>
+                    <td>${unit}</td>
+                    <td>${fmtNum(p.sample_qty)}</td>
+                    <td>₹${fmtNum(p.sample_price)}</td>
+                    <td class="ppu-cell">${_ppu(p.sample_qty, p.sample_price)}</td>
+                    <td>${fmtNum(p.spq)}</td>
+                    <td>₹${fmtNum(p.spq_price)}</td>
+                    <td class="ppu-cell">${_ppu(p.spq, p.spq_price)}</td>
+                    <td>${fmtNum(p.moq)}</td>
+                    <td>₹${fmtNum(p.moq_price)}</td>
+                    <td class="ppu-cell">${_ppu(p.moq, p.moq_price)}</td>
+                    <td style="font-size:11px; color:var(--text-muted)">${p.created_at ? new Date(p.created_at).toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}) : '—'}</td>
+                    <td class="actions-cell">
+                        <button class="btn-action btn-danger" onclick="deleteItem('part','${p.id}','${esc(p.part_code || 'this item')}')"><span class="material-icons-outlined">delete</span></button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+        return html;
     }).join('');
 }
 
@@ -290,11 +372,40 @@ function renderAudit(list) {
     const iconMap = { CREATE: { cls: 'create', icon: 'add_circle' }, UPDATE: { cls: 'update', icon: 'edit' }, DELETE: { cls: 'delete', icon: 'delete' } };
     el.innerHTML = list.map(a => {
         const im = iconMap[a.action] || { cls: '', icon: 'info' };
+        
+        let details = '';
+        if (a.action === 'CREATE' && a.new_value) {
+            let parts = [];
+            for (let k in a.new_value) {
+                if (a.new_value[k] !== null && a.new_value[k] !== '') {
+                    parts.push(`${k}: ${a.new_value[k]}`);
+                }
+            }
+            details = parts.join(' | ');
+        } else if (a.action === 'DELETE' && a.old_value) {
+            let parts = [];
+            for (let k in a.old_value) {
+                if (a.old_value[k] !== null && a.old_value[k] !== '') {
+                    parts.push(`${k}: ${a.old_value[k]}`);
+                }
+            }
+            details = parts.join(' | ');
+        } else if (a.action === 'UPDATE' && a.new_value && a.old_value) {
+            let changes = [];
+            for (let k in a.new_value) {
+                if (a.new_value[k] !== a.old_value[k]) {
+                    changes.push(`${k}: ${a.old_value[k]} &rarr; ${a.new_value[k]}`);
+                }
+            }
+            details = changes.join(', ');
+        }
+        
         return `<div class="sup-audit-item">
             <div class="sup-audit-dot ${im.cls}"><span class="material-icons-outlined">${im.icon}</span></div>
             <div class="sup-audit-body">
                 <div class="sup-audit-action">${esc(a.action)} — ${esc(a.entity_type)}</div>
-                <div class="sup-audit-meta">
+                ${details ? `<div style="font-size:12px; color:var(--text-color); margin-top:4px; padding:6px; background:var(--bg-secondary); border-radius:4px; font-family:monospace">${details}</div>` : ''}
+                <div class="sup-audit-meta" style="margin-top:4px">
                     ${a.user_email ? `<span>👤 ${esc(a.user_email)}</span>` : ''}
                     ${a.ip_address ? `<span>🌐 ${esc(a.ip_address)}</span>` : ''}
                 </div>
@@ -560,6 +671,7 @@ function selectPart(p) {
     document.getElementById('partCode').value = p.part_number;
     document.getElementById('partCodeDropdown').style.display = 'none';
     document.getElementById('partCode').dataset.desc = p.description || '';
+    fetchPartManufacturers(p.part_number);
 }
 
 // Close dropdown on outside click
@@ -690,4 +802,455 @@ function deleteItem(type, id, name) {
         else showToast(data.message || 'Error', 'error');
     };
     openModal('deleteModal');
+}
+
+// ─── IMPORT / EXPORT / TEMPLATE / HISTORY ───
+
+let currentImportEntity = null;
+
+const ENTITY_CONFIG = {
+    'addresses': { 
+        name: 'Supplier Address', endpoint: 'addresses', dataKey: 'addresses',
+        headers: ['Label', 'Billing Address', 'Shipping Address', 'Default (true/false)'],
+        mapRow: (r) => ({ label: r[0], billing_address: r[1], shipping_address: r[2], is_default: r[3]==='true' }),
+        exportRow: (d) => [d.label, d.billing_address, d.shipping_address, d.is_default]
+    },
+    'contacts': { 
+        name: 'Supplier Contact', endpoint: 'contacts', dataKey: 'contacts',
+        headers: ['Name', 'Designation', 'Mobile 1', 'Mobile 2', 'Email', 'Status', 'About', 'Remarks'],
+        mapRow: (r) => ({ name: r[0], designation: r[1], mobile1: r[2], mobile2: r[3], email: r[4], status: r[5]||'active', about: r[6], remarks: r[7] }),
+        exportRow: (d) => [d.name, d.designation, d.mobile1, d.mobile2, d.email, d.status, d.about, d.remarks]
+    },
+    'evaluations': { 
+        name: 'Supplier Evaluation', endpoint: 'evaluations', dataKey: 'evaluations',
+        headers: ['Date', 'Period', 'Document Status', 'Workflow Stage', 'Overall Score', 'Approval Status', 'Comments'],
+        mapRow: (r) => ({ evaluation_date: r[0], period: r[1], document_verification_status: r[2], workflow_stage: r[3], overall_score: parseFloat(r[4])||0, approval_status: r[5], comments: r[6] }),
+        exportRow: (d) => [d.evaluation_date, d.period, d.document_verification_status, d.workflow_stage, d.overall_score, d.approval_status, d.comments]
+    },
+    'contracts': { 
+        name: 'Supplier Contract', endpoint: 'contracts', dataKey: 'contracts',
+        headers: ['Contract Type', 'Contract Value', 'Currency', 'Start Date', 'End Date', 'Status'],
+        mapRow: (r) => ({ contract_type: r[0], contract_value: parseFloat(r[1])||0, currency: r[2], start_date: r[3], end_date: r[4], status: r[5] }),
+        exportRow: (d) => [d.contract_type, d.contract_value, d.currency, d.start_date, d.end_date, d.status]
+    },
+    'performance': { 
+        name: 'Supplier Performance', endpoint: 'performance', dataKey: 'performance',
+        headers: ['Period', 'On Time %', 'Defect Rate %', 'Support Rating', 'Response Time (hrs)', 'Total Score', 'Comments'],
+        mapRow: (r) => ({ period: r[0], on_time_delivery_percent: parseFloat(r[1])||0, defect_rate_percent: parseFloat(r[2])||0, support_rating: parseFloat(r[3])||0, response_time_hours: parseFloat(r[4])||0, total_score: parseFloat(r[5])||0, comments: r[6] }),
+        exportRow: (d) => [d.period, d.on_time_delivery_percent, d.defect_rate_percent, d.support_rating, d.response_time_hours, d.total_score, d.comments]
+    },
+    'parts': { 
+        name: 'Supplier Item', endpoint: 'items', dataKey: 'items',
+        headers: ['Item Type', 'Item Code', 'MPN', 'Make', 'Unit', 'Sample Qty', 'Sample ₹', '₹/Unit', 'SPQ', 'SPQ ₹', '₹/Unit', 'MOQ', 'MOQ ₹', '₹/Unit'],
+        mapRow: (r) => ({ 
+            item_type: r[0] || 'part', 
+            part_code: r[1], 
+            mpn: r[2], 
+            make: r[3], 
+            unit: r[4], 
+            sample_qty: parseFloat(r[5]) || 0, 
+            sample_price: r[7] ? parseFloat(r[7]) : (parseFloat(r[6])/parseFloat(r[5]) || 0), 
+            spq: parseFloat(r[8]) || 0, 
+            spq_price: r[10] ? parseFloat(r[10]) : (parseFloat(r[9])/parseFloat(r[8]) || 0), 
+            moq: parseFloat(r[11]) || 0, 
+            moq_price: r[13] ? parseFloat(r[13]) : (parseFloat(r[12])/parseFloat(r[11]) || 0)
+        }),
+        exportRow: (d) => [
+            d.item_type || 'part',
+            d.part_code,
+            d.mpn,
+            d.make,
+            d.unit,
+            d.sample_qty,
+            d.sample_qty * d.sample_price,
+            d.sample_price,
+            d.spq,
+            d.spq * d.spq_price,
+            d.spq_price,
+            d.moq,
+            d.moq * d.moq_price,
+            d.moq_price
+        ]
+    }
+};
+
+function downloadCsv(headers, rows, filename) {
+    let csv = '"' + headers.join('","') + '"\n';
+    for (const row of rows) {
+        csv += row.map(v => '"' + String(v || '').replace(/"/g, '""') + '"').join(',') + '\n';
+    }
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
+function exportData(entityId) {
+    const config = ENTITY_CONFIG[entityId];
+    if (!config) return;
+    const data = SD[config.dataKey] || [];
+    if (!data.length) { showToast(`No ${config.name}s to export`, 'error'); return; }
+    const rows = data.map(config.exportRow);
+    downloadCsv(config.headers, rows, `${entityId}_export.csv`);
+    fetch(API + '/log-action', { method: 'POST', headers: getHeaders(), body: JSON.stringify({ action: 'EXPORT', entity_type: config.name, entity_id: `${entityId}_export.csv` }) }).catch(() => {});
+    showToast(`Exported ${data.length} records`);
+}
+
+function downloadTemplate(entityId) {
+    const config = ENTITY_CONFIG[entityId];
+    if (!config) return;
+    downloadCsv(config.headers, [], `${entityId}_template.csv`);
+    showToast('Template downloaded');
+}
+
+function triggerImport(entityId) {
+    currentImportEntity = entityId;
+    document.getElementById('importFileInput').value = '';
+    document.getElementById('importFileInput').click();
+}
+
+async function handleImportFile(input) {
+    const file = input.files[0];
+    if (!file || !currentImportEntity) return;
+    const config = ENTITY_CONFIG[currentImportEntity];
+
+    let rows = [];
+    try {
+        const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
+        if (isExcel) {
+            const buffer = await file.arrayBuffer();
+            const workbook = XLSX.read(buffer, { type: 'array' });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+            if (jsonData.length < 2) throw new Error('File has no data rows');
+            rows = jsonData.slice(1).map(r => r.map(v => String(v !== undefined && v !== null ? v : '').trim()));
+        } else {
+            const text = await file.text();
+            const lines = text.trim().split('\n');
+            if (lines.length < 2) throw new Error('File has no data rows');
+            rows = lines.slice(1).map(line => {
+                const vals = line.match(/("[^"]*"|[^,]+)/g) || [];
+                return vals.map(v => v.trim().replace(/^"|"$/g, ''));
+            });
+        }
+
+        let imported = 0;
+        let errors = [];
+
+        for (const row of rows) {
+            if (row.length === 0 || !row.join('').trim()) continue;
+            try {
+                const payload = config.mapRow(row);
+                
+                // If it's parts, validate part_code exists globally first
+                if (currentImportEntity === 'parts' && payload.part_code) {
+                    const checkRes = await fetch(`/api/v1/parts/part-detail/${encodeURIComponent(payload.part_code)}`, {headers: getHeaders()});
+                    if (checkRes.status === 404) {
+                        errors.push(`Skipped ${payload.part_code} (Not found in global parts list)`);
+                        continue;
+                    }
+                }
+                
+                const res = await fetch(`${API}/suppliers/${SUPPLIER_ID}/${config.endpoint}`, {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.success) imported++;
+                else errors.push(`Row error: ${data.message}`);
+            } catch (e) {
+                errors.push(`Network Error: ${e.message}`);
+            }
+        }
+        
+        loadSupplierDetail(SUPPLIER_ID);
+        if (errors.length) {
+            console.error('Import Errors:', errors);
+            showToast(`Imported ${imported}. Failed ${errors.length}. See console.`, 'error');
+        } else {
+            showToast(`Successfully imported ${imported} records`);
+        }
+    } catch (e) {
+        showToast(e.message || 'Error processing file', 'error');
+    }
+}
+
+async function viewDetailedHistory(entityId) {
+    const config = ENTITY_CONFIG[entityId];
+    if (!config) return;
+    
+    document.getElementById('dhTitle').textContent = `${config.name} History`;
+    document.getElementById('dhBody').innerHTML = '<tr><td colspan="4" class="empty">Loading...</td></tr>';
+    openModal('detailedHistoryModal');
+    
+    try {
+        const res = await fetch(`${API}/suppliers/${SUPPLIER_ID}/detailed-history?entity_type=${encodeURIComponent(config.name)}`, { headers: getHeaders() });
+        const data = await res.json();
+        
+        if (!data.success) throw new Error(data.message);
+        
+        const logs = data.data;
+        if (!logs.length) {
+            document.getElementById('dhBody').innerHTML = '<tr><td colspan="4" class="empty">No history found</td></tr>';
+            return;
+        }
+        
+        document.getElementById('dhBody').innerHTML = logs.map(l => {
+            let changesHtml = '';
+            if (l.action === 'UPDATE' && l.old_value && l.new_value) {
+                changesHtml = '<ul style="margin:0;padding-left:20px;font-size:12px;">';
+                for (const key in l.new_value) {
+                    if (l.old_value[key] !== l.new_value[key] && key !== 'updated_at') {
+                        changesHtml += `<li><strong>${key}:</strong> ${l.old_value[key]} &rarr; <span style="color:var(--success)">${l.new_value[key]}</span></li>`;
+                    }
+                }
+                changesHtml += '</ul>';
+            } else if (l.action === 'CREATE') {
+                changesHtml = '<span style="color:var(--success);font-size:12px;">Record Created</span>';
+                if (l.new_value && Object.keys(l.new_value).length > 0) {
+                    changesHtml += '<ul style="margin:4px 0 0;padding-left:20px;font-size:11px;color:var(--text-color);">';
+                    for (const key in l.new_value) {
+                        changesHtml += `<li><strong>${key}:</strong> ${l.new_value[key]}</li>`;
+                    }
+                    changesHtml += '</ul>';
+                }
+            } else if (l.action === 'DELETE') {
+                changesHtml = '<span style="color:var(--error);font-size:12px;">Record Deleted</span>';
+                if (l.old_value && Object.keys(l.old_value).length > 0) {
+                    changesHtml += '<ul style="margin:4px 0 0;padding-left:20px;font-size:11px;color:var(--text-color);">';
+                    for (const key in l.old_value) {
+                        changesHtml += `<li><strong>${key}:</strong> ${l.old_value[key]}</li>`;
+                    }
+                    changesHtml += '</ul>';
+                }
+            }
+            
+            return `<tr>
+                <td style="white-space:nowrap;font-size:12px;">${new Date(l.created_at).toLocaleString()}</td>
+                <td>${esc(l.user_name || l.user_email)}</td>
+                <td><span class="status-badge status-draft">${esc(l.action)}</span></td>
+                <td>${changesHtml || '-'}</td>
+            </tr>`;
+        }).join('');
+        
+    } catch (e) {
+        document.getElementById('dhBody').innerHTML = `<tr><td colspan="4" class="empty error">Error: ${e.message}</td></tr>`;
+    }
+}
+
+async function fetchPartManufacturers(partNumber) {
+    try {
+        const res = await fetch(`/api/v1/part/manufacturers/${encodeURIComponent(partNumber)}`, { headers: getHeaders() });
+        const data = await res.json();
+        
+        const mpnInput = document.getElementById('partMPN');
+        const makeInput = document.getElementById('partMake');
+        
+        let datalistMpn = document.getElementById('dl-mpn');
+        if (!datalistMpn) { datalistMpn = document.createElement('datalist'); datalistMpn.id = 'dl-mpn'; document.body.appendChild(datalistMpn); }
+        
+        let datalistMake = document.getElementById('dl-make');
+        if (!datalistMake) { datalistMake = document.createElement('datalist'); datalistMake.id = 'dl-make'; document.body.appendChild(datalistMake); }
+        
+        mpnInput.setAttribute('list', 'dl-mpn');
+        makeInput.setAttribute('list', 'dl-make');
+        
+        if (data.success && data.data && data.data.length > 0) {
+            datalistMpn.innerHTML = data.data.map(m => m.mpn ? `<option value="${esc(m.mpn)}">` : '').join('');
+            datalistMake.innerHTML = data.data.map(m => m.make ? `<option value="${esc(m.make)}">` : '').join('');
+            
+            if (data.data.length === 1 && !mpnInput.value && !makeInput.value) {
+                mpnInput.value = data.data[0].mpn || '';
+                makeInput.value = data.data[0].make || '';
+            }
+        } else {
+            datalistMpn.innerHTML = '';
+            datalistMake.innerHTML = '';
+        }
+    } catch(e) {
+        console.error('Error fetching manufacturers:', e);
+    }
+}
+
+function toggleHistory(groupId) {
+    const rows = document.querySelectorAll('.history-row-' + groupId);
+    const icon = document.getElementById('icon-' + groupId);
+    let isHidden = true;
+    rows.forEach(r => {
+        if (r.style.display === 'none') {
+            r.style.display = 'table-row';
+            isHidden = false;
+        } else {
+            r.style.display = 'none';
+        }
+    });
+    if (icon) {
+        icon.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+    }
+}
+
+// ── PURCHASE ORDERS TAB ──
+async function loadSupplierPOs(sid) {
+    const tbody = document.getElementById('supplierPOsBody');
+    if (!tbody) return;
+    try {
+        const res = await fetch(`${API}/suppliers/${sid}/purchase-orders`, { headers: getHeaders() });
+        const json = await res.json();
+        if (!json.success) { tbody.innerHTML = `<tr><td colspan="8" class="empty" style="color:red">Error: ${json.message}</td></tr>`; return; }
+        const count = (json.data || []).length;
+        const navEl = document.getElementById('navCountPOs');
+        if (navEl) navEl.textContent = count;
+        renderPurchaseOrders(json.data || []);
+    } catch (e) {
+        if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="empty" style="color:red">Failed to load purchase orders.</td></tr>';
+    }
+}
+
+function renderPurchaseOrders(list) {
+    const tbody = document.getElementById('supplierPOsBody');
+    if (!list.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">No purchase orders found for this supplier.</td></tr>'; return; }
+
+    const statusColor = { draft: '#757575', sent_to_supplier: '#1565c0', acknowledged: '#2e7d32', cancelled: '#c62828' };
+    const statusBg    = { draft: '#f5f5f5', sent_to_supplier: '#e3f2fd', acknowledged: '#e8f5e9', cancelled: '#ffebee' };
+
+    window._supPOList = list;
+
+    tbody.innerHTML = list.map((po, idx) => {
+        const lines = po.lines || [];
+        const sc = statusColor[po.po_status] || '#555';
+        const sb = statusBg[po.po_status] || '#f5f5f5';
+        return `<tr style="cursor:pointer;" onclick="openSupPODetail(${idx})">
+            <td><span style="color:var(--primary);font-weight:600;text-decoration:underline;">${esc(po.po_no)}</span>${lines.length > 1 ? `<span style="font-size:10px;color:var(--text-muted);margin-left:4px;">(${lines.length} lines)</span>` : ''}</td>
+            <td>${esc(po.pr_no || '\u2014')}</td>
+            <td><code>${esc(po.item_code || '\u2014')}</code>${lines.length > 1 ? `<span style="font-size:10px;color:var(--text-muted);margin-left:4px;">(+${lines.length - 1} more)</span>` : ''}</td>
+            <td>${po.order_qty.toLocaleString()}</td>
+            <td><strong>\u20b9${po.total_amount.toLocaleString()}</strong></td>
+            <td>${po.promised_date || '\u2014'}</td>
+            <td style="font-size:12px;color:var(--text-muted);">${po.po_date || '\u2014'}</td>
+            <td><span style="background:${sb};color:${sc};border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600;">${po.po_status || 'draft'}</span></td>
+        </tr>`;
+    }).join('');
+}
+
+function openSupPODetail(idx) {
+    const po = (window._supPOList || [])[idx];
+    if (!po) return;
+    const statusColor = { draft: '#757575', sent_to_supplier: '#1565c0', acknowledged: '#2e7d32', cancelled: '#c62828' };
+    const statusBg    = { draft: '#f5f5f5', sent_to_supplier: '#e3f2fd', acknowledged: '#e8f5e9', cancelled: '#ffebee' };
+    const sc = statusColor[po.po_status] || '#555';
+    const sb = statusBg[po.po_status] || '#f5f5f5';
+    const lines = po.lines || [];
+
+    const lineRows = lines.length ? lines.map(l => {
+        const validAml = (l.aml || []).filter(m => m.mpn && m.mpn.trim());
+        const amlHtml = validAml.length
+            ? validAml.map(m => `<span class="aml-chip-group"><span class="aml-chip aml-chip-mpn">${esc(m.mpn)}</span><span class="aml-chip aml-chip-make">${esc(m.make || '\u2014')}</span></span>`).join(' ')
+            : '<span style="color:var(--text-muted);font-size:11px;">\u2014</span>';
+        return `<tr>
+            <td style="padding:8px 12px;font-size:12px;"><code>${esc(l.item_code || '\u2014')}</code></td>
+            <td style="padding:8px 12px;font-size:12px;">${esc(l.item_description || '\u2014')}</td>
+            <td style="padding:8px 12px;font-size:12px;text-align:right;">${(l.order_qty||0).toLocaleString()} ${esc(l.uom||'')}</td>
+            <td style="padding:8px 12px;font-size:12px;text-align:right;">\u20b9${(l.unit_price||0).toLocaleString()}</td>
+            <td style="padding:8px 12px;font-size:12px;text-align:right;font-weight:600;">\u20b9${(l.total_amount||0).toLocaleString()}</td>
+            <td style="padding:8px 12px;">${amlHtml}</td>
+        </tr>`;
+    }).join('') : `<tr><td colspan="6" style="padding:12px;text-align:center;color:var(--text-muted);font-size:12px;">No line items.</td></tr>`;
+
+    document.getElementById('poDetailTitle').textContent = po.po_no;
+    document.getElementById('poDetailBody').innerHTML = `
+        <div style="padding:16px 20px;border-bottom:1px solid var(--border-color);display:grid;grid-template-columns:1fr 1fr;gap:8px 24px;">
+            <div class="sup-field-row"><div class="sup-field-label">PO No</div><div class="sup-field-val"><strong>${esc(po.po_no)}</strong></div></div>
+            <div class="sup-field-row"><div class="sup-field-label">Status</div><div class="sup-field-val"><span style="background:${sb};color:${sc};border-radius:4px;padding:2px 10px;font-size:11px;font-weight:600;">${po.po_status||'draft'}</span></div></div>
+            <div class="sup-field-row"><div class="sup-field-label">PR No</div><div class="sup-field-val">${esc(po.pr_no||'\u2014')}</div></div>
+            <div class="sup-field-row"><div class="sup-field-label">PO Date</div><div class="sup-field-val">${esc(po.po_date||'\u2014')}</div></div>
+            <div class="sup-field-row"><div class="sup-field-label">Supplier</div><div class="sup-field-val">${esc(po.supplier_name||'\u2014')}</div></div>
+            <div class="sup-field-row"><div class="sup-field-label">
+                Promised Date
+                <button onclick="togglePoDateForm()" style="margin-left:6px;background:none;border:1px solid var(--primary);color:var(--primary);border-radius:4px;padding:1px 7px;font-size:10px;cursor:pointer;vertical-align:middle;">
+                    <span class="material-icons-outlined" style="font-size:12px;vertical-align:middle;">edit_calendar</span> Update
+                </button>
+            </div><div class="sup-field-val" id="poPromisedDateDisplay">${esc(po.promised_date||'\u2014')}</div></div>
+            <div class="sup-field-row"><div class="sup-field-label">Total Qty</div><div class="sup-field-val">${(po.order_qty||0).toLocaleString()}</div></div>
+            <div class="sup-field-row"><div class="sup-field-label">Total Value</div><div class="sup-field-val"><strong>\u20b9${(po.total_amount||0).toLocaleString()}</strong></div></div>
+            ${po.created_by ? `<div class="sup-field-row"><div class="sup-field-label">Created By</div><div class="sup-field-val">${esc(po.created_by)}</div></div>` : ''}
+            ${po.notes ? `<div class="sup-field-row" style="grid-column:1/-1;"><div class="sup-field-label">Notes</div><div class="sup-field-val" style="font-size:12px;white-space:pre-wrap;">${esc(po.notes)}</div></div>` : ''}
+            ${po.supplier_invoice_no ? `<div class="sup-field-row"><div class="sup-field-label">Invoice No</div><div class="sup-field-val">${esc(po.supplier_invoice_no)}</div></div>` : ''}
+            ${po.supplier_invoice_amount ? `<div class="sup-field-row"><div class="sup-field-label">Invoice Amount</div><div class="sup-field-val">\u20b9${(po.supplier_invoice_amount||0).toLocaleString()}</div></div>` : ''}
+        </div>
+        <div id="poDateUpdateForm" style="display:none;padding:12px 20px;border-bottom:1px solid var(--border-color);background:var(--bg-secondary);">
+            <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:8px;">UPDATE PROMISED DELIVERY DATE</div>
+            <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+                <div class="form-group" style="margin:0;flex:0 0 160px;">
+                    <label style="font-size:11px;">New Date</label>
+                    <input type="date" id="poNewDate" value="${po.promised_date||''}" style="font-size:13px;padding:6px 8px;">
+                </div>
+                <div class="form-group" style="margin:0;flex:1;min-width:180px;">
+                    <label style="font-size:11px;">Reason <span style="color:var(--text-muted)">(e.g. supplier delayed by 2 days)</span></label>
+                    <input type="text" id="poDateReason" placeholder="e.g. Material arriving late, delayed by 2 days" style="font-size:13px;padding:6px 8px;">
+                </div>
+                <button class="btn-primary" style="padding:6px 16px;font-size:12px;" onclick="savePoPromisedDate('${po.id}',${idx})">
+                    <span class="material-icons-outlined" style="font-size:14px;vertical-align:middle;">save</span> Save
+                </button>
+                <button class="btn-secondary" style="padding:6px 12px;font-size:12px;" onclick="togglePoDateForm()">Cancel</button>
+            </div>
+        </div>
+        <div style="padding:12px 20px 16px;">
+            <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:8px;">LINE ITEMS (${lines.length})</div>
+            <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                    <thead><tr style="background:var(--bg-secondary);">
+                        <th style="padding:6px 12px;text-align:left;font-weight:600;color:var(--text-muted);">Item Code</th>
+                        <th style="padding:6px 12px;text-align:left;font-weight:600;color:var(--text-muted);">Description</th>
+                        <th style="padding:6px 12px;text-align:right;font-weight:600;color:var(--text-muted);">Qty</th>
+                        <th style="padding:6px 12px;text-align:right;font-weight:600;color:var(--text-muted);">Unit Price</th>
+                        <th style="padding:6px 12px;text-align:right;font-weight:600;color:var(--text-muted);">Total</th>
+                        <th style="padding:6px 12px;text-align:left;font-weight:600;color:var(--text-muted);">MPN / Make</th>
+                    </tr></thead>
+                    <tbody>${lineRows}</tbody>
+                </table>
+            </div>
+        </div>`;
+    openModal('poDetailModal');
+}
+
+function togglePoDateForm() {
+    const f = document.getElementById('poDateUpdateForm');
+    if (f) f.style.display = f.style.display === 'none' ? '' : 'none';
+}
+
+async function savePoPromisedDate(poId, idx) {
+    const newDate = document.getElementById('poNewDate').value;
+    const reason  = document.getElementById('poDateReason').value.trim();
+    if (!newDate) { showToast('Please select a date', 'error'); return; }
+    const sid = SD.supplier.id;
+    try {
+        const res = await fetch(`${API}/suppliers/${sid}/purchase-orders/${poId}/promised-date`, {
+            method: 'PUT', headers: getHeaders(),
+            body: JSON.stringify({ promised_date: newDate, reason })
+        });
+        const json = await res.json();
+        if (!json.success) { showToast(json.message || 'Failed', 'error'); return; }
+        // Update in-memory list and refresh display
+        if (window._supPOList && window._supPOList[idx]) {
+            window._supPOList[idx].promised_date = newDate;
+            if (reason) {
+                const note = ` | Date revised \u2192 ${newDate}` + (reason ? `: ${reason}` : '');
+                window._supPOList[idx].notes = (window._supPOList[idx].notes || '') + note;
+            }
+        }
+        document.getElementById('poPromisedDateDisplay').textContent = newDate;
+        togglePoDateForm();
+        showToast('Promised date updated');
+        // Refresh the table row too
+        renderPurchaseOrders(window._supPOList);
+    } catch (e) {
+        showToast('Error updating date', 'error');
+    }
 }

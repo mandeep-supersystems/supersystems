@@ -7,17 +7,67 @@ async function loadAuditLogs(page = 1) {
         const res = await fetch(API + '/audit-logs?page=' + page + '&limit=20', { headers: HEADERS });
         const data = await res.json();
         if (!data.success || !data.data.items || data.data.items.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="empty">No audit logs</td></tr>'; document.getElementById('auditPagination').innerHTML = ''; return; }
+        
         tbody.innerHTML = data.data.items.map(l => {
             const user = l.user_name || l.user_email || 'System';
             const emailLine = l.user_email ? `<div class="cell-sub">${esc(l.user_email)}</div>` : '';
+            
+            // Build detailed change logs
+            let detailsHtml = '';
+            if (l.extra_data && l.extra_data.details) {
+                detailsHtml += `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${esc(l.extra_data.details)}</div>`;
+            }
+            
+            if (l.action === 'CREATE' || l.action === 'GENERATE' || l.action === 'GRANT_ACCESS') {
+                if (l.new_values) {
+                    const dets = [];
+                    Object.entries(l.new_values).forEach(([k, v]) => {
+                        if (k === 'attributes' && v) {
+                            const attrList = Object.entries(v).map(([ak, av]) => `${ak}: ${av}`).join(', ');
+                            dets.push(`<strong>attributes</strong>: {${esc(attrList)}}`);
+                        } else if (k === 'columns' && Array.isArray(v)) {
+                            const colList = v.map(c => `${c.name} (${c.type})`).join(', ');
+                            dets.push(`<strong>columns</strong>: [${esc(colList)}]`);
+                        } else if (k === 'permissions' && Array.isArray(v)) {
+                            dets.push(`<strong>permissions</strong>: [${esc(v.join(', '))}]`);
+                        } else if (v !== null && typeof v !== 'object') {
+                            dets.push(`<strong>${esc(k)}</strong>: ${esc(String(v))}`);
+                        }
+                    });
+                    if (dets.length) {
+                        detailsHtml += `<div style="font-size:11px;color:var(--text-muted);background:var(--bg-secondary);padding:6px;border-radius:6px;margin-top:4px;word-break:break-all;">${dets.join(' | ')}</div>`;
+                    }
+                }
+            } else if (l.action === 'UPDATE' || l.action === 'UPDATE_ACCESS') {
+                const changes = [];
+                const ch = (l.extra_data && l.extra_data.changes) ? l.extra_data.changes : null;
+                if (ch) {
+                    Object.entries(ch).forEach(([k, change]) => {
+                        let oldVal = change.old;
+                        let newVal = change.new;
+                        if (typeof oldVal === 'object') oldVal = JSON.stringify(oldVal);
+                        if (typeof newVal === 'object') newVal = JSON.stringify(newVal);
+                        changes.push(`<strong>${esc(k)}</strong>: from "${esc(String(oldVal || ''))}" to "${esc(String(newVal || ''))}"`);
+                    });
+                }
+                if (changes.length) {
+                    detailsHtml += `<div style="font-size:11px;color:var(--accent);background:var(--accent-light);padding:6px;border-radius:6px;margin-top:4px;word-break:break-all;line-height:1.4;">${changes.join('<br>')}</div>`;
+                }
+            }
+            
             return `<tr>
                 <td><span class="action-badge action-${l.action.toLowerCase()}">${esc(l.action)}</span></td>
-                <td><div class="cell-main">${esc(l.entity_type)}</div><div class="cell-sub"><code>${esc(l.entity_id)}</code></div></td>
+                <td>
+                    <div class="cell-main">${esc(l.entity_type)}</div>
+                    <div class="cell-sub"><code>${esc(l.entity_id)}</code></div>
+                    ${detailsHtml}
+                </td>
                 <td><div class="cell-main">${esc(user)}</div>${emailLine}</td>
                 <td><code>${esc(l.ip_address || '-')}</code></td>
                 <td>${formatTime(l.created_at)}</td>
             </tr>`;
         }).join('');
+        
         const totalPages = Math.ceil(data.data.total / 20);
         let pag = '';
         if (totalPages > 1) {
@@ -28,51 +78,3 @@ async function loadAuditLogs(page = 1) {
         document.getElementById('auditPagination').innerHTML = pag;
     } catch (e) { tbody.innerHTML = '<tr><td colspan="5" class="empty">Error loading</td></tr>'; }
 }
-
-// ─── OBSOLETE PARTS ───
-async function obsoletePart(subId, partNumber) {
-    pendingDelete = { type: 'obsolete', subId, partNumber };
-    document.getElementById('deleteConfirmMsg').textContent = `Mark part "${partNumber}" as obsolete? Enter your password to confirm.`;
-    document.getElementById('deleteConfirmPassword').value = '';
-    document.getElementById('deleteError').style.display = 'none';
-    partOpenModal('deleteConfirmModal');
-}
-
-async function loadObsoleteParts() {
-    const tbody = document.getElementById('obsoletePartsBody');
-    try {
-        const res = await fetch(API + '/obsolete-parts', { headers: HEADERS });
-        const data = await res.json();
-        if (!data.success || !data.data || data.data.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="empty">No obsolete parts</td></tr>'; return; }
-        tbody.innerHTML = data.data.map(p => `<tr class="obsolete-row">
-            <td><strong>${esc(p.part_number)}</strong></td>
-            <td>${esc(p.category || '-')}</td>
-            <td>${esc(p.subcategory || '-')}</td>
-            <td>${formatTime(p.obsoleted_at)}</td>
-            <td>${esc(p.reason || '-')}</td>
-        </tr>`).join('');
-    } catch (e) { tbody.innerHTML = '<tr><td colspan="5" class="empty">Error loading</td></tr>'; }
-}
-
-// ─── DELETE WITH PASSWORD ───
-async function executeDelete() {
-    const password = document.getElementById('deleteConfirmPassword').value;
-    if (!password) { showDeleteError('Password is required'); return; }
-    const btn = document.getElementById('deleteConfirmBtn');
-    btn.disabled = true; btn.textContent = 'Verifying...';
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    try {
-        const verifyRes = await fetch('/api/v1/auth/verify-password', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('access_token') || localStorage.getItem('token') || '') }, body: JSON.stringify({ email: user.email || '', password }) });
-        const verifyData = await verifyRes.json();
-        if (!verifyData.success) { showDeleteError(verifyData.message || 'Incorrect password'); btn.disabled = false; btn.textContent = 'Delete'; return; }
-    } catch (e) { showDeleteError('Failed to verify password'); btn.disabled = false; btn.textContent = 'Delete'; return; }
-    try {
-        if (pendingDelete.type === 'category') { const res = await fetch(API + '/categories/' + pendingDelete.id, { method: 'DELETE', headers: HEADERS }); const data = await res.json(); if (data.success) { showToast('Category deleted'); loadCategories(); } else showToast(data.message, 'error'); }
-        else if (pendingDelete.type === 'subcategory') { const res = await fetch(API + '/subcategories/' + pendingDelete.id, { method: 'DELETE', headers: HEADERS }); const data = await res.json(); if (data.success) { showToast('Subcategory deleted'); loadSubcategories(); } else showToast(data.message, 'error'); }
-        else if (pendingDelete.type === 'obsolete') { const res = await fetch(API + '/obsolete', { method: 'POST', headers: HEADERS, body: JSON.stringify({ subcategory_id: pendingDelete.subId, part_number: pendingDelete.partNumber }) }); const data = await res.json(); if (data.success) { showToast(`Part ${pendingDelete.partNumber} marked as obsolete`); loadGeneratedParts(pendingDelete.subId); } else showToast(data.message, 'error'); }
-        else if (pendingDelete.type === 'revoke_access') { const res = await fetch(API + '/users/' + pendingDelete.id, { method: 'DELETE', headers: HEADERS }); const data = await res.json(); if (data.success) { showToast('Access revoked'); loadModuleUsers(); } else showToast(data.message, 'error'); }
-    } catch (e) { showToast('Network error', 'error'); }
-    partCloseModal('deleteConfirmModal'); pendingDelete = null; btn.disabled = false; btn.textContent = 'Delete';
-}
-
-function showDeleteError(msg) { const el = document.getElementById('deleteError'); el.textContent = msg; el.style.display = 'block'; }

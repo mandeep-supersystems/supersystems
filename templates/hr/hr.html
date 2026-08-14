@@ -2,6 +2,7 @@
 <html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Human Resources - SUPERSYSTEMS</title>
     <link rel="stylesheet" href="/static/css/header.css">
@@ -98,65 +99,102 @@
 
         <!-- OVERVIEW -->
         <section class="content-section" id="sec-overview">
-            <div class="section-header">
-                <h2>HR Overview</h2>
-                <div class="section-actions">
-                    <button class="btn-outline" onclick="loadHROverview()"><span class="material-icons-outlined">refresh</span> Refresh</button>
+
+            <!-- PAGE HEADER -->
+            <div class="ovr-page-header">
+                <div>
+                    <h2 class="ovr-title">Human Resources</h2>
+                    <p class="ovr-subtitle" id="ovr-subtitle">Loading workforce summary...</p>
+                </div>
+                <button class="btn-outline" onclick="loadHROverview()">
+                    <span class="material-icons-outlined">refresh</span> Refresh
+                </button>
+            </div>
+
+            <!-- KPI CARDS -->
+            <div class="ovr-kpi-grid">
+                <div class="ovr-kpi-card ovr-kpi-blue">
+                    <div class="ovr-kpi-icon"><span class="material-icons-outlined">groups</span></div>
+                    <div class="ovr-kpi-body">
+                        <div class="ovr-kpi-value" id="ovr-total">—</div>
+                        <div class="ovr-kpi-label">Total Employees</div>
+                    </div>
+                </div>
+                <div class="ovr-kpi-card ovr-kpi-green">
+                    <div class="ovr-kpi-icon"><span class="material-icons-outlined">how_to_reg</span></div>
+                    <div class="ovr-kpi-body">
+                        <div class="ovr-kpi-value" id="ovr-active">—</div>
+                        <div class="ovr-kpi-label">Active</div>
+                        <div class="ovr-kpi-sub" id="ovr-active-pct"></div>
+                    </div>
+                </div>
+                <div class="ovr-kpi-card ovr-kpi-red">
+                    <div class="ovr-kpi-icon"><span class="material-icons-outlined">person_off</span></div>
+                    <div class="ovr-kpi-body">
+                        <div class="ovr-kpi-value" id="ovr-inactive">—</div>
+                        <div class="ovr-kpi-label">Inactive / Terminated</div>
+                    </div>
+                </div>
+                <div class="ovr-kpi-card ovr-kpi-orange">
+                    <div class="ovr-kpi-icon"><span class="material-icons-outlined">corporate_fare</span></div>
+                    <div class="ovr-kpi-body">
+                        <div class="ovr-kpi-value" id="ovr-depts">—</div>
+                        <div class="ovr-kpi-label">Departments</div>
+                    </div>
+                </div>
+                <div class="ovr-kpi-card ovr-kpi-purple">
+                    <div class="ovr-kpi-icon"><span class="material-icons-outlined">badge</span></div>
+                    <div class="ovr-kpi-body">
+                        <div class="ovr-kpi-value" id="ovr-criteria">—</div>
+                        <div class="ovr-kpi-label">Code Criteria</div>
+                    </div>
                 </div>
             </div>
 
-            <!-- STAT CARDS -->
-            <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px; margin-bottom:24px;">
-                <div class="stat-card">
-                    <span class="material-icons-outlined" style="font-size:28px;color:var(--accent);">groups</span>
-                    <div class="stat-info"><div class="value" id="ovr-total">-</div><div class="label">Total Employees</div></div>
-                </div>
-                <div class="stat-card">
-                    <span class="material-icons-outlined" style="font-size:28px;color:#2e7d32;">check_circle</span>
-                    <div class="stat-info"><div class="value" id="ovr-active">-</div><div class="label">Active</div></div>
-                </div>
-                <div class="stat-card">
-                    <span class="material-icons-outlined" style="font-size:28px;color:#c62828;">cancel</span>
-                    <div class="stat-info"><div class="value" id="ovr-inactive">-</div><div class="label">Inactive</div></div>
-                </div>
-                <div class="stat-card">
-                    <span class="material-icons-outlined" style="font-size:28px;color:#f57f17;">corporate_fare</span>
-                    <div class="stat-info"><div class="value" id="ovr-depts">-</div><div class="label">Departments</div></div>
-                </div>
-                <div class="stat-card">
-                    <span class="material-icons-outlined" style="font-size:28px;color:var(--accent);">pin</span>
-                    <div class="stat-info"><div class="value" id="ovr-criteria">-</div><div class="label">Code Criteria</div></div>
-                </div>
-            </div>
+            <!-- MIDDLE ROW -->
+            <div class="ovr-mid-grid">
 
-            <!-- BOTTOM GRID -->
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:24px;">
-                <!-- DEPT BREAKDOWN -->
-                <div class="table-container">
-                    <div style="padding:12px 16px; font-weight:600; border-bottom:1px solid var(--border-color);">Department Breakdown</div>
-                    <table class="data-table">
-                        <thead><tr><th>Department</th><th>Count</th><th>Share</th></tr></thead>
-                        <tbody id="ovr-dept-body"><tr><td colspan="3" style="text-align:center;">Loading...</td></tr></tbody>
-                    </table>
+                <!-- DEPARTMENT BREAKDOWN -->
+                <div class="ovr-card">
+                    <div class="ovr-card-header">
+                        <span class="material-icons-outlined">pie_chart</span>
+                        Department Breakdown
+                    </div>
+                    <div class="ovr-card-body" id="ovr-dept-list"></div>
                 </div>
+
                 <!-- EMPLOYMENT TYPE -->
-                <div class="table-container">
-                    <div style="padding:12px 16px; font-weight:600; border-bottom:1px solid var(--border-color);">Employment Type</div>
-                    <table class="data-table">
-                        <thead><tr><th>Type</th><th>Count</th><th>%</th></tr></thead>
-                        <tbody id="ovr-type-body"><tr><td colspan="3" style="text-align:center;">Loading...</td></tr></tbody>
-                    </table>
+                <div class="ovr-card">
+                    <div class="ovr-card-header">
+                        <span class="material-icons-outlined">work_outline</span>
+                        Employment Type
+                    </div>
+                    <div class="ovr-card-body" id="ovr-type-list"></div>
                 </div>
+
+                <!-- GENDER SPLIT -->
+                <div class="ovr-card">
+                    <div class="ovr-card-header">
+                        <span class="material-icons-outlined">people_outline</span>
+                        Gender Distribution
+                    </div>
+                    <div class="ovr-card-body" id="ovr-gender-list"></div>
+                </div>
+
             </div>
 
             <!-- RECENT EMPLOYEES -->
-            <div class="table-container">
-                <div style="padding:12px 16px; font-weight:600; border-bottom:1px solid var(--border-color);">Recent Employees</div>
-                <table class="data-table">
-                    <thead><tr><th>Code</th><th>Name</th><th>Email</th><th>Designation</th><th>Department</th><th>DOJ</th><th>Status</th></tr></thead>
-                    <tbody id="ovr-recent-body"><tr><td colspan="7" style="text-align:center;">Loading...</td></tr></tbody>
-                </table>
+            <div class="ovr-card" style="margin-top:0;">
+                <div class="ovr-card-header" style="justify-content:space-between;">
+                    <span style="display:flex;align-items:center;gap:8px;">
+                        <span class="material-icons-outlined">schedule</span>
+                        Recently Joined
+                    </span>
+                    <a href="/hr#employees" class="ovr-view-all">View All <span class="material-icons-outlined" style="font-size:14px;">arrow_forward</span></a>
+                </div>
+                <div class="ovr-recent-list" id="ovr-recent-list"></div>
             </div>
+
         </section>
 
         <!-- EMPLOYEE CODE CRITERIA -->

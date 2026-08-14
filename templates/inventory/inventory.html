@@ -2,6 +2,7 @@
 <html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inventory Management - SUPERSYSTEMS</title>
     <link rel="stylesheet" href="/static/css/header.css">
@@ -31,6 +32,7 @@
         </div>
     </div>
     <div class="header-right">
+        <button class="header-icon-btn" title="Notifications"><span class="material-icons-outlined">notifications</span></button>
         <button class="header-icon-btn theme-toggle" title="Toggle Dark Mode" onclick="toggleTheme()">
             <span class="material-icons-outlined icon-light">dark_mode</span>
             <span class="material-icons-outlined icon-dark">light_mode</span>
@@ -91,12 +93,6 @@
             </a>
             <a class="sidebar-link" data-section="counts" href="/inventory#counts">
                 <span class="material-icons-outlined">fact_check</span>Stock Counts
-            </a>
-            <a class="sidebar-link" data-section="batches" href="/inventory#batches">
-                <span class="material-icons-outlined">qr_code_2</span>Batch Tracking
-            </a>
-            <a class="sidebar-link" data-section="serials" href="/inventory#serials">
-                <span class="material-icons-outlined">tag</span>Serial Numbers
             </a>
             <a class="sidebar-link" data-section="reorder" href="/inventory#reorder">
                 <span class="material-icons-outlined">add_shopping_cart</span>Reorder Rules
@@ -400,59 +396,6 @@
             </div>
         </section>
 
-        <!-- BATCHES SECTION -->
-        <section id="sec-batches" class="content-section">
-            <div class="section-header">
-                <h2>Batch & Lot Control</h2>
-                <button class="btn-primary" onclick="openNewBatchModal()"><span class="material-icons-outlined">add</span>Create Batch</button>
-            </div>
-            <div class="card">
-                <div class="table-responsive">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Batch No</th>
-                                <th>Part Number</th>
-                                <th>Supplier Lot</th>
-                                <th>Mfg Date</th>
-                                <th>Expiry Date</th>
-                                <th>Qty Remaining</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="batchesBody">
-                            <tr><td colspan="7" style="text-align:center;">Loading batches...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-        <!-- SERIALS SECTION -->
-        <section id="sec-serials" class="content-section">
-            <div class="section-header">
-                <h2>Serial Number Tracking</h2>
-            </div>
-            <div class="card">
-                <div class="table-responsive">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Serial No</th>
-                                <th>Part Number</th>
-                                <th>Batch No</th>
-                                <th>Warehouse / Bin</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="serialsBody">
-                            <tr><td colspan="5" style="text-align:center;">Loading serial numbers...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
         <!-- REORDER SECTION -->
         <section id="sec-reorder" class="content-section">
             <div class="section-header">
@@ -669,8 +612,6 @@
 <script src="/static/js/inventory/transfers.js"></script>
 <script src="/static/js/inventory/adjustments.js"></script>
 <script src="/static/js/inventory/counts.js"></script>
-<script src="/static/js/inventory/batches.js"></script>
-<script src="/static/js/inventory/serials.js"></script>
 <script src="/static/js/inventory/reorder.js"></script>
 <script src="/static/js/inventory/reports.js"></script>
 <script src="/static/js/inventory/auditlogs.js"></script>

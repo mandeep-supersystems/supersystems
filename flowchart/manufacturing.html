@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manufacturing Flow — SUPERSYSTEMS</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<nav class="top-nav">
+  <div class="nav-brand">
+    <div class="nav-logo">SUPER<span>SYSTEMS</span></div>
+    <div class="nav-sub">ERP Flow Navigator</div>
+  </div>
+  <div class="nav-right">
+    <div class="nav-links">
+      <a href="index.html"             class="nav-link">🔄 Main Flow</a>
+      <a href="part-rm.html"           class="nav-link">🔩 Part &amp; RM</a>
+      <a href="purchase.html"          class="nav-link">🛒 Purchase</a>
+      <a href="logistics-quality.html" class="nav-link">🚚 Logistics &amp; Quality</a>
+      <a href="inventory.html"         class="nav-link">📦 Inventory</a>
+      <a href="manufacturing.html"     class="nav-link active">🏭 Manufacturing</a>
+      <a href="all-modules.html"       class="nav-link">🗺️ All Modules</a>
+      <a href="vertical-flow.html"     class="nav-link">📊 Vertical Flow</a>
+    </div>
+    <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle dark/light mode">☀️</button>
+  </div>
+</nav>
+
+<div class="page-wrap">
+  <div class="page-header">
+    <h1>🏭 Manufacturing Flow</h1>
+    <p>BOM → Routing → Work Centers → Production Order → Pick List → Shop Floor → FG Stock (-99) / NG Scrap (-88)</p>
+  </div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#7c3aed"></div>BOM / Routing</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#db2777"></div>Production Order</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#0891b2"></div>Warehouse Pick</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#d97706"></div>Shop Floor</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#16a34a"></div>FG Stock In</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#dc2626"></div>NG / Scrap</div>
+  </div>
+  <div class="flow-canvas"><svg id="svg5" xmlns="http://www.w3.org/2000/svg"></svg></div>
+</div>
+
+<script src="nav.js"></script>
+<script>
+const tip = initTooltip();
+
+const nodes = [
+  /* BOM / Routing setup */
+  { id:'m1',  col:0, row:0, fill:'#5b21b6', icon:'📋', label:'BOM Created',           sub:'manufacturing_boms  |  BOM-{part}-99',    tip:[['API','POST /manufacturing/boms'],['FG Part','-99 suffix enforced'],['Components','PART, RM, SUB-ASSEMBLY lines']] },
+  { id:'m2',  col:1, row:0, fill:'#6d28d9', icon:'🔧', label:'BOM Components',        sub:'manufacturing_bom_lines  |  qty_per',      tip:[['Types','PART (-01 to -80), RM, SUB-ASSEMBLY'],['Fields','component_no, qty_per, scrap_factor, operation_ref'],['Scrap Factor','Extra qty for waste']] },
+  { id:'m3',  col:2, row:0, fill:'#7c3aed', icon:'🗺️', label:'Routing Created',       sub:'manufacturing_routings  |  RTG-{part}',    tip:[['API','POST /manufacturing/routings'],['Default Steps','-01 Cutting, -02 CNC Machining'],['Version','1.0 default']] },
+  { id:'m4',  col:3, row:0, fill:'#8b5cf6', icon:'⚙️', label:'Operation Steps',       sub:'-01 to -80  |  sub-operations',            tip:[['Codes','-01 Cutting, -02 CNC, -03 Grinding, -04 Welding…'],['Sub-ops','-01-01 RM Inspection, -01-02 Precision Cutting'],['Times','setup_time_min + run_time_min_per_unit']] },
+  { id:'m5',  col:4, row:0, fill:'#a78bfa', icon:'🏗️', label:'Work Centers',          sub:'manufacturing_work_centers  |  MHR rate',  tip:[['API','POST /manufacturing/work-centers'],['MHR Formula','cost_rate × (100 / efficiency%)'],['Fields','capacity_hours_per_day, efficiency_pct']] },
+
+  /* Production Order */
+  { id:'p1',  col:0, row:2, fill:'#9d174d', icon:'📝', label:'Production Order',      sub:'manufacturing_production_orders  |  PRD-', tip:[['API','POST /manufacturing/production-orders'],['FG Part','-99 suffix'],['Status','released → in_progress → completed']] },
+  { id:'p2',  col:1, row:2, fill:'#be185d', icon:'📋', label:'Pick List Auto-Created',sub:'warehouse_pick_lists  |  PKL-{order_no}', tip:[['Auto-created','On production order creation'],['Items','Base part -01 components'],['Assigned to','Shop Floor Team']] },
+  { id:'p3',  col:2, row:2, fill:'#db2777', icon:'📦', label:'Materials Picked',      sub:'warehouse_pick_list_items  |  qty_picked', tip:[['Table','warehouse_pick_list_items'],['Status','pending → picked'],['Deducts','From inventory_stock_levels']] },
+  { id:'p4',  col:3, row:2, fill:'#ec4899', icon:'🏭', label:'Capacity Planning',     sub:'/manufacturing/capacity  |  load %',      tip:[['API','GET /manufacturing/capacity'],['Shows','allocated_hours vs available_hours'],['Load %','(allocated / available) × 100']] },
+
+  /* Shop Floor */
+  { id:'s1',  col:4, row:2, fill:'#b45309', icon:'👷', label:'Shop Floor Log Op',     sub:'/manufacturing/shop-floor/log-op',        tip:[['API','POST /manufacturing/shop-floor/log-op'],['Inputs','production_order_no, operation_code, qty_produced, qty_rejected'],['Updates','Production order progress']] },
+  { id:'s2',  col:5, row:2, fill:'#d97706', icon:'📊', label:'Operation Progress',    sub:'produced_qty / planned_qty',              tip:[['Auto-updates','produced_qty + qty_produced'],['Status','in_progress → completed when produced ≥ planned'],['Rejected','Goes to NG stock']] },
+
+  /* Outputs */
+  { id:'o1',  col:5, row:0, fill:'#15803d', icon:'🟢', label:'FG Stock In (-99)',     sub:'inventory: RECEIPT  |  FG-WH',            tip:[['Movement Type','RECEIPT'],['Warehouse','FG-WH'],['Bin','FG-A-01'],['Reference','PRODUCTION_ORDER']] },
+  { id:'o2',  col:6, row:0, fill:'#16a34a', icon:'📦', label:'FG Inventory Level',    sub:'inventory_stock_levels  |  item_type: FG', tip:[['Part Number','base-99'],['Available for','Customer dispatch / Packing'],['Warehouse','FG-WH']] },
+  { id:'o3',  col:5, row:4, fill:'#7f1d1d', icon:'🔴', label:'NG Scrap (-88)',        sub:'inventory: SCRAP  |  QC-WH QUARANTINE',   tip:[['Movement Type','SCRAP'],['Warehouse','QC-WH'],['Bin','QUARANTINE'],['Part Number','base-88']] },
+  { id:'o4',  col:6, row:4, fill:'#991b1b', icon:'🔬', label:'Quality Review',        sub:'IPQC / FQA  |  quality module',           tip:[['IPQC','In-process quality check during ops'],['FQA','Final quality assurance before dispatch'],['Certificate','Issued on FQA pass']] },
+
+  /* Planning link */
+  { id:'pl',  col:0, row:4, fill:'#0369a1', icon:'📅', label:'Production Planning',   sub:'/manufacturing/planning  |  Gantt view',  tip:[['API','GET /manufacturing/planning'],['Shows','All orders sorted by planned_start'],['Fields','planned_qty, produced_qty, status, priority']] },
+];
+
+const edges = [
+  { from:'m1', to:'m2', label:'add components' },
+  { from:'m2', to:'m3', label:'routing for part' },
+  { from:'m3', to:'m4', label:'define ops' },
+  { from:'m4', to:'m5', label:'assign work center' },
+  { from:'m5', to:'p1', label:'capacity check' },
+  { from:'m1', to:'p1', label:'BOM → prod order' },
+  { from:'p1', to:'p2', label:'auto pick list' },
+  { from:'p2', to:'p3', label:'pick materials' },
+  { from:'p3', to:'s1', label:'to shop floor' },
+  { from:'p4', to:'s1', label:'capacity allocated' },
+  { from:'s1', to:'s2', label:'log progress' },
+  { from:'s2', to:'o1', label:'FG produced', color:'#16a34a' },
+  { from:'o1', to:'o2', label:'stock updated', color:'#16a34a' },
+  { from:'s2', to:'o3', label:'NG rejected', color:'#dc2626' },
+  { from:'o3', to:'o4', label:'quality review', color:'#dc2626' },
+  { from:'p1', to:'pl', label:'planning view' },
+];
+
+const CELL_W = 230, CELL_H = 130;
+const W = 7*CELL_W+40, H = 5*CELL_H+60;
+const svg = document.getElementById('svg5');
+svg.setAttribute('width', W); svg.setAttribute('height', H);
+svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+const pos = {};
+nodes.forEach(n => {
+  n.px = 20 + n.col * CELL_W;
+  n.py = 20 + n.row * CELL_H;
+  n.w = 200; n.h = 68;
+  pos[n.id] = { cx: n.px+100, cy: n.py+34 };
+});
+
+svg.innerHTML = `<defs>
+  <marker id="a"  markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#334155"/></marker>
+  <marker id="ag" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#16a34a"/></marker>
+  <marker id="ar" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#dc2626"/></marker>
+</defs>
+<rect x="0" y="0" width="${W}" height="${2*CELL_H}" fill="rgba(124,58,237,0.05)"/>
+<text x="12" y="16" font-size="9" font-weight="700" letter-spacing="2" fill="#8b5cf6" font-family="Segoe UI,sans-serif">BOM / ROUTING / WORK CENTERS</text>
+<rect x="0" y="${2*CELL_H}" width="${W}" height="${2*CELL_H}" fill="rgba(219,39,119,0.05)"/>
+<text x="12" y="${2*CELL_H+16}" font-size="9" font-weight="700" letter-spacing="2" fill="#db2777" font-family="Segoe UI,sans-serif">PRODUCTION ORDER / SHOP FLOOR</text>
+<rect x="0" y="${4*CELL_H}" width="${W}" height="${CELL_H+20}" fill="rgba(127,29,29,0.05)"/>
+<text x="12" y="${4*CELL_H+16}" font-size="9" font-weight="700" letter-spacing="2" fill="#991b1b" font-family="Segoe UI,sans-serif">NG / SCRAP / QUALITY</text>`;
+
+edges.forEach(e => {
+  const s = pos[e.from], t = pos[e.to];
+  const mx = (s.cx+t.cx)/2, my = (s.cy+t.cy)/2;
+  const col = e.color || '#334155';
+  const mid = e.color === '#16a34a' ? 'ag' : e.color === '#dc2626' ? 'ar' : 'a';
+  svg.innerHTML += `<path d="M${s.cx},${s.cy} C${mx},${s.cy} ${mx},${t.cy} ${t.cx},${t.cy}"
+    fill="none" stroke="${col}" stroke-width="1.8" stroke-dasharray="6,3" marker-end="url(#${mid})" opacity="0.75"/>
+    <text x="${mx}" y="${my-5}" text-anchor="middle" font-size="9" fill="${col}" opacity="0.85" font-family="Segoe UI,sans-serif">${e.label||''}</text>`;
+});
+
+nodes.forEach(n => {
+  const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+  g.setAttribute('class','node-group');
+  g.innerHTML = `
+    <rect class="node-body" x="${n.px}" y="${n.py}" width="${n.w}" height="${n.h}" rx="11"
+      fill="${n.fill}" opacity="0.93" stroke="${n.fill}" stroke-width="1.5"/>
+    <text x="${n.px+12}" y="${n.py+24}" font-size="17" font-family="Segoe UI Emoji,sans-serif">${n.icon}</text>
+    <text x="${n.px+36}" y="${n.py+24}" font-size="11.5" font-weight="700" fill="#fff" font-family="Segoe UI,sans-serif">${n.label}</text>
+    <text x="${n.px+12}" y="${n.py+42}" font-size="9" fill="rgba(255,255,255,0.58)" font-family="Segoe UI,sans-serif">${n.sub}</text>`;
+  g.addEventListener('mouseenter', () => showTip(tip, n.label, n.tip, n.why||''));
+  g.addEventListener('mouseleave', () => hideTip(tip));
+  svg.appendChild(g);
+});
+</script>
+</body>
+</html>

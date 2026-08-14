@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inventory Flow — SUPERSYSTEMS</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<nav class="top-nav">
+  <div class="nav-brand">
+    <div class="nav-logo">SUPER<span>SYSTEMS</span></div>
+    <div class="nav-sub">ERP Flow Navigator</div>
+  </div>
+  <div class="nav-right">
+    <div class="nav-links">
+      <a href="index.html"             class="nav-link">🔄 Main Flow</a>
+      <a href="part-rm.html"           class="nav-link">🔩 Part &amp; RM</a>
+      <a href="purchase.html"          class="nav-link">🛒 Purchase</a>
+      <a href="logistics-quality.html" class="nav-link">🚚 Logistics &amp; Quality</a>
+      <a href="inventory.html"         class="nav-link active">📦 Inventory</a>
+      <a href="manufacturing.html"     class="nav-link">🏭 Manufacturing</a>
+      <a href="all-modules.html"       class="nav-link">🗺️ All Modules</a>
+      <a href="vertical-flow.html"     class="nav-link">📊 Vertical Flow</a>
+    </div>
+    <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle dark/light mode">☀️</button>
+  </div>
+</nav>
+
+<div class="page-wrap">
+  <div class="page-header">
+    <h1>📦 Inventory Management Flow</h1>
+    <p>Stock Check-In → IQC → Stock Levels → Movements → Batches → Serials → Reorder → Transfers → Locations</p>
+  </div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#1d4ed8"></div>Stock Levels</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#0891b2"></div>Movements</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#7c3aed"></div>Batch / Serial</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#b45309"></div>Reorder</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#0f766e"></div>Locations</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#475569"></div>Audit / Reports</div>
+  </div>
+  <div class="flow-canvas"><svg id="svg4" xmlns="http://www.w3.org/2000/svg"></svg></div>
+</div>
+
+<script src="nav.js"></script>
+<script>
+const tip = initTooltip();
+
+const nodes = [
+  /* Row 0 — Entry */
+  { id:'i1',  col:0, row:0, fill:'#1e40af', icon:'📥', label:'Stock Check-In',        sub:'inventory_stock_checkins  |  CHK-xxxxx',   tip:[['API','POST /inventory/checkins'],['Inputs','po_no, part_or_rm_code, received_qty'],['Status','pending_iqc after creation']] },
+  { id:'i2',  col:1, row:0, fill:'#1d4ed8', icon:'🔬', label:'IQC Inspection',        sub:'/inventory/checkins/:id/iqc-inspect',      tip:[['Inputs','passed_qty, rejected_qty, scrap_qty'],['PASS','Stock levels updated'],['FAIL','NG code -88 quarantined']] },
+  { id:'i3',  col:2, row:0, fill:'#2563eb', icon:'📊', label:'Stock Level Updated',   sub:'inventory_stock_levels  |  qty_on_hand +', tip:[['Table','inventory_stock_levels'],['Fields','qty_on_hand, qty_reserved, qty_available'],['Formula','qty_available = qty_on_hand - qty_reserved']] },
+
+  /* Row 0 — Movements */
+  { id:'i4',  col:3, row:0, fill:'#0369a1', icon:'🔄', label:'Stock Movement',        sub:'inventory_stock_movements  |  MOV-xxxxx',  tip:[['Types','RECEIPT, ISSUE, TRANSFER, ADJUSTMENT, SCRAP, RETURN'],['API','POST /inventory/stock-movements'],['Auto-updates','inventory_stock_levels']] },
+  { id:'i5',  col:4, row:0, fill:'#0284c7', icon:'↔️', label:'Stock Transfer',        sub:'/inventory/transfers  |  TRF-xxxxx',       tip:[['API','POST /inventory/transfers'],['Deducts','from source warehouse'],['Adds','to destination warehouse']] },
+  { id:'i6',  col:5, row:0, fill:'#0ea5e9', icon:'⚖️', label:'Stock Adjustment',      sub:'/inventory/adjustments  |  ADJ-xxxxx',    tip:[['API','POST /inventory/adjustments'],['Use','Cycle count variance correction'],['Requires','approver name']] },
+
+  /* Row 1 — Batch / Serial */
+  { id:'b1',  col:0, row:2, fill:'#6d28d9', icon:'📦', label:'Batch Tracking',        sub:'inventory_batches  |  BAT-xxxxx',          tip:[['Table','inventory_batches'],['Fields','batch_no, supplier_lot, manufacture_date, expiry_date'],['Status','active / expired / consumed']] },
+  { id:'b2',  col:1, row:2, fill:'#7c3aed', icon:'🔢', label:'Serial Numbers',        sub:'inventory_serial_numbers  |  in_stock',    tip:[['Table','inventory_serial_numbers'],['Fields','serial_no, part_number, batch_no, status'],['Status','in_stock / issued / scrapped']] },
+  { id:'b3',  col:2, row:2, fill:'#8b5cf6', icon:'📋', label:'Stock Count Sheet',     sub:'inventory_stock_counts  |  CNT-xxxxx',     tip:[['API','POST /inventory/stock-counts'],['Auto-generates','Count lines from current stock'],['Variance','book_qty vs counted_qty']] },
+
+  /* Row 1 — Reorder */
+  { id:'r1',  col:3, row:2, fill:'#b45309', icon:'⚠️', label:'Reorder Alert',         sub:'qty_available ≤ reorder_point',            tip:[['API','GET /inventory/reorder-alerts'],['Trigger','qty_available ≤ reorder_point'],['Output','Suggested PO qty = reorder_qty']] },
+  { id:'r2',  col:4, row:2, fill:'#d97706', icon:'📋', label:'Reorder Rules',         sub:'inventory_reorder_rules  |  per part/WH',  tip:[['Table','inventory_reorder_rules'],['Fields','reorder_point, reorder_qty, lead_time_days, preferred_supplier'],['Triggers','Auto-alert when stock low']] },
+  { id:'r3',  col:5, row:2, fill:'#f59e0b', icon:'🛒', label:'Trigger Purchase',      sub:'→ Planning Demand / PR',                   tip:[['Action','Low stock triggers new demand plan'],['Links to','Planning module'],['Creates','New PR for purchaser']] },
+
+  /* Row 2 — Locations */
+  { id:'lo1', col:0, row:4, fill:'#0f766e', icon:'🏭', label:'Plant / Floor',         sub:'inventory_locations  |  plant, floor_name', tip:[['Table','inventory_locations'],['Hierarchy','Plant → Floor → Shelf → Row → Column → Bin'],['Code','e.g. P1-FG-S1-Row01-Col01']] },
+  { id:'lo2', col:1, row:4, fill:'#0d9488', icon:'🗄️', label:'Shelf / Zone',          sub:'shelf_name, row_name, column_name',         tip:[['Part of','inventory_locations hierarchy'],['Linked to','warehouse_zones'],['Capacity','Tracked per location']] },
+  { id:'lo3', col:2, row:4, fill:'#14b8a6', icon:'📍', label:'Bin Location',          sub:'bin_code  |  A-01-01',                      tip:[['Linked to','inventory_stock_levels.bin_code'],['QR Code','Generated per bin in Warehouse'],['Detail','Shows current stock + movements']] },
+  { id:'lo4', col:3, row:4, fill:'#2dd4bf', icon:'📊', label:'Location Detail',       sub:'/inventory/locations/:id/detail',           tip:[['Shows','current_stock, movements, checkins'],['Filters','Only bins with qty_on_hand > 0'],['Movements','IN/OUT direction tracked']] },
+
+  /* Reports */
+  { id:'rp1', col:4, row:4, fill:'#475569', icon:'📈', label:'Valuation Report',      sub:'/inventory/valuation  |  by item_type',    tip:[['Groups','By item_type (PART, RM, FG)'],['Shows','item_count, total_qty, total_value'],['Formula','qty_on_hand × unit_cost']] },
+  { id:'rp2', col:5, row:4, fill:'#334155', icon:'📉', label:'Aging Report',          sub:'/inventory/reports/aging  |  slow movers', tip:[['Sorted by','last_movement_at ASC'],['Shows','Parts with no movement (slow/dead stock)'],['Limit','Top 50 oldest']] },
+];
+
+const edges = [
+  { from:'i1', to:'i2', label:'IQC pending' },
+  { from:'i2', to:'i3', label:'pass → stock in', color:'#16a34a' },
+  { from:'i3', to:'i4', label:'movement logged' },
+  { from:'i4', to:'i5', label:'transfer' },
+  { from:'i4', to:'i6', label:'adjust' },
+  { from:'i3', to:'b1', label:'batch assigned' },
+  { from:'b1', to:'b2', label:'serial tracked' },
+  { from:'b2', to:'b3', label:'count sheet' },
+  { from:'i3', to:'r1', label:'low stock check' },
+  { from:'r1', to:'r2', label:'check rules' },
+  { from:'r2', to:'r3', label:'trigger PR', color:'#f59e0b' },
+  { from:'i3', to:'lo3', label:'bin assigned' },
+  { from:'lo1', to:'lo2', label:'→ shelf' },
+  { from:'lo2', to:'lo3', label:'→ bin' },
+  { from:'lo3', to:'lo4', label:'detail view' },
+  { from:'lo4', to:'rp1', label:'valuation' },
+  { from:'lo4', to:'rp2', label:'aging' },
+];
+
+const CELL_W = 230, CELL_H = 120;
+const W = 6*CELL_W+40, H = 5*CELL_H+60;
+const svg = document.getElementById('svg4');
+svg.setAttribute('width', W); svg.setAttribute('height', H);
+svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+const pos = {};
+nodes.forEach(n => {
+  n.px = 20 + n.col * CELL_W;
+  n.py = 20 + n.row * CELL_H;
+  n.w = 200; n.h = 68;
+  pos[n.id] = { cx: n.px+100, cy: n.py+34 };
+});
+
+svg.innerHTML = `<defs>
+  <marker id="a"  markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#334155"/></marker>
+  <marker id="ag" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#16a34a"/></marker>
+  <marker id="ay" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#f59e0b"/></marker>
+</defs>
+<rect x="0" y="0" width="${W}" height="${2*CELL_H}" fill="rgba(29,78,216,0.05)"/>
+<text x="12" y="16" font-size="9" font-weight="700" letter-spacing="2" fill="#2563eb" font-family="Segoe UI,sans-serif">STOCK ENTRY &amp; MOVEMENTS</text>
+<rect x="0" y="${2*CELL_H}" width="${W}" height="${2*CELL_H}" fill="rgba(124,58,237,0.05)"/>
+<text x="12" y="${2*CELL_H+16}" font-size="9" font-weight="700" letter-spacing="2" fill="#7c3aed" font-family="Segoe UI,sans-serif">BATCH / SERIAL / REORDER</text>
+<rect x="0" y="${4*CELL_H}" width="${W}" height="${CELL_H+20}" fill="rgba(15,118,110,0.05)"/>
+<text x="12" y="${4*CELL_H+16}" font-size="9" font-weight="700" letter-spacing="2" fill="#0d9488" font-family="Segoe UI,sans-serif">LOCATIONS &amp; REPORTS</text>`;
+
+edges.forEach(e => {
+  const s = pos[e.from], t = pos[e.to];
+  const mx = (s.cx+t.cx)/2, my = (s.cy+t.cy)/2;
+  const col = e.color || '#334155';
+  const mid = e.color === '#16a34a' ? 'ag' : e.color === '#f59e0b' ? 'ay' : 'a';
+  svg.innerHTML += `<path d="M${s.cx},${s.cy} C${mx},${s.cy} ${mx},${t.cy} ${t.cx},${t.cy}"
+    fill="none" stroke="${col}" stroke-width="1.8" stroke-dasharray="6,3" marker-end="url(#${mid})" opacity="0.75"/>
+    <text x="${mx}" y="${my-5}" text-anchor="middle" font-size="9" fill="${col}" opacity="0.85" font-family="Segoe UI,sans-serif">${e.label||''}</text>`;
+});
+
+nodes.forEach(n => {
+  const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+  g.setAttribute('class','node-group');
+  g.innerHTML = `
+    <rect class="node-body" x="${n.px}" y="${n.py}" width="${n.w}" height="${n.h}" rx="11"
+      fill="${n.fill}" opacity="0.93" stroke="${n.fill}" stroke-width="1.5"/>
+    <text x="${n.px+12}" y="${n.py+24}" font-size="17" font-family="Segoe UI Emoji,sans-serif">${n.icon}</text>
+    <text x="${n.px+36}" y="${n.py+24}" font-size="11.5" font-weight="700" fill="#fff" font-family="Segoe UI,sans-serif">${n.label}</text>
+    <text x="${n.px+12}" y="${n.py+42}" font-size="9" fill="rgba(255,255,255,0.58)" font-family="Segoe UI,sans-serif">${n.sub}</text>`;
+  g.addEventListener('mouseenter', () => showTip(tip, n.label, n.tip, n.why||''));
+  g.addEventListener('mouseleave', () => hideTip(tip));
+  svg.appendChild(g);
+});
+</script>
+</body>
+</html>

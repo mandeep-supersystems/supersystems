@@ -292,6 +292,144 @@ def get_routing_cost(rid):
     }}
 
 
+# ─── PROCESS MASTER ───
+
+@workflow_bp.route("/processes", methods=["GET"])
+def list_processes():
+    q = request.args.get("q","").strip()
+    where = "(tenant_id=:tid OR tenant_id='' OR tenant_id IS NULL) AND is_deleted=false"
+    p = {"tid": _tid()}
+    if q:
+        where += " AND (LOWER(process_name) LIKE LOWER(:q) OR LOWER(COALESCE(description,'')) LIKE LOWER(:q))"
+        p["q"] = f"%{q}%"
+    rows = db.session.execute(db.text(
+        f"SELECT id,process_code,process_name,description,created_at,updated_at "
+        f"FROM workflow.processes WHERE {where} ORDER BY process_code"
+    ), p).fetchall()
+    result = []
+    for r in rows:
+        pid = str(r[0])
+        machines = db.session.execute(db.text(
+            "SELECT pm.id,pm.machine_id,m.machine_code,m.machine_name,m.machine_type,pm.cycle_time_minutes,pm.is_preferred "
+            "FROM workflow.process_machines pm JOIN machine.machines m ON pm.machine_id=m.id "
+            "WHERE pm.process_id=:pid AND pm.is_deleted=false ORDER BY pm.is_preferred DESC"
+        ), {"pid": pid}).fetchall()
+        result.append({
+            "id": pid, "process_code": r[1], "process_name": r[2],
+            "description": r[3] or "",
+            "created_at": str(r[4]) if r[4] else None,
+            "updated_at": str(r[5]) if r[5] else None,
+            "machines": [{"id": str(m[0]),"machine_id": str(m[1]),"machine_code": m[2],
+                "machine_name": m[3],"machine_type": m[4] or "",
+                "cycle_time_minutes": _f(m[5]),"is_preferred": bool(m[6])} for m in machines]
+        })
+    return {"success": True, "data": result}
+
+
+@workflow_bp.route("/processes/<pid>", methods=["GET"])
+def get_process(pid):
+    r = db.session.execute(db.text(
+        "SELECT id,process_code,process_name,description,created_at FROM workflow.processes WHERE id=:id AND is_deleted=false"
+    ), {"id": pid}).first()
+    if not r: return {"success": False, "message": "Not found"}, 404
+    machines = db.session.execute(db.text(
+        "SELECT pm.id,pm.machine_id,m.machine_code,m.machine_name,m.machine_type,pm.cycle_time_minutes,pm.is_preferred,s.station_name "
+        "FROM workflow.process_machines pm JOIN machine.machines m ON pm.machine_id=m.id "
+        "LEFT JOIN machine.stations s ON m.station_id=s.id "
+        "WHERE pm.process_id=:pid AND pm.is_deleted=false ORDER BY pm.is_preferred DESC"
+    ), {"pid": pid}).fetchall()
+    return {"success": True, "data": {
+        "id": str(r[0]),"process_code": r[1],"process_name": r[2],"description": r[3] or "",
+        "created_at": str(r[4]) if r[4] else None,
+        "machines": [{"id": str(m[0]),"machine_id": str(m[1]),"machine_code": m[2],
+            "machine_name": m[3],"machine_type": m[4] or "",
+            "cycle_time_minutes": _f(m[5]),"is_preferred": bool(m[6]),"station_name": m[7] or ""} for m in machines]
+    }}
+
+
+@workflow_bp.route("/processes", methods=["POST"])
+def create_process():
+    d = request.get_json() or {}
+    if not d.get("process_name"): return {"success": False, "message": "process_name required"}, 400
+    # auto-generate code
+    last = db.session.execute(db.text(
+        "SELECT process_code FROM workflow.processes WHERE (tenant_id=:tid OR tenant_id='' OR tenant_id IS NULL) AND is_deleted=false ORDER BY created_at DESC LIMIT 1"
+    ), {"tid": _tid()}).scalar()
+    try:
+        num = int(str(last or "PRC-000").split("-")[-1]) + 1
+    except: num = 1
+    code = d.get("process_code") or f"PRC-{num:03d}"
+    pid = str(uuid.uuid4())
+    db.session.execute(db.text(
+        "INSERT INTO workflow.processes (id,process_code,process_name,description,tenant_id,created_by) "
+        "VALUES (:id,:code,:name,:desc,:tid,:by)"
+    ), {"id": pid,"code": code,"name": d["process_name"],"desc": d.get("description",""),
+        "tid": _tid(),"by": _by()})
+    _log("CREATE","Process",pid); db.session.commit()
+    return {"success": True, "data": {"id": pid,"process_code": code}, "message": "Process created"}, 201
+
+
+@workflow_bp.route("/processes/<pid>", methods=["PUT"])
+def update_process(pid):
+    d = request.get_json() or {}
+    upd, p = [], {"id": pid}
+    for f in ["process_name","description","process_code"]:
+        if f in d: upd.append(f"{f}=:{f}"); p[f] = d[f]
+    if not upd: return {"success": False, "message": "Nothing to update"}, 400
+    upd.append("updated_at=NOW()")
+    db.session.execute(db.text(f"UPDATE workflow.processes SET {','.join(upd)} WHERE id=:id"), p)
+    _log("UPDATE","Process",pid); db.session.commit()
+    return {"success": True, "message": "Updated"}
+
+
+@workflow_bp.route("/processes/<pid>", methods=["DELETE"])
+def delete_process(pid):
+    db.session.execute(db.text("UPDATE workflow.processes SET is_deleted=true,updated_at=NOW() WHERE id=:id"), {"id": pid})
+    _log("DELETE","Process",pid); db.session.commit()
+    return {"success": True, "message": "Deleted"}
+
+
+# ─── PROCESS MACHINES ───
+
+@workflow_bp.route("/processes/<pid>/machines", methods=["POST"])
+def add_process_machine(pid):
+    d = request.get_json() or {}
+    if not d.get("machine_id"): return {"success": False, "message": "machine_id required"}, 400
+    existing = db.session.execute(db.text(
+        "SELECT id FROM workflow.process_machines WHERE process_id=:pid AND machine_id=:mid AND is_deleted=false"
+    ), {"pid": pid,"mid": d["machine_id"]}).first()
+    if existing: return {"success": False, "message": "Machine already assigned"}, 409
+    pmid = str(uuid.uuid4())
+    db.session.execute(db.text(
+        "INSERT INTO workflow.process_machines (id,process_id,machine_id,cycle_time_minutes,is_preferred) "
+        "VALUES (:id,:pid,:mid,:ct,:pref)"
+    ), {"id": pmid,"pid": pid,"mid": d["machine_id"],
+        "ct": d.get("cycle_time_minutes") or 0,"pref": d.get("is_preferred",False)})
+    db.session.execute(db.text("UPDATE workflow.processes SET updated_at=NOW() WHERE id=:id"), {"id": pid})
+    _log("CREATE","Process Machine",pmid); db.session.commit()
+    return {"success": True, "data": {"id": pmid}, "message": "Machine added"}, 201
+
+
+@workflow_bp.route("/processes/<pid>/machines/<pmid>", methods=["PUT"])
+def update_process_machine(pid, pmid):
+    d = request.get_json() or {}
+    upd, p = [], {"id": pmid}
+    for f in ["cycle_time_minutes","is_preferred"]:
+        if f in d: upd.append(f"{f}=:{f}"); p[f] = d[f]
+    if not upd: return {"success": False, "message": "Nothing to update"}, 400
+    upd.append("updated_at=NOW()")
+    db.session.execute(db.text(f"UPDATE workflow.process_machines SET {','.join(upd)} WHERE id=:id"), p)
+    _log("UPDATE","Process Machine",pmid); db.session.commit()
+    return {"success": True, "message": "Updated"}
+
+
+@workflow_bp.route("/processes/<pid>/machines/<pmid>", methods=["DELETE"])
+def delete_process_machine(pid, pmid):
+    db.session.execute(db.text("UPDATE workflow.process_machines SET is_deleted=true,updated_at=NOW() WHERE id=:id"), {"id": pmid})
+    _log("DELETE","Process Machine",pmid); db.session.commit()
+    return {"success": True, "message": "Removed"}
+
+
 # ─── PART SEARCH (for routing creation) ───
 
 @workflow_bp.route("/search-parts", methods=["GET"])

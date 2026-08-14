@@ -979,7 +979,7 @@ function exportData(section) {
         filename = 'categories_export.csv';
     } else if (section === 'subcategories') {
         if (!subcategories.length) { showToast('No data to export', 'error'); return; }
-        csvContent = 'Name,Code,Category,Series Prefix,Parts Generated,Columns\n' + subcategories.map(s => {
+        csvContent = 'Name,Code,Category,Series Number,Parts Generated,Columns\n' + subcategories.map(s => {
             const cols = parseCols(s.columns_config).map(c => c.name).join('; ');
             return `"${s.name}","${s.code || ''}","${s.category_name || ''}","${s.series_prefix}","${s.current_sequence || 0}","${cols}"`;
         }).join('\n');
@@ -1034,37 +1034,100 @@ function exportData(section) {
     }
 }
 
-function downloadTemplate(section) {
-    let csvContent = '';
-    let filename = '';
+async function downloadTemplate(section) {
+    try {
+        let data = [];
+        let filename = '';
+        let sheetName = '';
 
-    if (section === 'categories') {
-        csvContent = 'Name,Series Prefix,Code,Description\nSheetmetal,601,SM,Sheet metal parts\n';
-        filename = 'categories_template.csv';
-    } else if (section === 'subcategories') {
-        csvContent = 'Name,Series Prefix,Category ID,Code,Columns (JSON)\nProto,0,<category_uuid>,PR,"[{""name"":""material"",""type"":""varchar"",""label"":""Material""}]"\n';
-        filename = 'subcategories_template.csv';
-    } else if (section === 'parts' || section === 'allparts') {
-        const opt = document.getElementById('apSubcategory')?.options[document.getElementById('apSubcategory')?.selectedIndex] || document.getElementById('genSubcategory')?.options[document.getElementById('genSubcategory')?.selectedIndex];
-        const cols = opt && opt.dataset.cols ? JSON.parse(opt.dataset.cols) : [];
-        if (cols.length === 0) {
-            csvContent = 'subcategory_id,column1,column2\n<subcategory_uuid>,value1,value2\n';
-        } else {
-            const colNames = cols.map(c => c.name);
-            csvContent = 'subcategory_id,' + colNames.join(',') + '\n<subcategory_uuid>,' + colNames.map(() => 'value').join(',') + '\n';
+        if (section === 'categories') {
+            data = [
+                { "Name": "Sheetmetal", "Series Prefix": "601", "Code": "SM", "Description": "Sheet metal parts" },
+                { "Name": "Electronics", "Series Prefix": "701", "Code": "EL", "Description": "Electronic components" }
+            ];
+            filename = 'categories_template.xlsx';
+            sheetName = 'Categories';
+        } else if (section === 'subcategories') {
+            if (categories.length === 0) {
+                try { const cr = await fetch(API + '/categories', { headers: HEADERS }); categories = (await cr.json()).data || []; } catch(e) {}
+            }
+            data = categories.length
+                ? categories.map(c => ({
+                    "Subcategory Name": "",
+                    "Series Number": "",
+                    "Code": "",
+                    "Category Name (reference)": c.name,
+                    "Category ID": c.id,
+                    "Columns (name:type separated by semicolon)": "value:varchar; tolerance:varchar; package:varchar"
+                }))
+                : [{
+                    "Subcategory Name": "SMT",
+                    "Series Number": "1",
+                    "Code": "SMT",
+                    "Category Name (reference)": "Create a category first",
+                    "Category ID": "",
+                    "Columns (name:type separated by semicolon)": "value:varchar; tolerance:varchar; package:varchar"
+                }];
+            filename = 'subcategories_template.xlsx';
+            sheetName = 'Subcategories';
+        } else if (section === 'parts' || section === 'allparts') {
+            const opt = document.getElementById('apSubcategory')?.options[document.getElementById('apSubcategory')?.selectedIndex] || document.getElementById('genSubcategory')?.options[document.getElementById('genSubcategory')?.selectedIndex];
+            const cols = opt && opt.dataset.cols ? JSON.parse(opt.dataset.cols) : [];
+            const subId = opt?.value || 'Enter-Subcategory-UUID-Here';
+            
+            const rowData = { "subcategory_id": subId };
+            if (cols.length === 0) {
+                rowData["value"] = "example_value";
+            } else {
+                cols.forEach(c => {
+                    rowData[c.name] = "value_for_" + c.name;
+                });
+            }
+            data = [rowData];
+            filename = 'parts_import_template.xlsx';
+            sheetName = 'Parts';
         }
-        filename = 'parts_import_template.csv';
-    }
 
-    if (csvContent) {
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = filename;
-        link.click();
-        URL.revokeObjectURL(link.href);
-        showToast(`Downloaded ${filename}`);
-        fetch(API + '/log-action', { method: 'POST', headers: HEADERS, body: JSON.stringify({ action: 'TEMPLATE_DOWNLOAD', entity_type: section, entity_id: filename }) }).catch(() => {});
+        if (data.length > 0) {
+            const worksheet = XLSX.utils.json_to_sheet(data);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+            XLSX.writeFile(workbook, filename);
+            showToast(`Downloaded ${filename} (Excel)`);
+            fetch(API + '/log-action', { method: 'POST', headers: HEADERS, body: JSON.stringify({ action: 'TEMPLATE_DOWNLOAD', entity_type: section, entity_id: filename }) }).catch(() => {});
+        }
+    } catch (err) {
+        console.error("Failed to generate Excel template, falling back to CSV", err);
+        // Fallback to legacy CSV format
+        let csvContent = '';
+        let filename = '';
+
+        if (section === 'categories') {
+            csvContent = 'Name,Series Prefix,Code,Description\nSheetmetal,601,SM,Sheet metal parts\n';
+            filename = 'categories_template.csv';
+
+        } else if (section === 'parts' || section === 'allparts') {
+            const opt = document.getElementById('apSubcategory')?.options[document.getElementById('apSubcategory')?.selectedIndex] || document.getElementById('genSubcategory')?.options[document.getElementById('genSubcategory')?.selectedIndex];
+            const cols = opt && opt.dataset.cols ? JSON.parse(opt.dataset.cols) : [];
+            if (cols.length === 0) {
+                csvContent = 'subcategory_id,column1,column2\n<subcategory_uuid>,value1,value2\n';
+            } else {
+                const colNames = cols.map(c => c.name);
+                csvContent = 'subcategory_id,' + colNames.join(',') + '\n<subcategory_uuid>,' + colNames.map(() => 'value').join(',') + '\n';
+            }
+            filename = 'parts_import_template.csv';
+        }
+
+        if (csvContent) {
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            link.click();
+            URL.revokeObjectURL(link.href);
+            showToast(`Downloaded ${filename}`);
+            fetch(API + '/log-action', { method: 'POST', headers: HEADERS, body: JSON.stringify({ action: 'TEMPLATE_DOWNLOAD', entity_type: section, entity_id: filename }) }).catch(() => {});
+        }
     }
 }
 
@@ -1077,69 +1140,122 @@ function importData(section) {
 async function handleImportFile(input) {
     const file = input.files[0];
     if (!file) return;
-    const text = await file.text();
-    const lines = text.trim().split('\n');
-    if (lines.length < 2) { showToast('CSV file is empty or has no data rows', 'error'); return; }
 
-    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-    const rows = lines.slice(1).map(line => {
-        const vals = line.match(/("[^"]*"|[^,]+)/g) || [];
-        return vals.map(v => v.trim().replace(/^"|"$/g, ''));
-    });
+    let headers = [];
+    let rows = [];
 
-    let imported = 0;
-    let errors = [];
-
-    if (importTarget === 'categories') {
-        for (const row of rows) {
-            const name = row[0], series = row[1], code = row[2] || '', desc = row[3] || '';
-            if (!name || !series) { errors.push(`Skipped row: missing name or series`); continue; }
-            try {
-                const res = await fetch(API + '/categories', { method: 'POST', headers: HEADERS, body: JSON.stringify({ name, series_prefix: series, code, description: desc }) });
-                const data = await res.json();
-                if (data.success) imported++; else errors.push(`${name}: ${data.message}`);
-            } catch (e) { errors.push(`${name}: network error`); }
-        }
-        loadCategories();
-    } else if (importTarget === 'subcategories') {
-        for (const row of rows) {
-            const name = row[0], series = row[1], catId = row[2], code = row[3] || '';
-            let columns = [];
-            try { columns = JSON.parse(row[4] || '[]'); } catch(e) {}
-            if (!name || !series || !catId) { errors.push(`Skipped row: missing required fields`); continue; }
-            if (!columns.length) columns = [{ name: 'description', type: 'varchar', label: 'Description' }];
-            try {
-                const res = await fetch(API + '/subcategories', { method: 'POST', headers: HEADERS, body: JSON.stringify({ name, series_prefix: series, category_id: catId, code, columns }) });
-                const data = await res.json();
-                if (data.success) imported++; else errors.push(`${name}: ${data.message}`);
-            } catch (e) { errors.push(`${name}: network error`); }
-        }
-        loadSubcategories();
-    } else if (importTarget === 'parts' || importTarget === 'allparts') {
-        const subIdIdx = headers.findIndex(h => h.toLowerCase().includes('subcategory_id'));
-        const colHeaders = headers.filter((h, i) => i !== subIdIdx);
-        for (const row of rows) {
-            const subId = subIdIdx >= 0 ? row[subIdIdx] : '';
-            if (!subId) { errors.push('Skipped row: missing subcategory_id'); continue; }
-            const values = {};
-            colHeaders.forEach((h, i) => {
-                const idx = i >= subIdIdx ? i + 1 : i;
-                if (row[idx]) values[h] = row[idx];
+    try {
+        const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
+        if (isExcel) {
+            const buffer = await file.arrayBuffer();
+            const workbook = XLSX.read(buffer, { type: 'array' });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+            if (jsonData.length < 2) {
+                showToast('Excel file is empty or has no data rows', 'error');
+                return;
+            }
+            headers = jsonData[0].map(h => String(h || '').trim());
+            rows = jsonData.slice(1).map(row => row.map(v => String(v !== undefined && v !== null ? v : '').trim()));
+        } else {
+            const text = await file.text();
+            const lines = text.trim().split('\n');
+            if (lines.length < 2) {
+                showToast('CSV file is empty or has no data rows', 'error');
+                return;
+            }
+            headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+            rows = lines.slice(1).map(line => {
+                const vals = line.match(/("[^"]*"|[^,]+)/g) || [];
+                return vals.map(v => v.trim().replace(/^"|"$/g, ''));
             });
-            try {
-                const res = await fetch(API + '/generate', { method: 'POST', headers: HEADERS, body: JSON.stringify({ subcategory_id: subId, values }) });
-                const data = await res.json();
-                if (data.success) imported++; else errors.push(`Row: ${data.message}`);
-            } catch (e) { errors.push('Row: network error'); }
         }
-        if (importTarget === 'allparts') loadAllParts();
+
+        let imported = 0;
+        let errors = [];
+
+        if (importTarget === 'categories') {
+            // Mapping keys cleanly (e.g. support Name, Series Prefix, Code, Description)
+            const getColVal = (row, fieldName, defaultIdx) => {
+                const idx = headers.findIndex(h => h.replace(/[^a-zA-Z0-9]/g, '').toLowerCase().includes(fieldName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()));
+                return idx >= 0 ? row[idx] : row[defaultIdx];
+            };
+
+            for (const row of rows) {
+                if (row.length === 0 || !row.join('').trim()) continue;
+                const name = getColVal(row, 'name', 0);
+                const series = getColVal(row, 'series', 1);
+                const code = getColVal(row, 'code', 2) || '';
+                const desc = getColVal(row, 'description', 3) || '';
+                if (!name || !series) { errors.push(`Skipped row: missing name or series`); continue; }
+                try {
+                    const res = await fetch(API + '/categories', { method: 'POST', headers: HEADERS, body: JSON.stringify({ name, series_prefix: series, code, description: desc }) });
+                    const data = await res.json();
+                    if (data.success) imported++; else errors.push(`${name}: ${data.message}`);
+                } catch (e) { errors.push(`${name}: network error`); }
+            }
+            loadCategories();
+        } else if (importTarget === 'subcategories') {
+            for (const row of rows) {
+                if (row.length === 0 || !row.join('').trim()) continue;
+                const get = (field) => {
+                    const idx = headers.findIndex(h => h.replace(/[^a-zA-Z0-9]/g,'').toLowerCase().includes(field));
+                    return idx >= 0 ? (row[idx] !== undefined ? String(row[idx]).trim() : '') : '';
+                };
+                const name   = get('subcategoryname') || get('name');
+                const series = get('seriesnumber') || get('series');
+                const code   = get('code');
+                const catId  = get('categoryid');
+                const colsRaw = get('columnsnametypeseparatedbysemicolon') || get('columns');
+                if (!name || !series || !catId) { errors.push(`Skipped: missing Subcategory Name, Series Number or Category ID`); continue; }
+                let columns = [];
+                const trimmed = (colsRaw || '').trim();
+                if (trimmed.startsWith('[')) {
+                    try { columns = JSON.parse(trimmed); } catch(e) {}
+                } else if (trimmed) {
+                    columns = trimmed.split(';').map(s => s.trim()).filter(Boolean).map(s => {
+                        const [n, t] = s.split(':').map(x => x.trim());
+                        return { name: (n||'').toLowerCase().replace(/\s+/g,'_'), type: t||'varchar', label: n||'' };
+                    });
+                }
+                if (!columns.length) columns = [{ name: 'description', type: 'varchar', label: 'Description' }];
+                try {
+                    const res = await fetch(API + '/subcategories', { method: 'POST', headers: HEADERS, body: JSON.stringify({ name, series_prefix: series, category_id: catId, code, columns }) });
+                    const data = await res.json();
+                    if (data.success) imported++; else errors.push(`${name}: ${data.message}`);
+                } catch (e) { errors.push(`${name}: network error`); }
+            }
+            loadSubcategories();
+        } else if (importTarget === 'parts' || importTarget === 'allparts') {
+            const subIdIdx = headers.findIndex(h => h.toLowerCase().replace(/[^a-z]/g,'').includes('subcategoryid'));
+            const colHeaders = headers.filter((h, i) => i !== subIdIdx);
+            for (const row of rows) {
+                if (row.length === 0 || !row.join('').trim()) continue;
+                const subId = subIdIdx >= 0 ? row[subIdIdx] : '';
+                if (!subId) { errors.push('Skipped row: missing subcategory_id'); continue; }
+                const values = {};
+                colHeaders.forEach((h, i) => {
+                    const idx = headers.indexOf(h);
+                    if (idx >= 0 && row[idx]) values[h] = row[idx];
+                });
+                try {
+                    const res = await fetch(API + '/generate', { method: 'POST', headers: HEADERS, body: JSON.stringify({ subcategory_id: subId, values }) });
+                    const data = await res.json();
+                    if (data.success) imported++; else errors.push(`Row: ${data.message}`);
+                } catch (e) { errors.push('Row: network error'); }
+            }
+            if (importTarget === 'allparts') loadAllParts();
+        }
+
+        // Log import action
+        fetch(API + '/log-action', { method: 'POST', headers: HEADERS, body: JSON.stringify({ action: 'IMPORT', entity_type: importTarget, entity_id: `${imported} records from ${file.name}` }) }).catch(() => {});
+
+        if (errors.length) showToast(`Imported ${imported} rows. ${errors.length} errors.`, 'error');
+        else showToast(`Successfully imported ${imported} rows`);
+    } catch (err) {
+        showToast('Error parsing file: ' + err.message, 'error');
     }
-
-    // Log import action
-    fetch(API + '/log-action', { method: 'POST', headers: HEADERS, body: JSON.stringify({ action: 'IMPORT', entity_type: importTarget, entity_id: `${imported} records from ${file.name}` }) }).catch(() => {});
-
-    if (errors.length) showToast(`Imported ${imported} rows. ${errors.length} errors.`, 'error');
-    else showToast(`Successfully imported ${imported} rows`);
 }
 
 // ─── INIT ───

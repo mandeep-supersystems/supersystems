@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>All Modules — SUPERSYSTEMS</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<nav class="top-nav">
+  <div class="nav-brand">
+    <div class="nav-logo">SUPER<span>SYSTEMS</span></div>
+    <div class="nav-sub">ERP Flow Navigator</div>
+  </div>
+  <div class="nav-right">
+    <div class="nav-links">
+      <a href="index.html"             class="nav-link">🔄 Main Flow</a>
+      <a href="part-rm.html"           class="nav-link">🔩 Part &amp; RM</a>
+      <a href="purchase.html"          class="nav-link">🛒 Purchase</a>
+      <a href="logistics-quality.html" class="nav-link">🚚 Logistics &amp; Quality</a>
+      <a href="inventory.html"         class="nav-link">📦 Inventory</a>
+      <a href="manufacturing.html"     class="nav-link">🏭 Manufacturing</a>
+      <a href="all-modules.html"       class="nav-link active">🗺️ All Modules</a>
+      <a href="vertical-flow.html"     class="nav-link">📊 Vertical Flow</a>
+    </div>
+    <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle dark/light mode">☀️</button>
+  </div>
+</nav>
+
+<div class="page-wrap">
+  <div class="page-header">
+    <h1>🗺️ All Modules Overview</h1>
+    <p>Complete platform — every module, route, and sub-feature at a glance</p>
+  </div>
+
+  <div class="modules-grid" id="grid"></div>
+</div>
+
+<script src="nav.js"></script>
+const modules = [
+  {
+    name:'Part Management', icon:'🔩', route:'/part', accent:'#6366f1',
+    subs:[
+      ['Categories','series_prefix, separator'],
+      ['Subcategories','columns_config, description_columns'],
+      ['Generate Part Code','/part/generate → 601-0-000001'],
+      ['All Parts','/part/all-parts  filter by cat/sub'],
+      ['Customer Mapping','internal ↔ customer PN'],
+      ['Obsolete Parts','status = obsolete'],
+      ['Part Detail','/part/part-detail/:pn  full history'],
+      ['Module Users','role: module_admin / editor / viewer'],
+    ]
+  },
+  {
+    name:'Raw Material', icon:'🧱', route:'/rawmaterial', accent:'#8b5cf6',
+    subs:[
+      ['RM Criteria','series_prefix, columns_config'],
+      ['RM Master','/rawmaterial/master  →  STEEL-0001'],
+      ['RM–Part Mapping','qty_required, wastage_percent'],
+      ['RM Vendors','price, MOQ, lead_time, rating'],
+      ['Search RM','/rawmaterial/search-rm?q='],
+    ]
+  },
+  {
+    name:'Planning', icon:'📋', route:'/planning', accent:'#4f46e5',
+    subs:[
+      ['Demand Plans','planning.demand_plans  →  PLN-xxxxx  (auto-fetches inventory_stock_levels)'],
+      ['Purchase Requests','planning.purchase_requests  →  PR-xxxxx  (draft → sent_to_purchaser)'],
+      ['Send PR to Purchaser','POST /api/v1/planning/purchase-requests  (notifies purchaser)'],
+      ['Notifications','planning.notifications  →  role-based cross-module event bus'],
+      ['Unread Count','/api/v1/planning/notifications/unread-count'],
+      ['Mark All Read','PUT /api/v1/planning/notifications/mark-all-read'],
+      ['MRP Calculation','[TODO] auto BOM explode vs stock → auto-generate PRs'],
+    ]
+  },
+  {
+    name:'Purchase', icon:'🛒', route:'/purchase', accent:'#f59e0b',
+    subs:[
+      ['PR Inbox','/purchase/pr-inbox  from Planning'],
+      ['Supplier Rules','SOP / SQP / MOQ / lead time'],
+      ['Create PO','/purchase/pr-inbox/:id/create-po'],
+      ['PO List','/purchase/po-list'],
+      ['Send to Supplier','notifies supplier + logistics'],
+      ['Acknowledge PO','supplier confirms'],
+      ['Lead Time Tracking','immutable history log'],
+      ['Audit Logs','all PO actions'],
+    ]
+  },
+  {
+    name:'Logistics', icon:'🚚', route:'/logistics', accent:'#10b981',
+    subs:[
+      ['Pending POs','status: sent / acknowledged'],
+      ['Create GRN','cross-check PO / Invoice / Physical'],
+      ['Discrepancy Detection','auto-flagged on mismatch'],
+      ['GRN Status','pending_iqc → iqc_passed / rejected'],
+      ['Overview Stats','pending_pos, total_grns, pending_iqc'],
+    ]
+  },
+  {
+    name:'Quality', icon:'🔬', route:'/quality', accent:'#ef4444',
+    subs:[
+      ['IQC Inspection','/quality/grn-iqc/:id/inspect'],
+      ['IQC Criteria','per part/RM  tolerance, method'],
+      ['GRN Pending IQC','queue from Logistics'],
+      ['NCR (Non-Conformance)','auto-created on rejection'],
+      ['IPQC','in-process quality checks'],
+      ['FQA','final quality assurance + certificate'],
+      ['Module Users','role-based access'],
+    ]
+  },
+  {
+    name:'Inventory', icon:'📦', route:'/inventory', accent:'#3b82f6',
+    subs:[
+      ['Stock Levels','qty_on_hand, qty_reserved, qty_available'],
+      ['Stock Check-In','CHK-xxxxx  →  IQC pending'],
+      ['Stock Movements','RECEIPT / ISSUE / TRANSFER / SCRAP'],
+      ['Stock Transfers','TRF-xxxxx  bin-to-bin'],
+      ['Adjustments','ADJ-xxxxx  cycle count variance'],
+      ['Batch Tracking','BAT-xxxxx  expiry, lot'],
+      ['Serial Numbers','in_stock / issued / scrapped'],
+      ['Stock Counts','CNT-xxxxx  book vs counted'],
+      ['Reorder Alerts','qty_available ≤ reorder_point'],
+      ['Locations','Plant → Floor → Shelf → Bin'],
+      ['Valuation','by item_type'],
+      ['Aging Report','slow / dead stock'],
+    ]
+  },
+  {
+    name:'Warehouse', icon:'🏪', route:'/warehouse', accent:'#8b5cf6',
+    subs:[
+      ['Zones','zone_type: GENERAL / COLD / HAZMAT'],
+      ['Bins + QR Codes','auto QR per bin_code'],
+      ['Pick Lists','PKL-xxxxx  for production orders'],
+      ['Putaway Tasks','auto on goods receipt'],
+      ['Receipts','REC-xxxxx  PO receipt log'],
+      ['Packing Lists','FG packing for dispatch'],
+      ['Shipments','carrier, tracking_no, dispatch_date'],
+    ]
+  },
+  {
+    name:'Manufacturing', icon:'🏭', route:'/manufacturing', accent:'#ec4899',
+    subs:[
+      ['BOM','FG -99  with components'],
+      ['BOM Lines','PART / RM / SUB-ASSEMBLY'],
+      ['Routings','RTG-{part}  operation steps'],
+      ['Operation Steps','-01 to -80  sub-operations'],
+      ['Work Centers','MHR = cost × (100/efficiency%)'],
+      ['Production Orders','PRD-xxxxx  released → completed'],
+      ['Shop Floor Log','/shop-floor/log-op  per operation'],
+      ['FG Stock In','-99 RECEIPT to FG-WH'],
+      ['NG Scrap','-88 SCRAP to QC-WH QUARANTINE'],
+      ['Capacity Planning','load % per work center'],
+    ]
+  },
+  {
+    name:'HR', icon:'👥', route:'/hr', accent:'#06b6d4',
+    subs:[
+      ['Employees','EMP-xxxxx  department, role'],
+      ['Attendance','check-in / check-out'],
+      ['Leave Management','leave types, approvals'],
+      ['Payroll','salary, deductions, payslip'],
+      ['Employee Detail','/hr/employee/:id'],
+    ]
+  },
+  {
+    name:'Supplier Management', icon:'🤝', route:'/supplier', accent:'#f97316',
+    subs:[
+      ['Supplier Master','vendor_code, contact, GST'],
+      ['Contracts','validity, terms, SLA'],
+      ['Evaluation','score, criteria, rating'],
+      ['Performance','on-time delivery, quality rate'],
+      ['Supplier Detail','/supplier/:id  full profile'],
+    ]
+  },
+  {
+    name:'Project Management', icon:'📁', route:'/project', accent:'#14b8a6',
+    subs:[
+      ['Organizations','project.organizations  →  name, code, industry, GST, PAN, addresses, contacts JSON'],
+      ['Projects','project.projects  →  code, name, type, status, start/due dates, percent_complete, budget, actual_cost, org_id'],
+      ['Tasks','project.tasks  →  task_name, stage, owner, start/end, planned_cost, invoiced_amount, dependencies'],
+      ['PO Linkage','purchase_orders JSON field on project record → links spend to Purchase module POs'],
+      ['Project Templates','[WIP] clone standard task structure for new projects'],
+      ['Gantt / Timeline','[TODO] visual Gantt + milestone tracking + budget vs actual'],
+    ]
+  },
+  {
+    name:'Procurement', icon:'📑', route:'/procurement', accent:'#a855f7',
+    subs:[
+      ['Purchase Orders','doc_no, lines JSON, status'],
+      ['PO Lines','customer_part_number, internal_part_number'],
+      ['GRN','procurement.grn  linked to PO'],
+      ['Supplier Emails','sent_to_supplier_at tracked'],
+    ]
+  },
+  {
+    name:'Workflow / Costing', icon:'⚡', route:'/workflow', accent:'#f43f5e',
+    subs:[
+      ['Routing Detail','/workflow/routing/:id'],
+      ['Operation Costing','MHR × run_time'],
+      ['Job Cards','per production order'],
+    ]
+  },
+];
+
+const grid = document.getElementById('grid');
+modules.forEach(m => {
+  const card = document.createElement('div');
+  card.className = 'mod-card';
+  card.style.setProperty('--accent', m.accent);
+  card.innerHTML = `
+    <div class="mod-card-head">
+      <div class="mod-icon">${m.icon}</div>
+      <div>
+        <div class="mod-name">${m.name}</div>
+        <div class="mod-route">${m.route}</div>
+      </div>
+    </div>
+    <ul class="mod-subs">
+      ${m.subs.map(s => `<li>${s[0]}<span>${s[1]}</span></li>`).join('')}
+    </ul>`;
+  grid.appendChild(card);
+});
+</script>
+</body>
+</html>

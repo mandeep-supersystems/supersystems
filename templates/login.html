@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SUPERSYSTEMS - Login</title>
+    <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
     <style>
         @font-face {
@@ -190,6 +191,8 @@ async function handleLogin(e) {
             localStorage.setItem('refresh_token', d.refresh_token || '');
             localStorage.setItem('user', JSON.stringify(d.user || {}));
             localStorage.setItem('user_type', d.user_type);
+            // Sync token to cookie for server-side access guards
+            document.cookie = `access_token=${d.access_token}; path=/; SameSite=Lax`;
             // Store flat keys used by all module pages
             localStorage.setItem('user_email', d.user?.email || email);
             localStorage.setItem('user_name', ((d.user?.first_name || '') + ' ' + (d.user?.last_name || '')).trim() || email);

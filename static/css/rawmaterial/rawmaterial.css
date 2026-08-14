@@ -65,3 +65,13 @@
     .rm-sidebar { display: none; }
     .rm-content { margin-left: 0; }
 }
+
+/* Search dropdown styles */
+.emp-search-results { position: absolute; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 6px; max-height: 200px; overflow-y: auto; width: calc(100% - 20px); z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-top: -12px; }
+.emp-search-item { padding: 10px 14px; cursor: pointer; border-bottom: 1px solid var(--border-color); }
+.emp-search-item:last-child { border-bottom: none; }
+.emp-search-item:hover { background: var(--bg-hover); }
+.emp-search-main { font-weight: 600; font-family: monospace; color: var(--accent); }
+.emp-search-sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+.emp-search-empty { padding: 12px; text-align: center; color: var(--text-muted); font-size: 13px; }
+.emp-selected-inline { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--bg-secondary); border: 1px solid var(--accent); border-radius: 6px; font-weight: 500; }

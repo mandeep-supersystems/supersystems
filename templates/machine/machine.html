@@ -2,6 +2,7 @@
 <html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Machine Management - SUPERSYSTEMS</title>
     <link rel="stylesheet" href="/static/css/header.css">
@@ -29,6 +30,7 @@
         </div>
     </div>
     <div class="header-right">
+        <button class="header-icon-btn" title="Notifications"><span class="material-icons-outlined">notifications</span></button>
         <button class="header-icon-btn theme-toggle" onclick="toggleTheme()">
             <span class="material-icons-outlined icon-light">dark_mode</span>
             <span class="material-icons-outlined icon-dark">light_mode</span>
@@ -281,6 +283,31 @@
         </div>
     </div>
 </div>
+
+<!-- MACHINE DETAIL SLIDE-OVER PANEL -->
+<div id="machinePanelOverlay" onclick="closeMachinePanel()"></div>
+<div id="machinePanel">
+    <div class="mch-panel-topbar">
+        <span style="font-weight:700;font-size:15px;">Machine Detail</span>
+        <button onclick="closeMachinePanel()" class="close-btn"><span class="material-icons-outlined">close</span></button>
+    </div>
+    <div id="machinePanelContent" style="flex:1;overflow-y:auto;"></div>
+</div>
+
+<style>
+/* Panel overlay */
+#machinePanelOverlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:900; }
+#machinePanelOverlay.active { display:block; }
+/* Panel */
+#machinePanel { display:none;position:fixed;top:0;right:0;width:440px;max-width:100vw;height:100vh;background:var(--bg-primary);border-left:1px solid var(--border-color);z-index:901;flex-direction:column;box-shadow:-8px 0 32px rgba(0,0,0,.15); }
+#machinePanel.active { display:flex; }
+.mch-panel-topbar { display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border-color);flex-shrink:0; }
+/* Row */
+.mch-row { cursor:pointer; }
+.mch-row:hover td { background:var(--hover-bg) !important; }
+.mch-station-pill { display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:2px 8px;border-radius:10px;background:var(--accent-light);color:var(--accent);font-weight:600; }
+@keyframes mch-spin { to { transform:rotate(360deg); } }
+</style>
 
 <div class="mch-toast" id="mchToast"></div>
 <script src="/static/js/header.js"></script>

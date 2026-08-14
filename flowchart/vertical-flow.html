@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SUPERSYSTEMS — Module Sub-Item Relationship Map</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#fafbfe;overflow:hidden;height:100vh;user-select:none;color:#1e293b}
+code{font-family:'JetBrains Mono',monospace}
+
+/* ── TOOLBAR ── */
+#toolbar{
+  position:fixed;top:0;left:0;right:0;z-index:500;
+  height:54px;
+  background:#fff;
+  border-bottom:1px solid #e2e8f0;
+  display:flex;align-items:center;gap:12px;padding:0 20px;
+  box-shadow:0 1px 4px rgba(0,0,0,.03);
+}
+.tb-brand{font-size:15px;font-weight:800;color:#1e293b;letter-spacing:.3px}
+.tb-brand span{color:#6366f1}
+.tb-sep{width:1px;height:24px;background:#e2e8f0}
+.tb-title{font-size:13px;font-weight:600;color:#475569}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.tb-btn{
+  display:flex;align-items:center;gap:5px;
+  font-size:12px;font-weight:600;padding:6px 12px;border-radius:8px;cursor:pointer;
+  border:1px solid #e2e8f0;background:#f8fafc;color:#475569;
+  transition:all .15s;
+}
+.tb-btn:hover{background:#f1f5f9;border-color:#cbd5e1;color:#1e293b}
+.zoom-val{font-size:12px;font-weight:700;color:#475569;min-width:40px;text-align:center}
+
+/* BADGES */
+.bp{font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;letter-spacing:.4px;text-transform:uppercase;display:inline-block}
+.bp-live{background:#dcfce7;color:#16a34a;border:1px solid #bbf7d0}
+.bp-wip {background:#fef9c3;color:#ca8a04;border:1px solid #fde68a}
+.bp-todo{background:#fee2e2;color:#dc2626;border:1px solid #fecaca}
+
+/* ── CANVAS ── */
+#canvas-wrap{
+  position:fixed;top:54px;left:0;right:0;bottom:0;
+  overflow:auto;
+  cursor:default;
+}
+#canvas-wrap.panning{cursor:grabbing}
+#canvas{
+  position:absolute;
+  width:4200px;height:3200px;
+  transform-origin:0 0;
+}
+
+/* Grid background like professional schema tools */
+#canvas::before{
+  content:'';position:absolute;inset:0;
+  background-image:
+    linear-gradient(rgba(148,163,184,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148,163,184,.05) 1px, transparent 1px);
+  background-size:20px 20px;
+}
+
+/* ── MODULE BOX ── */
+.mod-box{
+  position:absolute;
+  background:#fff;
+  border:1.5px solid #cbd5e1;
+  border-radius:8px;
+  min-width:280px;
+  max-width:290px;
+  box-shadow:0 4px 12px rgba(15,23,42,.03), 0 1px 3px rgba(15,23,42,.02);
+  transition:box-shadow .2s;
+  cursor:move;
+  overflow:hidden;
+}
+.mod-box:hover{box-shadow:0 12px 28px rgba(15,23,42,.08);z-index:100}
+.mod-box.dragging{box-shadow:0 24px 48px rgba(15,23,42,.15);z-index:200}
+.mod-box.selected-module{border: 3px solid #6366f1 !important; box-shadow: 0 0 20px rgba(99,102,241,0.45) !important;}
+
+/* BOX HEADER */
+.box-hdr{
+  padding:12px 14px;
+  border-bottom:1px solid #f1f5f9;
+  position:relative;
+  display:flex;align-items:center;gap:10px;
+}
+.box-icon{
+  width:32px;height:32px;border-radius:6px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;flex-shrink:0;
+}
+.box-name-area{flex:1}
+.box-name{font-size:13px;font-weight:700;color:#0f172a}
+.box-route{font-size:10px;font-family:'JetBrains Mono',monospace;color:#64748b;margin-top:1px}
+
+/* BOX ROWS */
+.box-rows{padding:4px 0}
+.box-row{
+  display:flex;align-items:center;gap:8px;
+  padding:6px 14px;font-size:11px;color:#334155;
+  border-bottom:1px solid #f8fafc;
+  position:relative;
+  cursor:default;
+}
+.box-row:last-child{border-bottom:none}
+.box-row:hover{background:#f8fafc}
+.box-row .ri{font-size:11px;flex-shrink:0;width:14px;text-align:center;color:#64748b}
+.box-row .rl{flex:1;font-weight:500}
+.box-row .rk{font-size:9px;font-family:'JetBrains Mono';
+  background:#f1f5f9;color:#64748b;padding:1px 4px;border-radius:3px;
+  white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis}
+
+/* ANCHORS FOR FIELD-TO-FIELD WIRE ROUTING */
+.anchor-in, .anchor-out{
+  position:absolute;width:6px;height:6px;border-radius:50%;
+  background:currentColor;border:1px solid #fff;opacity:0.9;
+}
+.anchor-in{left:-3px;top:50%;transform:translateY(-50%)}
+.anchor-out{right:-3px;top:50%;transform:translateY(-50%)}
+
+/* ── SVG WIRES ── */
+#wires-svg{
+  position:absolute;top:0;left:0;
+  width:4200px;height:3200px;
+  pointer-events:none;overflow:visible;
+}
+.wire-path{
+  fill:none;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+  transition:stroke-width .12s, opacity .12s;
+  pointer-events:stroke;
+}
+.wire-interactive{
+  fill:none;
+  stroke:transparent;
+  stroke-width:12;
+  cursor:pointer;
+  pointer-events:stroke;
+}
+.wire-text{font-size:9px;font-family:'JetBrains Mono',monospace;fill:#475569}
+
+/* ── TOOLTIP ── */
+#tip{
+  position:fixed;z-index:999;
+  background:#0f172a;color:#f8fafc;
+  font-size:11px;padding:8px 12px;border-radius:6px;
+  pointer-events:none;display:none;max-width:280px;line-height:1.5;
+  box-shadow:0 10px 20px rgba(0,0,0,.15);
+}
+#tip.show{display:block}
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+  <div class="tb-brand">SUPER<span>SYSTEMS</span></div>
+  <div class="tb-sep"></div>
+  <div class="tb-title">🔗 Exact Database &amp; Sub-Module Relationship Graph</div>
+  <div class="tb-right">
+    <div class="tb-btn" onclick="zoomOut()">−</div>
+    <div class="zoom-val" id="zoomVal">100%</div>
+    <div class="tb-btn" onclick="zoomIn()">+</div>
+    <div class="tb-btn" onclick="fitAll()">⊞ Fit View</div>
+    <div class="tb-btn" onclick="resetView()"></div>
+    <div class="tb-sep"></div>
+    <span class="bp bp-live">✓ Live</span>
+    <span class="bp bp-wip">◐ WIP</span>
+    <span class="bp bp-todo">○ To-Do</span>
+    <div class="tb-sep"></div>
+    <div class="tb-btn" onclick="window.open('index.html')">← Flowchart Pages</div>
+  </div>
+</div>
+
+<div id="canvas-wrap">
+  <div id="canvas">
+  </div>
+</div>
+
+<div id="tip"></div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// EXACT SCHEMAS & SUB-MODULES DEFINITIONS
+// ═══════════════════════════════════════════════════
+const MODS = [
+  {
+    id:'part', icon:'🔩', name:'Part Management', route:'/part',
+    status:'live', color:'#6366f1', bg:'rgba(99,102,241,.08)',
+    x:100, y:80,
+    rows:[
+      {id:'parts_master',   i:'🔑', l:'Part master table', k:'part_number'},
+      {id:'part_categories', i:'📁', l:'Categories & Separators', k:'separator'},
+      {id:'part_subcategories', i:'📂', l:'Subcategories config', k:'columns_config'},
+      {id:'part_mappings',   i:'🔗', l:'Customer Part Mapping', k:'customer_part_number'},
+      {id:'obsolete_parts',  i:'📴', l:'Obsolete parts registry', k:'obsolete_reason'}
+    ]
+  },
+  {
+    id:'supplier', icon:'🤝', name:'Supplier Management', route:'/supplier',
+    status:'live', color:'#f59e0b', bg:'rgba(245,158,11,.08)',
+    x:650, y:80,
+    rows:[
+      {id:'suppliers',     i:'🏢', l:'Supplier registry', k:'supplier_code'},
+      {id:'supplier_parts',i:'🔩', l:'Supplier part pricing/MOQ', k:'part_code'},
+      {id:'contracts',     i:'📑', l:'Contracts & terms', k:'contract_number'},
+      {id:'evaluations',   i:'📊', l:'Evaluations & audit logs', k:'evaluation_id'},
+      {id:'performance',   i:'📈', l:'NCR & delivery performance', k:'inspection_pass_rate'}
+    ]
+  },
+  {
+    id:'planning', icon:'📋', name:'Planning', route:'/planning',
+    status:'wip', color:'#6366f1', bg:'rgba(99,102,241,.08)',
+    x:100, y:450,
+    rows:[
+      {id:'demand_plans',  i:'📊', l:'Demand plans', k:'item_code'},
+      {id:'purchase_reqs', i:'📝', l:'Purchase requests (PR)', k:'pr_no'},
+      {id:'notifications', i:'🔔', l:'Role-based notifications', k:'recipient_role'}
+    ]
+  },
+  {
+    id:'purchase', icon:'🛒', name:'Purchase Management', route:'/purchase',
+    status:'live', color:'#f59e0b', bg:'rgba(245,158,11,.08)',
+    x:650, y:450,
+    rows:[
+      {id:'purchase_overview', i:'📊', l:'Overview', k:'overview-stats'},
+      {id:'supplier_rules',    i:'📋', l:'Supplier SOP & SQP', k:'supplier-rules'},
+      {id:'requisitions',      i:'📝', l:'Req Orders (Requisitions)', k:'requisitions'},
+      {id:'orders',            i:'📄', l:'Purchase Orders & Lead Time', k:'orders'},
+      {id:'customer_demands',  i:'👤', l:'Customer demands', k:'customer-demands'}
+    ]
+  },
+  {
+    id:'warehouse', icon:'🏭', name:'Warehouse', route:'/warehouse',
+    status:'live', color:'#10b981', bg:'rgba(16,185,129,.08)',
+    x:1200, y:450,
+    rows:[
+      {id:'receiving', i:'📥', l:'Physical goods receiving', k:'grn_no'},
+      {id:'zones',     i:'🗺', l:'Warehouse zones setup', k:'zone_code'},
+      {id:'bins',      i:'📦', l:'Bin storage assignments', k:'bin_code'},
+      {id:'putaway',   i:'📍', l:'Put-away tasks execution', k:'putaway_id'},
+      {id:'pick_lists',i:'📋', l:'Pick lists extraction', k:'picklist_no'}
+    ]
+  },
+  {
+    id:'inventory', icon:'📦', name:'Inventory', route:'/inventory',
+    status:'live', color:'#3b82f6', bg:'rgba(59,130,246,.08)',
+    x:650, y:900,
+    rows:[
+      {id:'checkins',  i:'✅', l:'Inventory Stock Check-In', k:'checkin_no'},
+      {id:'levels',    i:'📊', l:'Stock levels (on-hand/avail)', k:'qty_available'},
+      {id:'movements', i:'🔄', l:'Stock movements logging', k:'movement_no'},
+      {id:'transfers', i:'🔀', l:'Transfers between bins', k:'transfer_no'}
+    ]
+  },
+  {
+    id:'quality', icon:'🔬', name:'Quality Management', route:'/quality',
+    status:'live', color:'#ef4444', bg:'rgba(239,68,68,.08)',
+    x:100, y:900,
+    rows:[
+      {id:'iqc_queue',     i:'📋', l:'Incoming Quality inspection', k:'checkin_no'},
+      {id:'iqc_criteria',  i:'📐', l:'Quality criteria setup', k:'part_or_rm_code'},
+      {id:'ncrs',          i:'⚠️', l:'Non-Conformance Report (NCR)', k:'ncr_no'},
+      {id:'grn_iqc_inspect',i:'📦', l:'GRN inspection confirmation', k:'grn_id'}
+    ]
+  },
+  {
+    id:'manufacturing', icon:'⚙️', name:'Manufacturing', route:'/manufacturing',
+    status:'live', color:'#ec4899', bg:'rgba(236,72,153,.08)',
+    x:1200, y:900,
+    rows:[
+      {id:'boms',         i:'📐', l:'BOM header & components', k:'fg_part_number'},
+      {id:'bom_lines',    i:'➖', l:'BOM components layout', k:'item_code'},
+      {id:'prod_orders',  i:'🏭', l:'Production orders release', k:'production_order_no'},
+      {id:'shop_floor',   i:'📺', l:'Shop floor clock-in operations', k:'operation_id'}
+    ]
+  },
+  {
+    id:'project', icon:'🗂', name:'Project Management', route:'/project',
+    status:'live', color:'#06b6d4', bg:'rgba(6,182,212,.08)',
+    x:1200, y:1350,
+    rows:[
+      {id:'organizations',i:'🏢', l:'Customer organizations', k:'organization_id'},
+      {id:'projects',     i:'📁', l:'Projects configuration', k:'project_code'},
+      {id:'tasks',        i:'✅', l:'Project milestones/tasks', k:'task_id'}
+    ]
+  },
+  {
+    id:'procurement_proj', icon:'📋', name:'Procurement', route:'/procurement',
+    status:'live', color:'#f472b6', bg:'rgba(244,114,182,.08)',
+    x:1200, y:40,
+    rows:[
+      {id:'procurement_pos', i:'📄', l:'Purchase Orders', k:'doc_no'},
+      {id:'procurement_search', i:'🔍', l:'Search Projects', k:'project_id'}
+    ]
+  }
+];
+
+// ═══════════════════════════════════════════════════
+// EXACT ROW-TO-ROW / SUBMODULE-TO-SUBMODULE LINKS
+// ═══════════════════════════════════════════════════
+const LINKS = [
+  // Part Management links
+  {from:'parts_master', to:'supplier_parts', label:'part_number ↔ part_code', color:'#6366f1', tip:'Part Master links to Supplier parts offering list'},
+  {from:'parts_master', to:'demand_plans',   label:'part_number ↔ item_code', color:'#6366f1', tip:'Demand Plan checks against Part Master code'},
+  {from:'parts_master', to:'bom_lines',      label:'fg_part_number',          color:'#ec4899', tip:'BOM lists map directly to Finished Good parts'},
+  {from:'parts_master', to:'iqc_criteria',   label:'part_code ↔ part_or_rm_code',color:'#ef4444',tip:'Inspection criteria defined per part master item'},
+  {from:'part_mappings',to:'orders',         label:'po_lines sync',           color:'#6366f1', tip:'Auto-syncs PO line item part numbers with mapping'},
+
+  // Supplier Management links
+  {from:'suppliers',    to:'supplier_rules', label:'supplier_code',          color:'#f59e0b', tip:'Purchase module pulls quotation rules from active suppliers'},
+  {from:'performance',  to:'ncrs',           label:'ncr_count',              color:'#ef4444', tip:'Supplier performance keeps score of total Quality NCRs'},
+
+  // Planning links
+  {from:'demand_plans', to:'purchase_reqs',  label:'shortage_qty → pr_no',    color:'#6366f1', tip:'shortage_qty calculated in demand plan creates a PR'},
+  {from:'demand_plans', to:'levels',        label:'qty_available check',    color:'#3b82f6', dash:'4,3', tip:'Demand plan auto-checks current available stock levels'},
+  {from:'purchase_reqs',to:'requisitions',  label:'pr_no → req_no',          color:'#6366f1', tip:'Purchase requests from planning are converted into procurement requisitions'},
+
+  // Purchase / Procurement links
+  {from:'customer_demands',to:'bom_lines',   label:'fg_part_number ↔ item_code',color:'#f59e0b', tip:'Demand of Finished Goods auto-explodes BOM components to locate Raw Materials'},
+  {from:'requisitions',    to:'orders',      label:'req_no → po_no conversion',color:'#f59e0b', tip:'Requisitions rounded to MOQ/SPQ are approved & converted into Purchase Orders'},
+  {from:'orders',          to:'receiving',   label:'po_no → grn validation',  color:'#f59e0b', tip:'Warehouse receives and matches delivery notes against PO lines'},
+  {from:'orders',          to:'checkins',    label:'po_no association',       color:'#3b82f6', tip:'Inventory Check-in traces back to originating PO'},
+
+  // Warehouse links
+  {from:'receiving',    to:'checkins',       label:'grn_no → checkin_no',     color:'#10b981', tip:'GRN receipt auto-triggers check-in record creation with iqc_status=pending_iqc'},
+  {from:'bins',         to:'checkins',       label:'bin_code assignment',     color:'#10b981', tip:'Warehouse operator places incoming stock in a specific storage bin'},
+
+  // Inventory links
+  {from:'checkins',     to:'iqc_queue',      label:'checkin_no (pending_iqc)',color:'#ef4444', tip:'Incoming check-in enters the Quality queue for validation'},
+  {from:'levels',       to:'prod_orders',    label:'qty_available check',    color:'#ec4899', dash:'4,3', tip:'Production release validates component stock availability'},
+
+  // Quality links
+  {from:'iqc_queue',    to:'levels',         label:'passed_qty → qty_on_hand',color:'#10b981', tip:'Only passed quantity from Quality updates live available stock levels'},
+  {from:'iqc_queue',    to:'ncrs',           label:'rejected_qty > 0 → ncr_no',color:'#ef4444', tip:'Any rejected quantity automatically raises a Non-Conformance Report'},
+
+  // Manufacturing links
+  {from:'prod_orders',  to:'movements',      label:'production_order_no (ISSUE)',color:'#ec4899', tip:'Releasing production order issues raw materials, writing to stock movements'},
+
+  // Project & Procurement links
+  {from:'projects',     to:'procurement_pos', label:'purchase_orders linkage', color:'#06b6d4', dash:'5,3', tip:'Tracks Project-specific PO spend metrics'},
+  {from:'projects',     to:'orders',         label:'purchase_orders JSON linkage',color:'#06b6d4', dash:'5,3', tip:'Tracks PO budget and actual spends against a project'},
+  {from:'tasks',        to:'prod_orders',    label:'task_id → prod_order_no', color:'#06b6d4', dash:'5,3', tip:'Project manufacturing task triggers production order execution'},
+  {from:'procurement_search', to:'projects', label:'resolves project details', color:'#f472b6', tip:'Search lookup resolves valid active projects'},
+  {from:'procurement_pos', to:'part_mappings', label:'auto-resolves internal codes', color:'#f472b6', tip:'PO lines resolve customer cross-references using Part Mappings'}
+];
+
+// UI CONTROLLERS & ENGINE
+// ═══════════════════════════════════════════════════
+const canvas = document.getElementById('canvas');
+const wrap   = document.getElementById('canvas-wrap');
+const tip    = document.getElementById('tip');
+
+let scale=1, panX=0, panY=0;
+let isPanning=false, lastPX=0, lastPY=0;
+let dragEl=null, dragOX=0, dragOY=0;
+
+const boxEls = {};
+let selectedModules = [];
+
+// Render Box UI elements
+MODS.forEach(m => {
+  const box = document.createElement('div');
+  box.className = 'mod-box';
+  box.id = 'box-'+m.id;
+  box.style.left = m.x+'px';
+  box.style.top  = m.y+'px';
+
+  const statusHtml = m.status==='live'
+    ? '<span class="bp bp-live">Live</span>'
+    : m.status==='wip'
+    ? '<span class="bp bp-wip">WIP</span>'
+    : '<span class="bp bp-todo">To-Do</span>';
+
+  box.innerHTML = `
+    <div class="box-hdr" style="border-bottom:2px solid ${m.color}">
+      <div class="box-icon" style="background:${m.bg};color:${m.color}">${m.icon}</div>
+      <div class="box-name-area">
+        <div class="box-name">${m.name}</div>
+        <div class="box-route">${m.route}</div>
+      </div>
+      <div class="box-status">${statusHtml}</div>
+    </div>
+    <div class="box-rows">
+      ${m.rows.map(r=>`
+        <div class="box-row" id="row-${r.id}">
+          <div class="anchor-in" style="color:${m.color}"></div>
+          <span class="ri">${r.i}</span>
+          <span class="rl">${r.l}</span>
+          <span class="rk" title="${r.k}">${r.k}</span>
+          <div class="anchor-out" style="color:${m.color}"></div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  // Header drag listener
+  const hdr = box.querySelector('.box-hdr');
+  hdr.addEventListener('mousedown', e=>{
+    if(e.button!==0) return;
+    dragEl = box;
+    dragOX = (e.clientX - panX)/scale - parseInt(box.style.left);
+    dragOY = (e.clientY - panY)/scale - parseInt(box.style.top);
+    box.classList.add('dragging');
+    e.stopPropagation();
+    e.preventDefault();
+  });
+
+  // Ctrl + Click Selection Logic
+  box.addEventListener('click', e => {
+    if (e.ctrlKey) {
+      e.stopPropagation();
+      e.preventDefault();
+      
+      if (box.classList.contains('selected-module')) {
+        box.classList.remove('selected-module');
+        selectedModules = selectedModules.filter(id => id !== m.id);
+      } else {
+        if (selectedModules.length >= 2) {
+          // Remove the oldest selection
+          const oldestId = selectedModules.shift();
+          const oldestEl = document.getElementById('box-' + oldestId);
+          if (oldestEl) oldestEl.classList.remove('selected-module');
+        }
+        box.classList.add('selected-module');
+        selectedModules.push(m.id);
+      }
+      
+      // If two are selected, look up active connection details
+      if (selectedModules.length === 2) {
+        const [modA, modB] = selectedModules;
+        
+        // Find matching links between submodules inside these two modules
+        const moduleARows = m.id === modA ? m.rows.map(r=>r.id) : MODS.find(x=>x.id===modA).rows.map(r=>r.id);
+        const moduleBRows = m.id === modB ? m.rows.map(r=>r.id) : MODS.find(x=>x.id===modB).rows.map(r=>r.id);
+        
+        const matches = LINKS.filter(link => {
+          const fromInA = moduleARows.includes(link.from) && moduleBRows.includes(link.to);
+          const fromInB = moduleBRows.includes(link.from) && moduleARows.includes(link.to);
+          return fromInA || fromInB;
+        });
+        
+        if (matches.length > 0) {
+          // Visually highlight these matching paths
+          document.querySelectorAll('.wire-path').forEach(p => p.setAttribute('stroke-width', '1.5'));
+          matches.forEach(match => {
+            // Find path elements in the DOM
+            // We can match them by looking at the title or data parameters in drawWires
+          });
+          
+          const explanation = matches.map((match, idx) => {
+            return `${idx + 1}. MAPPING: [${match.from}] ➔ [${match.to}]\n   • Rule: "${match.tip || match.label}"\n   • Implementation: ${match.label}`;
+          }).join('\n\n');
+          
+          setTimeout(() => {
+            alert(
+              `⚡ INTER-MODULE RELATIONSHIP DETECTED:\n` +
+              `• Module A: ${MODS.find(x=>x.id===modA).name}\n` +
+              `• Module B: ${MODS.find(x=>x.id===modB).name}\n\n` +
+              `${explanation}`
+            );
+          }, 100);
+        } else {
+          setTimeout(() => {
+            alert(
+              `ℹ️ NO DIRECT CONNECTORS FOUND:\n` +
+              `• Module A: ${MODS.find(x=>x.id===modA).name}\n` +
+              `• Module B: ${MODS.find(x=>x.id===modB).name}\n\n` +
+              `No direct database linkages or API sync actions exist between these two modules.`
+            );
+          }, 100);
+        }
+      }
+    }
+  });
+
+  canvas.appendChild(box);
+  boxEls[m.id] = box;
+});
+
+// CREATE SVG ELEMENT DYNAMICALLY AND APPEND AFTER CARDS TO KEEP IT ON TOP FOR CLICK EVENTS
+const svgEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+svgEl.id = 'wires-svg';
+canvas.appendChild(svgEl);
+
+// Row coordinates retrieval relative to canvas container
+function getRowConnectionPoints(rowId) {
+  const el = document.getElementById('row-'+rowId);
+  if(!el) return null;
+  const rect = el.getBoundingClientRect();
+  const canvasRect = canvas.getBoundingClientRect();
+  
+  // Calculate relative left/right anchor coordinates
+  const leftX = (rect.left - canvasRect.left) / scale;
+  const rightX = (rect.right - canvasRect.left) / scale;
+  const centerY = (rect.top + rect.height/2 - canvasRect.top) / scale;
+
+  return {
+    left: { x: leftX, y: centerY },
+    right: { x: rightX, y: centerY }
+  };
+}
+
+// Draw clean, professional, non-overlapping orthogonal wires with standard routing algorithms
+function drawWires() {
+  svgEl.innerHTML = '';
+
+  // Def markers for arrow directions
+  const defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
+  const colors = [...new Set(LINKS.map(l=>l.color))];
+  colors.forEach(col => {
+    const mid = document.createElementNS('http://www.w3.org/2000/svg','marker');
+    mid.setAttribute('id','arr-'+col.replace('#',''));
+    mid.setAttribute('markerWidth','7');
+    mid.setAttribute('markerHeight','5');
+    mid.setAttribute('refX','5');
+    mid.setAttribute('refY','2.5');
+    mid.setAttribute('orient','auto');
+    const poly = document.createElementNS('http://www.w3.org/2000/svg','polygon');
+    poly.setAttribute('points','0 0, 7 2.5, 0 5');
+    poly.setAttribute('fill',col);
+    mid.appendChild(poly);
+    defs.appendChild(mid);
+  });
+  svgEl.appendChild(defs);
+
+  LINKS.forEach(link => {
+    const fromPts = getRowConnectionPoints(link.from);
+    const toPts   = getRowConnectionPoints(link.to);
+    if(!fromPts || !toPts) return;
+
+    const isLeftToRight = fromPts.right.x < toPts.left.x;
+    const startPt = isLeftToRight ? fromPts.right : fromPts.left;
+    const endPt   = isLeftToRight ? toPts.left : toPts.right;
+
+    // Professional clean curves with slight offset to avoid overlaps
+    const dx = endPt.x - startPt.x;
+    const ctrlDist = Math.max(Math.abs(dx) * 0.45, 30);
+    const c1x = startPt.x + (isLeftToRight ? ctrlDist : -ctrlDist);
+    const c1y = startPt.y;
+    const c2x = endPt.x   - (isLeftToRight ? ctrlDist : -ctrlDist);
+    const c2y = endPt.y;
+
+    const d = `M${startPt.x},${startPt.y} C${c1x},${c1y} ${c2x},${c2y} ${endPt.x},${endPt.y}`;
+
+    const ns = 'http://www.w3.org/2000/svg';
+    const g = document.createElementNS(ns,'g');
+
+    // Clean direct path
+    const path = document.createElementNS(ns,'path');
+    path.className.baseValue = 'wire-path';
+    path.setAttribute('d', d);
+    path.setAttribute('stroke', link.color);
+    path.setAttribute('stroke-width', '1.5');
+    path.setAttribute('fill', 'none');
+    path.setAttribute('opacity', '0.7');
+    if(link.dash) path.setAttribute('stroke-dasharray', link.dash);
+
+    // Interactive thick path for easy mouse selection
+    const interactivePath = document.createElementNS(ns,'path');
+    interactivePath.className.baseValue = 'wire-interactive';
+    interactivePath.setAttribute('d', d);
+    interactivePath.setAttribute('fill', 'none'); // CRITICAL FIX: prevents black shapes on interactive layers
+
+    // Interactive connection highlights
+    const triggerHighlight = e=>{
+      tip.innerHTML = `<strong>${link.from} ➔ ${link.to}</strong><br>${link.tip || link.label}<br><span style="color:#a5b4fc;font-size:9px;">Click to explain mapping</span>`;
+      tip.classList.add('show');
+      path.setAttribute('stroke-width', '3');
+      path.setAttribute('opacity', '1');
+    };
+    const removeHighlight = ()=>{
+      tip.classList.remove('show');
+      path.setAttribute('stroke-width', '1.5');
+      path.setAttribute('opacity', '0.7');
+    };
+
+    interactivePath.addEventListener('mouseenter', triggerHighlight);
+    interactivePath.addEventListener('mousemove', e=>{
+      tip.style.left = (e.clientX + 14) + 'px';
+      tip.style.top  = (e.clientY + 14) + 'px';
+    });
+    interactivePath.addEventListener('mouseleave', removeHighlight);
+    interactivePath.addEventListener('click', e => {
+      // Highlight selection visually
+      document.querySelectorAll('.wire-path').forEach(p => p.setAttribute('stroke-width', '1.5'));
+      path.setAttribute('stroke-width', '5');
+      
+      // Explain database relationship matching business logic rules
+      alert(
+        `🔗 RELATIONSHIP MAP DETAILS:\n\n` +
+        `• Source Table: [${link.from}]\n` +
+        `• Destination Table: [${link.to}]\n\n` +
+        `📝 MAPPING BEHAVIOR:\n` +
+        `"${link.tip || link.label}"\n\n` +
+        `🛠️ BACKEND TRANSACTION IMPLEMENTATION:\n` +
+        `This connection is implemented in python backend routes.py using query filters matching: ${link.label}`
+      );
+      e.stopPropagation();
+    });
+
+    g.appendChild(path);
+    g.appendChild(interactivePath);
+
+    // Endpoint dots
+    [[startPt.x, startPt.y], [endPt.x, endPt.y]].forEach(([cx, cy]) => {
+      const c = document.createElementNS(ns, 'circle');
+      c.setAttribute('cx', cx);
+      c.setAttribute('cy', cy);
+      c.setAttribute('r', '3');
+      c.setAttribute('fill', link.color);
+      g.appendChild(c);
+    });
+
+    svgEl.appendChild(g);
+  });
+}
+
+// ── Pan and Zoom ──
+function applyTransform() {
+  canvas.style.transform=`translate(${panX}px,${panY}px) scale(${scale})`;
+  document.getElementById('zoomVal').textContent=Math.round(scale*100)+'%';
+}
+function zoomIn()  { scale=Math.min(scale*1.15,3); applyTransform(); drawWires(); }
+function zoomOut() { scale=Math.max(scale/1.15,.2); applyTransform(); drawWires(); }
+function resetView(){ scale=0.85; panX=40; panY=20; applyTransform(); drawWires(); }
+function fitAll(){
+  scale=0.72; panX=60; panY=15; applyTransform(); drawWires();
+}
+
+wrap.addEventListener('wheel', e=>{
+  if (e.ctrlKey) {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    const rect = wrap.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    panX = (panX - mx) * delta + mx;
+    panY = (panY - my) * delta + my;
+    scale = Math.min(Math.max(scale * delta, .2), 3);
+    applyTransform();
+    drawWires();
+  }
+  // Otherwise, default scrolling (wheel scroll to scroll page/canvas-wrap) is allowed
+},{passive:false});
+
+wrap.addEventListener('mousedown', e=>{
+  if(e.button===1 || (e.button===0 && !dragEl)){
+    isPanning=true; lastPX=e.clientX; lastPY=e.clientY;
+    wrap.classList.add('panning');
+  }
+});
+
+document.addEventListener('mousemove', e=>{
+  if(isPanning){
+    panX += e.clientX - lastPX;
+    panY += e.clientY - lastPY;
+    lastPX = e.clientX;
+    lastPY = e.clientY;
+    applyTransform();
+  }
+  if(dragEl){
+    const nx = (e.clientX - panX)/scale - dragOX;
+    const ny = (e.clientY - panY)/scale - dragOY;
+    dragEl.style.left = Math.max(0, nx)+'px';
+    dragEl.style.top  = Math.max(0, ny)+'px';
+    drawWires();
+  }
+});
+
+document.addEventListener('mouseup', ()=>{
+  isPanning=false; wrap.classList.remove('panning');
+  if(dragEl){ dragEl.classList.remove('dragging'); dragEl=null; }
+});
+
+// Render first draw on timeout window load
+window.addEventListener('load', ()=>{
+  setTimeout(()=>{
+    fitAll();
+    drawWires();
+  }, 150);
+});
+</script>
+</body>
+</html>

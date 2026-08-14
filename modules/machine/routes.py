@@ -288,10 +288,11 @@ def delete_efficiency(mid, eid):
 def search_machines():
     q = request.args.get("q","").strip()
     rows = db.session.execute(db.text(
-        "SELECT id,machine_code,machine_name,machine_type,current_status FROM machine.machines "
-        "WHERE (tenant_id=:tid OR tenant_id='' OR tenant_id IS NULL) AND is_deleted=false "
-        + ("AND (LOWER(machine_name) LIKE LOWER(:q) OR LOWER(machine_code) LIKE LOWER(:q)) " if q else "")
-        + "ORDER BY machine_name LIMIT 30"
-    ), {"tid": _tid(), **( {"q": f"%{q}%"} if q else {})}).fetchall()
+        "SELECT m.id,m.machine_code,m.machine_name,m.machine_type,m.current_status,s.station_name "
+        "FROM machine.machines m LEFT JOIN machine.stations s ON m.station_id=s.id "
+        "WHERE (m.tenant_id=:tid OR m.tenant_id='' OR m.tenant_id IS NULL) AND m.is_deleted=false "
+        + ("AND (LOWER(m.machine_name) LIKE LOWER(:q) OR LOWER(m.machine_code) LIKE LOWER(:q)) " if q else "")
+        + "ORDER BY m.machine_name LIMIT 30"
+    ), {"tid": _tid(), **({"q": f"%{q}%"} if q else {})}).fetchall()
     return {"success": True, "data": [{"id": str(r[0]),"machine_code": r[1],"machine_name": r[2],
-        "machine_type": r[3] or "","current_status": r[4] or "active"} for r in rows]}
+        "machine_type": r[3] or "","current_status": r[4] or "active","station_name": r[5] or ""} for r in rows]}

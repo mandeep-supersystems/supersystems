@@ -10,7 +10,7 @@ security_bp = Blueprint("security", __name__)
 MODULES = [
     {"code": "part_management", "name": "Part Management", "icon": "settings_input_component"},
     {"code": "auth_security", "name": "Auth & Security", "icon": "security"},
-    {"code": "rm_management", "name": "RM Management", "icon": "science"},
+    {"code": "rm_management", "name": "Raw Material Management", "icon": "science"},
     {"code": "machine_management", "name": "Machine Management", "icon": "precision_manufacturing"},
     {"code": "workflow_costing", "name": "Workflow & Costing", "icon": "account_tree"},
     {"code": "inventory", "name": "Inventory Management", "icon": "inventory_2"},
@@ -31,11 +31,14 @@ MODULES = [
     {"code": "customer_service", "name": "Customer Service", "icon": "support_agent"},
     {"code": "governance", "name": "Governance & Risk", "icon": "shield"},
     {"code": "ehs", "name": "EHS", "icon": "health_and_safety"},
+    {"code": "planning", "name": "Planning", "icon": "event_note"},
+    {"code": "purchase", "name": "Purchase Management", "icon": "shopping_cart"},
 ]
 
 # Entities per module (what sections/buttons exist)
 MODULE_ENTITIES = {
     "Part Management": ["categories", "subcategories", "parts", "generate_part_code", "part_mapping", "audit_logs", "obsolete_parts", "user_management"],
+    "Raw Material Management": ["criteria", "rm_master", "rm_part_mapping", "user_management"],
     "Auth & Security": ["users", "roles", "modules", "permissions", "audit_logs"],
     "Inventory Management": ["stock_levels", "stock_movements", "transfers", "adjustments", "counts", "reports"],
     "Procurement": ["requisitions", "purchase_orders", "goods_receipt", "vendor_invoices", "contracts", "reports"],
@@ -44,6 +47,9 @@ MODULE_ENTITIES = {
     "Warehouse Management": ["zones", "bins", "pick_lists", "putaway", "shipping", "receiving", "reports"],
     "Quality Management": ["inspections", "non_conformances", "capa", "quality_plans", "certificates", "reports"],
     "Human Resources": ["employees", "leave", "attendance", "payroll", "recruitment", "performance", "reports"],
+    "Planning": ["overview", "customer_orders", "purchase_requests", "audit_logs", "user_management", "notifications"],
+    "Purchase Management": ["overview", "suppliers", "pr_inbox", "buy_material", "purchase_orders", "audit_logs", "module_users"],
+    "Supplier Management": ["overview", "suppliers", "evaluations", "contracts", "performance", "user_management"],
 }
 
 # Actions available for each entity
@@ -588,9 +594,8 @@ def get_user_module_access():
         "SELECT module, role FROM iam.module_access WHERE is_active = true AND user_id = :uid ORDER BY module"
     ), {"uid": resolved_uid}).fetchall()
 
-    # If user has no module_access rows at all, show all (owner/admin with no restrictions)
     if not rows:
-        return {"success": True, "data": [], "show_all": True}
+        return {"success": True, "data": [], "show_all": False}
 
     return {"success": True, "data": [{"module": r[0], "role": r[1]} for r in rows], "show_all": False}
 

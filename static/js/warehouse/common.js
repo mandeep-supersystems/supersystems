@@ -17,13 +17,12 @@ function showSection(sectionId) {
     if (linkEl) linkEl.classList.add('active');
 
     if (sectionId === 'overview') loadOverviewStats();
-    else if (sectionId === 'zones') loadZones();
     else if (sectionId === 'bins') loadBins();
-    else if (sectionId === 'picklists') loadPickLists();
-    else if (sectionId === 'putaway') loadPutawayTasks();
-    else if (sectionId === 'receiving') loadReceipts();
+    else if (sectionId === 'bin-capacity') loadBinCapacity();
     else if (sectionId === 'packing') loadPacking();
     else if (sectionId === 'shipping') loadShipping();
+    else if (sectionId === 'batches') loadBatches();
+    else if (sectionId === 'serials') loadSerials();
     else if (sectionId === 'auditlogs') loadAuditLogs();
     else if (sectionId === 'moduleusers') loadModuleUsers();
 }

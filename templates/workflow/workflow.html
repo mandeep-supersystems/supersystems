@@ -2,6 +2,7 @@
 <html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Workflow & Costing - SUPERSYSTEMS</title>
     <link rel="stylesheet" href="/static/css/header.css">
@@ -29,6 +30,7 @@
         </div>
     </div>
     <div class="header-right">
+        <button class="header-icon-btn" title="Notifications"><span class="material-icons-outlined">notifications</span></button>
         <button class="header-icon-btn theme-toggle" onclick="toggleTheme()">
             <span class="material-icons-outlined icon-light">dark_mode</span>
             <span class="material-icons-outlined icon-dark">light_mode</span>
@@ -63,6 +65,7 @@
             <a href="/" class="sidebar-link"><span class="material-icons-outlined">arrow_back</span>Home</a>
             <div class="sidebar-divider"></div>
             <button class="sidebar-link active" data-sec="routings" onclick="showSec('routings')"><span class="material-icons-outlined">route</span>Process Routings</button>
+            <a href="/workflow/processes" class="sidebar-link"><span class="material-icons-outlined">category</span>All Processes</a>
             <a href="/machine" class="sidebar-link"><span class="material-icons-outlined">memory</span>Machines ↗</a>
         </nav>
     </aside>

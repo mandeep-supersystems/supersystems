@@ -10,6 +10,11 @@ const PART_ENTITIES = [
     { id: 'parts',              label: 'Parts (Generate)' },
     { id: 'generate_part_code', label: 'Generate Part Code' },
     { id: 'part_mapping',       label: 'Part Mapping' },
+    { id: 'part_attributes',    label: 'Part Details: Attributes' },
+    { id: 'part_pos',           label: 'Part Details: Purchase Orders' },
+    { id: 'part_custpos',       label: 'Part Details: Customer POs' },
+    { id: 'part_mappings',      label: 'Part Details: Mappings' },
+    { id: 'part_rm_mappings',   label: 'Part Details: RM Mappings' },
     { id: 'obsolete_parts',     label: 'Obsolete Parts' },
     { id: 'audit_logs',         label: 'Audit Logs' },
     { id: 'user_management',    label: 'User Management' }
@@ -34,11 +39,14 @@ function collectPermissions(containerId) { const perms = {}; document.getElement
 function onMuRoleChange() { const role = document.getElementById('muRole').value; renderSectionCheckboxes('muSectionCheckboxes', ROLE_DEFAULT_SECTIONS[role] || []); renderPermMatrix('muPermMatrix', ROLE_DEFAULT_PERMS[role]()); }
 function onEmuRoleChange() { const role = document.getElementById('emuRole').value; renderSectionCheckboxes('emuSectionCheckboxes', ROLE_DEFAULT_SECTIONS[role] || []); renderPermMatrix('emuPermMatrix', ROLE_DEFAULT_PERMS[role]()); }
 
+let allModuleUsers = [];
+
 async function loadModuleUsers() {
     const tbody = document.getElementById('moduleUsersBody');
     try {
         const res = await fetch(API + '/users', { headers: HEADERS });
         const data = await res.json();
+        allModuleUsers = data.success ? data.data : [];
         if (!data.success || !data.data || data.data.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="empty">No users assigned yet.</td></tr>'; return; }
         tbody.innerHTML = data.data.map(u => {
             const name = (u.first_name + ' ' + u.last_name).trim() || u.email;
@@ -55,6 +63,8 @@ async function loadModuleUsers() {
 async function openAddUserModal() {
     document.getElementById('muUserSearch').value = ''; document.getElementById('muUserSelect').value = '';
     document.getElementById('muUserResults').innerHTML = ''; document.getElementById('muUserSelected').style.display = 'none';
+    const notice = document.getElementById('muUserWarningNotice');
+    if (notice) { notice.style.display = 'none'; notice.innerHTML = ''; }
     document.getElementById('muRole').value = 'viewer'; onMuRoleChange(); partOpenModal('addModuleUserModal');
 }
 
@@ -71,12 +81,42 @@ async function searchEmployeesForPart(query) {
 
 function selectEmployeeForPart(empId, label) {
     fetch('/api/v1/security/import-employee', { method: 'POST', headers: HEADERS, body: JSON.stringify({ employee_id: empId }) }).then(r => r.json()).then(data => {
-        if (data.success) { document.getElementById('muUserSelect').value = data.data.id; document.getElementById('muUserSearch').value = ''; document.getElementById('muUserResults').innerHTML = ''; document.getElementById('muUserSelLabel').textContent = label; document.getElementById('muUserSelected').style.display = 'flex'; }
+        if (data.success) {
+            document.getElementById('muUserSelect').value = data.data.id;
+            document.getElementById('muUserSearch').value = '';
+            document.getElementById('muUserResults').innerHTML = '';
+            document.getElementById('muUserSelLabel').textContent = label;
+            document.getElementById('muUserSelected').style.display = 'flex';
+            
+            // Check if this user already has access to this module
+            const existing = allModuleUsers.find(u => u.email === data.data.email || u.user_id === data.data.id);
+            const notice = document.getElementById('muUserWarningNotice');
+            if (notice) {
+                if (existing) {
+                    const roleLabel = existing.role === 'module_admin' ? 'Module Admin' : existing.role === 'editor' ? 'Editor' : 'Viewer';
+                    notice.innerHTML = `<div style="font-size:12px;color:#e65100;background:#fff3e0;padding:8px 12px;border-radius:6px;margin-top:6px;border-left:4px solid #f57c00;line-height:1.4">
+                        ⚠️ <strong>Already Has Access</strong>: This user already has access to Part Management as <strong>${roleLabel}</strong>.
+                    </div>`;
+                    notice.style.display = 'block';
+                } else {
+                    notice.style.display = 'none';
+                    notice.innerHTML = '';
+                }
+            }
+        }
         else { showToast(data.message || 'Failed', 'error'); }
     });
 }
 
-function clearMuUser() { document.getElementById('muUserSelect').value = ''; document.getElementById('muUserSelected').style.display = 'none'; }
+function clearMuUser() {
+    document.getElementById('muUserSelect').value = '';
+    document.getElementById('muUserSelected').style.display = 'none';
+    const notice = document.getElementById('muUserWarningNotice');
+    if (notice) {
+        notice.style.display = 'none';
+        notice.innerHTML = '';
+    }
+}
 
 async function saveModuleUser(e) {
     e.preventDefault();
@@ -126,14 +166,3 @@ function revokeModuleUser(accessId, email) {
     partOpenModal('deleteConfirmModal');
 }
 
-// ─── EXPORT / IMPORT ───
-let importTarget = '';
-function exportData(section) {
-    let csv = '', filename = '';
-    if (section === 'categories') { if (!categories.length) { showToast('No data', 'error'); return; } csv = 'Name,Code,Series Prefix,Description\n' + categories.map(c => `"${c.name}","${c.code||''}","${c.series_prefix}","${c.description||''}"`).join('\n'); filename = 'categories_export.csv'; }
-    else if (section === 'subcategories') { if (!subcategories.length) { showToast('No data', 'error'); return; } csv = 'Name,Code,Category,Series Prefix,Parts,Columns\n' + subcategories.map(s => `"${s.name}","${s.code||''}","${s.category_name||''}","${s.series_prefix}","${s.current_sequence||0}","${parseCols(s.columns_config).map(c=>c.name).join('; ')}"`).join('\n'); filename = 'subcategories_export.csv'; }
-    if (csv) { const blob = new Blob([csv], { type: 'text/csv' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = filename; link.click(); showToast(`Exported ${filename}`); }
-}
-function downloadTemplate(section) { showToast('Template downloaded'); }
-function importData(section) { importTarget = section; document.getElementById('importFileInput').value = ''; document.getElementById('importFileInput').click(); }
-async function handleImportFile(input) { showToast('Import processing...'); }

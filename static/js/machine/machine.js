@@ -76,16 +76,16 @@ function renderMachines(list) {
             <th>Actions</th>
         </tr></thead>
         <tbody>${list.map(m => `
-        <tr>
+        <tr class="mch-row" onclick="openMachinePanel('${m.id}')" style="cursor:pointer;">
             <td><span class="mch-code">${esc(m.machine_code)}</span></td>
             <td><span class="mch-name">${esc(m.machine_name)}</span></td>
             <td>${esc(m.machine_type||'—')}</td>
             <td class="mch-muted">${[m.make, m.model].filter(Boolean).map(esc).join(' · ') || '—'}</td>
-            <td class="mch-muted">${esc(m.station_name||'—')}</td>
+            <td class="mch-muted">${m.station_name ? `<span class="mch-station-pill">${esc(m.station_name)}</span>` : '<span style="color:var(--text-muted);font-size:12px;">— Unassigned —</span>'}</td>
             <td class="right mch-muted">${m.power_rating_kw ? fmtN(m.power_rating_kw) : '—'}</td>
             <td class="right"><span class="mch-mhr">₹${fmtN(m.mhr)}</span></td>
             <td>${statusBadge(m.current_status||'active')}</td>
-            <td><div class="actions-cell">
+            <td><div class="actions-cell" onclick="event.stopPropagation()">
                 <button class="btn-action" title="Edit" onclick="editMachine('${m.id}')"><span class="material-icons-outlined">edit</span></button>
                 <button class="btn-action" title="Efficiency" onclick="openEffModal('${m.id}')"><span class="material-icons-outlined">speed</span></button>
                 <button class="btn-action btn-danger" title="Delete" onclick="confirmDelete('machine','${m.id}','${esc(m.machine_name)}')"><span class="material-icons-outlined">delete</span></button>
@@ -190,6 +190,205 @@ async function saveMachine(e) {
     const data = await res.json();
     if (data.success) { closeM('machineModal'); toast(id ? 'Machine updated' : 'Machine created'); loadMachines(); }
     else toast(data.message || 'Error', 'error');
+}
+
+// ── MACHINE SLIDE-OVER PANEL ──
+async function openMachinePanel(id) {
+    const panel = document.getElementById('machinePanel');
+    const overlay = document.getElementById('machinePanelOverlay');
+    const content = document.getElementById('machinePanelContent');
+    content.innerHTML = `<div style="padding:48px;text-align:center;color:var(--text-muted);">
+        <span class="material-icons-outlined" style="font-size:36px;display:block;margin-bottom:8px;animation:mch-spin 1s linear infinite;">autorenew</span>
+        Loading machine details…</div>`;
+    panel.classList.add('active');
+    overlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+    try {
+        const res = await fetch(`${API}/machines/${id}`, { headers: getH() });
+        const data = await res.json();
+        if (!data.success) { content.innerHTML = `<div style="padding:40px;text-align:center;color:red;">${data.message}</div>`; return; }
+        renderMachinePanel(data.data);
+    } catch(e) {
+        content.innerHTML = '<div style="padding:40px;text-align:center;color:red;">Error loading machine.</div>';
+    }
+}
+
+function closeMachinePanel() {
+    document.getElementById('machinePanel').classList.remove('active');
+    document.getElementById('machinePanelOverlay').classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+function renderMachinePanel(m) {
+    const b = m.mhr_breakdown || {};
+    const statusMap = { active: ['#388e3c','verified'], under_maintenance: ['#f57c00','build'], retired: ['#9e9e9e','archive'] };
+    const [sColor, sIcon] = statusMap[m.current_status] || ['#388e3c','verified'];
+    const stationOptions = allStations.map(s =>
+        `<option value="${s.id}" ${m.station_id === s.id ? 'selected' : ''}>${esc(s.station_name)}</option>`
+    ).join('');
+
+    // MHR bar segments
+    const mhrTotal = b.mhr || 0;
+    const segments = [
+        { label: 'Depreciation', val: b.depreciation_per_hour || 0, color: '#1976d2' },
+        { label: 'Power',        val: b.power_per_hour || 0,        color: '#f57c00' },
+        { label: 'Maintenance',  val: b.maintenance_per_hour || 0,  color: '#7b1fa2' },
+        { label: 'Operator',     val: b.operator_per_hour || 0,     color: '#388e3c' },
+        { label: 'Overhead',     val: b.overhead_per_hour || 0,     color: '#c62828' },
+    ];
+    const barHtml = mhrTotal > 0 ? segments.filter(s => s.val > 0).map(s =>
+        `<div title="${s.label}: ₹${fmtN(s.val)}/hr" style="height:100%;width:${(s.val/mhrTotal*100).toFixed(1)}%;background:${s.color};transition:width .4s;"></div>`
+    ).join('') : '';
+    const legendHtml = segments.filter(s => s.val > 0).map(s =>
+        `<div style="display:flex;align-items:center;gap:5px;font-size:11px;">
+            <span style="width:10px;height:10px;border-radius:2px;background:${s.color};flex-shrink:0;"></span>
+            <span style="color:var(--text-muted);">${s.label}</span>
+            <span style="font-weight:600;margin-left:auto;">₹${fmtN(s.val)}</span>
+        </div>`
+    ).join('');
+
+    // Efficiency history
+    const effHtml = m.efficiency_history && m.efficiency_history.length
+        ? m.efficiency_history.slice(0,5).map(e => {
+            const oee = parseFloat(e.oee_pct || 0);
+            const oeeColor = oee >= 85 ? '#388e3c' : oee >= 60 ? '#f57c00' : '#c62828';
+            return `<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border-color);">
+                <div style="flex:1;">
+                    <div style="font-size:12px;font-weight:600;">${esc(e.period||'—')}</div>
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">A:${e.availability_pct}% · P:${e.performance_pct}% · Q:${e.quality_pct}%</div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-size:16px;font-weight:700;color:${oeeColor};">${oee}%</div>
+                    <div style="font-size:10px;color:var(--text-muted);">OEE</div>
+                </div>
+            </div>`;
+        }).join('')
+        : '<div style="padding:12px 0;text-align:center;color:var(--text-muted);font-size:12px;">No efficiency records</div>';
+
+    document.getElementById('machinePanelContent').innerHTML = `
+    <div style="padding:20px;">
+
+        <!-- HEADER -->
+        <div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:20px;">
+            <div style="width:48px;height:48px;border-radius:12px;background:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <span class="material-icons-outlined" style="color:#fff;font-size:24px;">precision_manufacturing</span>
+            </div>
+            <div style="flex:1;min-width:0;">
+                <div style="font-size:18px;font-weight:700;font-family:monospace;color:var(--accent);">${esc(m.machine_code)}</div>
+                <div style="font-size:14px;font-weight:600;color:var(--text-primary);margin-top:2px;">${esc(m.machine_name)}</div>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap;">
+                    ${m.machine_type ? `<span style="font-size:11px;padding:2px 8px;border-radius:4px;background:var(--bg-secondary);border:1px solid var(--border-color);color:var(--text-secondary);">${esc(m.machine_type)}</span>` : ''}
+                    <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:${sColor}18;color:${sColor};font-weight:600;">
+                        <span class="material-icons-outlined" style="font-size:11px;vertical-align:middle;">${sIcon}</span>
+                        ${m.current_status?.replace('_',' ') || 'active'}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- QUICK STATS -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;">
+            <div style="background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:8px;padding:12px;text-align:center;">
+                <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">MHR</div>
+                <div style="font-size:20px;font-weight:800;color:var(--accent);">₹${fmtN(b.mhr||0)}</div>
+                <div style="font-size:10px;color:var(--text-muted);">per hour</div>
+            </div>
+            <div style="background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:8px;padding:12px;text-align:center;">
+                <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Working Hrs</div>
+                <div style="font-size:20px;font-weight:800;color:var(--text-primary);">${fmtN(b.working_hours_year||0)}</div>
+                <div style="font-size:10px;color:var(--text-muted);">hrs / year</div>
+            </div>
+            <div style="background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:8px;padding:12px;text-align:center;">
+                <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Power</div>
+                <div style="font-size:20px;font-weight:800;color:var(--text-primary);">${m.power_rating_kw ? fmtN(m.power_rating_kw) : '—'}</div>
+                <div style="font-size:10px;color:var(--text-muted);">kW</div>
+            </div>
+        </div>
+
+        <!-- MHR BREAKDOWN BAR -->
+        <div style="margin-bottom:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <span style="font-size:12px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.04em;">MHR Breakdown</span>
+                <span style="font-size:14px;font-weight:700;color:var(--accent);">₹${fmtN(mhrTotal)}/hr</span>
+            </div>
+            <div style="height:10px;border-radius:5px;overflow:hidden;background:var(--border-color);display:flex;margin-bottom:10px;">${barHtml}</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;">${legendHtml}</div>
+        </div>
+
+        <!-- STATION ASSIGN -->
+        <div style="background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:8px;padding:14px;margin-bottom:20px;">
+            <div style="font-size:12px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;">Station Assignment</div>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <span class="material-icons-outlined" style="font-size:18px;color:var(--accent);">location_on</span>
+                <select id="panelStationSelect" style="flex:1;padding:8px 10px;border:1px solid var(--border-color);border-radius:7px;font-size:13px;background:var(--bg-primary);color:var(--text-primary);outline:none;">
+                    <option value="">— Unassigned —</option>
+                    ${stationOptions}
+                </select>
+                <button onclick="assignStationFromPanel('${m.id}')" style="padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap;">
+                    <span class="material-icons-outlined" style="font-size:15px;">check</span> Assign
+                </button>
+            </div>
+        </div>
+
+        <!-- DETAILS GRID -->
+        <div style="margin-bottom:20px;">
+            <div style="font-size:12px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;">Machine Details</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                ${[
+                    ['Make', m.make], ['Model', m.model],
+                    ['Purchase Cost', m.purchase_cost ? '₹' + fmtN(m.purchase_cost) : null],
+                    ['Buying Date', m.buying_date ? m.buying_date.slice(0,10) : null],
+                    ['Vendor', m.vendor], ['Invoice Ref', m.invoice_ref],
+                    ['Installation', m.installation_date ? m.installation_date.slice(0,10) : null],
+                    ['Warranty Expiry', m.warranty_expiry ? m.warranty_expiry.slice(0,10) : null],
+                    ['AMC Expiry', m.amc_expiry ? m.amc_expiry.slice(0,10) : null],
+                    ['Dep. Life', m.depreciation_life_years ? m.depreciation_life_years + ' yrs' : null],
+                    ['Residual Value', m.residual_value ? '₹' + fmtN(m.residual_value) : null],
+                    ['Rated Capacity', m.rated_capacity],
+                ].filter(([,v]) => v).map(([k,v]) =>
+                    `<div style="background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:6px;padding:8px 10px;">
+                        <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;">${k}</div>
+                        <div style="font-size:13px;font-weight:600;margin-top:2px;">${esc(String(v))}</div>
+                    </div>`
+                ).join('')}
+            </div>
+        </div>
+
+        <!-- EFFICIENCY HISTORY -->
+        <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                <span style="font-size:12px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.04em;">OEE / Efficiency</span>
+                <button onclick="event.stopPropagation();closeMachinePanel();openEffModal('${m.id}')" style="font-size:11px;color:var(--accent);background:none;border:1px solid var(--border-color);border-radius:5px;padding:3px 8px;cursor:pointer;">+ Add Record</button>
+            </div>
+            ${effHtml}
+        </div>
+
+        <!-- FOOTER ACTIONS -->
+        <div style="display:flex;gap:8px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border-color);">
+            <button onclick="closeMachinePanel();editMachine('${m.id}')" style="flex:1;padding:9px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+                <span class="material-icons-outlined" style="font-size:16px;">edit</span> Edit Machine
+            </button>
+            <button onclick="closeMachinePanel();confirmDelete('machine','${m.id}','${esc(m.machine_name)}')" style="padding:9px 14px;background:none;color:#e53935;border:1px solid rgba(229,57,53,.3);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;">
+                <span class="material-icons-outlined" style="font-size:16px;">delete</span>
+            </button>
+        </div>
+
+    </div>`;
+}
+
+async function assignStationFromPanel(machineId) {
+    const stationId = document.getElementById('panelStationSelect').value || null;
+    const res = await fetch(`${API}/machines/${machineId}`, {
+        method: 'PUT', headers: getH(),
+        body: JSON.stringify({ station_id: stationId })
+    });
+    const data = await res.json();
+    if (data.success) {
+        toast(stationId ? 'Station assigned' : 'Station unassigned');
+        loadMachines();
+        // refresh panel
+        openMachinePanel(machineId);
+    } else toast(data.message || 'Error', 'error');
 }
 
 // ── STATIONS ──

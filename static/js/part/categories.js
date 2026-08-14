@@ -81,3 +81,13 @@ async function deleteCategory(id, name) {
     document.getElementById('deleteError').style.display = 'none';
     partOpenModal('deleteConfirmModal');
 }
+
+function filterCategoriesTable(query) {
+    const q = query.toLowerCase().trim();
+    const rows = document.querySelectorAll('#categoriesTableBody tr');
+    rows.forEach(row => {
+        if (row.querySelector('.empty')) return;
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(q) ? '' : 'none';
+    });
+}

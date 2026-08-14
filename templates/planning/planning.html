@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planning - SUPERSYSTEMS</title>
+    <link rel="stylesheet" href="/static/css/header.css">
+    <link rel="stylesheet" href="/static/css/planning/planning.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+</head>
+<body>
+
+<header class="header">
+    <div class="header-left">
+        <div class="logo">
+            <img class="logo-light" src="/static/img/light_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <span class="logo-text">SUPERSYSTEMS</span>
+        </div>
+        <div class="nav-item services-trigger" onclick="toggleServices()">
+            <span class="material-icons-outlined">apps</span><span>Services</span>
+            <span class="material-icons-outlined arrow">expand_more</span>
+        </div>
+    </div>
+    <div class="header-center">
+        <div class="search-box">
+            <span class="material-icons-outlined">search</span>
+            <input type="text" placeholder="Search..." id="globalSearch" oninput="handleSearch(this.value)">
+            <div class="search-results" id="searchResults"></div>
+        </div>
+    </div>
+    <div class="header-right">
+        <button class="header-icon-btn" title="Notifications"><span class="material-icons-outlined">notifications</span></button>
+        <button class="header-icon-btn theme-toggle" onclick="toggleTheme()">
+            <span class="material-icons-outlined icon-light">dark_mode</span>
+            <span class="material-icons-outlined icon-dark">light_mode</span>
+        </button>
+        <div class="user-menu" id="userMenu">
+            <div class="user-avatar" onclick="toggleUserMenu()"><span class="material-icons-outlined">person</span></div>
+            <div class="user-dropdown" id="userDropdown">
+                <a href="#" onclick="logout()"><span class="material-icons-outlined">logout</span>Logout</a>
+            </div>
+        </div>
+    </div>
+</header>
+
+<div class="services-panel" id="servicesPanel">
+    <div class="services-panel-header">
+        <h3>All Services</h3>
+        <button class="close-btn" onclick="toggleServices()"><span class="material-icons-outlined">close</span></button>
+    </div>
+    <div class="services-grid" id="servicesGrid"></div>
+</div>
+<div class="overlay" id="overlay" onclick="toggleServices()"></div>
+
+<div class="pl-layout">
+    <aside class="pl-sidebar">
+        <div class="sidebar-header">
+            <span class="material-icons-outlined">event_note</span>
+            <h3>Planning</h3>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/" class="sidebar-link"><span class="material-icons-outlined">arrow_back</span>Home</a>
+            <div class="sidebar-divider"></div>
+            <a class="sidebar-link" href="/planning#overview" data-section="overview">
+                <span class="material-icons-outlined">dashboard</span>Overview
+            </a>
+            <a class="sidebar-link" href="/planning#customer-orders" data-section="customer-orders">
+                <span class="material-icons-outlined">shopping_bag</span>Generate PR
+            </a>
+            <a class="sidebar-link" href="/planning#purchase-requests" data-section="purchase-requests">
+                <span class="material-icons-outlined">add_shopping_cart</span>Purchase Requests
+            </a>
+            <a class="sidebar-link" href="/planning#history" data-section="history">
+                <span class="material-icons-outlined">history</span>History
+            </a>
+            <a class="sidebar-link" href="/planning#auditlogs" data-section="auditlogs">
+                <span class="material-icons-outlined">manage_search</span>Audit Logs
+            </a>
+            <a class="sidebar-link" href="/planning#moduleusers" data-section="moduleusers">
+                <span class="material-icons-outlined">people</span>User Management
+            </a>
+            <div class="sidebar-divider"></div>
+            <a class="sidebar-link" href="/planning#notifications" data-section="notifications">
+                <span class="material-icons-outlined">notifications</span>Notifications
+                <span class="notif-badge" id="notif-count-badge" style="display:none">0</span>
+            </a>
+            <div class="sidebar-divider"></div>
+            <div style="padding:8px 20px 4px;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text-secondary);letter-spacing:.5px;">Other Modules</div>
+            <a class="sidebar-link" href="/purchase#pr-inbox"><span class="material-icons-outlined">shopping_bag</span>Purchaser</a>
+            <a class="sidebar-link" href="/logistics#grn"><span class="material-icons-outlined">local_shipping</span>Logistics</a>
+            <a class="sidebar-link" href="/quality#iqc"><span class="material-icons-outlined">verified</span>IQC / Quality</a>
+        </nav>
+    </aside>
+
+    <main class="pl-content">
+
+        <!-- OVERVIEW -->
+        <section class="content-section" id="sec-overview">
+            <div class="section-header">
+                <h2>Planning Overview</h2>
+                <button class="btn-outline" onclick="loadOverview()"><span class="material-icons-outlined">refresh</span> Refresh</button>
+            </div>
+
+            <!-- Flow Tracker -->
+            <div class="table-card" style="margin-bottom:20px;">
+                <div class="table-card-header">Supply Chain Flow</div>
+                <div style="padding:20px;">
+                    <div class="flow-track">
+                        <div class="flow-step active">
+                            <div class="flow-step-icon"><span class="material-icons-outlined">event_note</span></div>
+                            <div class="flow-step-label">Planning<br>Demand + PR</div>
+                        </div>
+                        <div class="flow-connector"></div>
+                        <div class="flow-step">
+                            <div class="flow-step-icon"><span class="material-icons-outlined">shopping_bag</span></div>
+                            <div class="flow-step-label">Purchaser<br>Review + PO</div>
+                        </div>
+                        <div class="flow-connector"></div>
+                        <div class="flow-step">
+                            <div class="flow-step-icon"><span class="material-icons-outlined">storefront</span></div>
+                            <div class="flow-step-label">Supplier<br>Acknowledge</div>
+                        </div>
+                        <div class="flow-connector"></div>
+                        <div class="flow-step">
+                            <div class="flow-step-icon"><span class="material-icons-outlined">local_shipping</span></div>
+                            <div class="flow-step-label">Logistics<br>GRN + Verify</div>
+                        </div>
+                        <div class="flow-connector"></div>
+                        <div class="flow-step">
+                            <div class="flow-step-icon"><span class="material-icons-outlined">verified</span></div>
+                            <div class="flow-step-label">IQC<br>Inspect</div>
+                        </div>
+                        <div class="flow-connector"></div>
+                        <div class="flow-step">
+                            <div class="flow-step-icon"><span class="material-icons-outlined">inventory</span></div>
+                            <div class="flow-step-label">Inventory<br>Stock In</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="kpi-grid">
+                <div class="kpi-card kpi-blue"><div class="kpi-icon"><span class="material-icons-outlined">shopping_bag</span></div><div><div class="kpi-value" id="kpi-co-lines">—</div><div class="kpi-label">Total Order Lines</div></div></div>
+                <div class="kpi-card kpi-orange"><div class="kpi-icon"><span class="material-icons-outlined">error_outline</span></div><div><div class="kpi-value" id="kpi-co-needs-pr">—</div><div class="kpi-label">Lines Needing PR</div></div></div>
+                <div class="kpi-card kpi-blue"><div class="kpi-icon"><span class="material-icons-outlined">add_shopping_cart</span></div><div><div class="kpi-value" id="kpi-prs">—</div><div class="kpi-label">Total PRs</div></div></div>
+                <div class="kpi-card kpi-orange"><div class="kpi-icon"><span class="material-icons-outlined">edit_note</span></div><div><div class="kpi-value" id="kpi-pending-prs">—</div><div class="kpi-label">Draft PRs</div></div></div>
+                <div class="kpi-card kpi-green"><div class="kpi-icon"><span class="material-icons-outlined">send</span></div><div><div class="kpi-value" id="kpi-sent">—</div><div class="kpi-label">Sent to Purchaser</div></div></div>
+                <div class="kpi-card kpi-green"><div class="kpi-icon"><span class="material-icons-outlined">check_circle</span></div><div><div class="kpi-value" id="kpi-converted">—</div><div class="kpi-label">Converted (Bought)</div></div></div>
+                <div class="kpi-card kpi-blue"><div class="kpi-icon"><span class="material-icons-outlined">local_shipping</span></div><div><div class="kpi-value" id="kpi-active-pos">—</div><div class="kpi-label">Active POs</div></div></div>
+                <div class="kpi-card kpi-red"><div class="kpi-icon"><span class="material-icons-outlined">schedule</span></div><div><div class="kpi-value" id="kpi-delay-days">—</div><div class="kpi-label">Total Delay Days</div></div></div>
+                <div class="kpi-card kpi-orange"><div class="kpi-icon"><span class="material-icons-outlined">update</span></div><div><div class="kpi-value" id="kpi-rescheduled">—</div><div class="kpi-label">Rescheduled POs</div></div></div>
+                <div class="kpi-card kpi-red"><div class="kpi-icon"><span class="material-icons-outlined">notifications_active</span></div><div><div class="kpi-value" id="kpi-notifs">—</div><div class="kpi-label">Unread Notifications</div></div></div>
+            </div>
+        </section>
+
+        <!-- CUSTOMER ORDERS -->
+        <section class="content-section" id="sec-customer-orders">
+            <div class="section-header">
+                <h2>Generate PR — Procurement Readiness</h2>
+                <div class="section-actions">
+                    <div class="co-filter-tabs" id="coFilterTabs">
+                        <button class="co-tab active" data-filter="all" onclick="filterCOLines('all',this)">All</button>
+                        <button class="co-tab" data-filter="unmapped" onclick="filterCOLines('unmapped',this)">Unmapped</button>
+                        <button class="co-tab" data-filter="needs_pr" onclick="filterCOLines('needs_pr',this)">Needs PR</button>
+                        <button class="co-tab" data-filter="in_stock" onclick="filterCOLines('in_stock',this)">In Stock</button>
+                        <button class="co-tab" data-filter="pr_raised" onclick="filterCOLines('pr_raised',this)">PR Raised</button>
+                    </div>
+                    <button class="btn-outline" onclick="loadCustomerOrders()"><span class="material-icons-outlined">refresh</span></button>
+                </div>
+            </div>
+            <!-- Summary bar -->
+            <div class="co-summary-bar" id="coSummaryBar" style="display:none">
+                <div class="co-sum-item co-sum-total"><span class="co-sum-val" id="coSumTotal">0</span><span class="co-sum-lbl">Total Lines</span></div>
+                <div class="co-sum-item co-sum-unmapped"><span class="co-sum-val" id="coSumUnmapped">0</span><span class="co-sum-lbl">Unmapped</span></div>
+                <div class="co-sum-item co-sum-stock"><span class="co-sum-val" id="coSumStock">0</span><span class="co-sum-lbl">In Stock</span></div>
+                <div class="co-sum-item co-sum-pr"><span class="co-sum-val" id="coSumPR">0</span><span class="co-sum-lbl">Needs PR</span></div>
+                <div class="co-sum-item co-sum-raised"><span class="co-sum-val" id="coSumRaised">0</span><span class="co-sum-lbl">PR Raised</span></div>
+            </div>
+            <div id="coProjectsContainer"><div class="co-empty">Loading...</div></div>
+
+            <!-- Selection bar -->
+            <div class="co-sel-bar" id="coSelBar" style="display:none">
+                <span class="material-icons-outlined" style="color:#fff">check_box</span>
+                <span id="coSelCount" style="font-weight:600;color:#fff">0 lines selected</span>
+                <button class="co-sel-clear" onclick="_coSelected.clear();_coUpdateSelBar();_renderCO()">Clear</button>
+                <button class="co-sel-generate" onclick="openGeneratePR()">
+                    <span class="material-icons-outlined">add_shopping_cart</span> Generate PR
+                </button>
+            </div>
+        </section>
+
+        <!-- GENERATE PR REVIEW -->
+        <section class="content-section" id="sec-generate-pr">
+            <div class="section-header">
+                <div style="display:flex;align-items:center;gap:10px">
+                    <button class="btn-outline" onclick="showSection('customer-orders')" style="padding:6px 10px">
+                        <span class="material-icons-outlined">arrow_back</span>
+                    </button>
+                    <h2>Generate Purchase Requests</h2>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px">
+                    <div class="prr-pr-number-box">
+                        <span class="material-icons-outlined" style="font-size:16px;color:var(--primary)">confirmation_number</span>
+                        PR No: <strong id="prRevNumber">—</strong>
+                        <input type="hidden" id="prRevNumberHidden">
+                    </div>
+                    <button class="btn-primary" id="prRevSubmitBtn" onclick="submitPRReview()">
+                        <span class="material-icons-outlined">send</span> Generate &amp; Send PR
+                    </button>
+                </div>
+            </div>
+
+            <!-- Success banner -->
+            <div class="prr-success" id="prRevSuccess" style="display:none">
+                <span class="material-icons-outlined">check_circle</span>
+                <span id="prRevSuccessMsg"></span>
+            </div>
+
+            <div class="prr-legend">
+                <span class="material-icons-outlined" style="font-size:14px;color:var(--primary)">info</span>
+                For each line: adjust how much to fulfil from existing stock — the PR qty updates automatically. Skip lines you don't need to order.
+            </div>
+
+            <div id="prReviewContainer"></div>
+        </section>
+
+        <!-- PLANNING HISTORY -->
+        <section class="content-section" id="sec-history" style="display:none;">
+            <div class="section-header">
+                <h2>Planning Action History</h2>
+                <button class="btn-outline" onclick="loadPlanningHistory()"><span class="material-icons-outlined">refresh</span> Refresh</button>
+            </div>
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">
+                Historical log of generated Purchase Requests and Demand Plan updates.
+            </div>
+            <div class="card">
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Action</th>
+                                <th>Entity</th>
+                                <th>Details</th>
+                                <th>Triggered By</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="planningHistoryBody">
+                            <tr><td colspan="5" style="text-align:center;">Loading history...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- AUDIT LOGS -->
+        <section class="content-section" id="sec-auditlogs">
+            <div class="section-header">
+                <h2>Planning Audit Logs</h2>
+                <button class="btn-outline" onclick="loadAuditLogs()"><span class="material-icons-outlined">refresh</span> Refresh</button>
+            </div>
+            <div class="table-card">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Action</th>
+                            <th>Entity / ID</th>
+                            <th>User</th>
+                            <th>IP Address</th>
+                            <th>Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody id="auditLogsBody">
+                        <tr><td colspan="5" class="empty">Loading audit logs...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- USER MANAGEMENT -->
+        <section class="content-section" id="sec-moduleusers">
+            <div class="section-header">
+                <h2>Planning User Access Management</h2>
+                <button class="btn-primary" onclick="openAddUserModal()"><span class="material-icons-outlined">person_add</span> Add User Access</button>
+            </div>
+            <div class="table-card">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Role</th>
+                            <th>Allowed Sections</th>
+                            <th>Status</th>
+                            <th>Granted Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="moduleUsersBody">
+                        <tr><td colspan="6" class="empty">Loading user access list...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- PURCHASE REQUESTS -->
+        <section class="content-section" id="sec-purchase-requests">
+            <div class="section-header">
+                <h2>Purchase Requests</h2>
+                <div class="section-actions">
+                    <button class="btn-outline" onclick="loadPRs()"><span class="material-icons-outlined">refresh</span></button>
+                    <button class="btn-primary" onclick="openCreatePRModal()"><span class="material-icons-outlined">add</span> New PR</button>
+                </div>
+            </div>
+            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">Create Purchase Requests and send them to the Purchaser module for PO creation.</p>
+            <div id="pr-body"></div>
+        </section>
+
+        <!-- NOTIFICATIONS -->
+        <section class="content-section" id="sec-notifications">
+            <div class="section-header">
+                <h2>Notifications</h2>
+                <div class="section-actions">
+                    <button class="btn-outline" onclick="loadNotifications();refreshNotifBadge()"><span class="material-icons-outlined">refresh</span></button>
+                    <button class="btn-outline" onclick="markAllRead()"><span class="material-icons-outlined">done_all</span> Mark All Read</button>
+                </div>
+            </div>
+            <div class="table-card">
+                <div class="notif-list" id="notif-list"><div style="padding:32px;text-align:center;color:var(--text-secondary);">Loading...</div></div>
+            </div>
+        </section>
+
+    </main>
+</div>
+
+    <!-- ADD MODULE USER MODAL -->
+    <div class="modal-overlay" id="addModuleUserModal">
+        <div class="modal modal-lg">
+            <div class="modal-header">
+                <h3>Add User Access to Planning</h3>
+                <button class="close-btn" onclick="closeModal('addModuleUserModal')">
+                    <span class="material-icons-outlined">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form onsubmit="saveModuleUser(event)">
+                    <div class="form-group">
+                        <label>Search User (by name, email, or employee code) *</label>
+                        <input type="text" id="muUserSearch" placeholder="Type to search employees..."
+                            oninput="searchEmployeesForModule(this.value)" autocomplete="off">
+                        <input type="hidden" id="muUserSelect">
+                        <div id="muUserResults" class="emp-search-results"></div>
+                        <div id="muUserSelected" class="emp-selected-inline" style="display:none"><span
+                                id="muUserSelLabel"></span><button type="button" class="btn-icon"
+                                onclick="clearMuUser()"><span class="material-icons-outlined">close</span></button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Role *</label>
+                        <select id="muRole" required onchange="onMuRoleChange()">
+                            <option value="viewer">Viewer (View & export only)</option>
+                            <option value="editor">Editor (Create, edit, export, import)</option>
+                            <option value="module_admin">Module Admin (Full control + manage users)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Allowed Sections <span class="form-hint-inline">(sidebar items visible to user)</span></label>
+                        <div class="section-checkboxes" id="muSectionCheckboxes"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Entity Permissions <span class="form-hint-inline">(actions user can perform)</span></label>
+                        <div class="perm-matrix-wrap" id="muPermMatrix"></div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-outline"
+                            onclick="closeModal('addModuleUserModal')">Cancel</button>
+                        <button type="submit" class="btn-primary">Grant Access</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- EDIT MODULE USER MODAL -->
+    <div class="modal-overlay" id="editModuleUserModal">
+        <div class="modal modal-lg">
+            <div class="modal-header">
+                <h3>Edit User Access & Permissions</h3>
+                <button class="close-btn" onclick="closeModal('editModuleUserModal')">
+                    <span class="material-icons-outlined">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form onsubmit="saveEditModuleUser(event)">
+                    <input type="hidden" id="emuAccessId">
+                    <div class="form-group">
+                        <label>User</label>
+                        <div class="form-static" id="emuUserName">-</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Role *</label>
+                        <select id="emuRole" required onchange="onEmuRoleChange()">
+                            <option value="viewer">Viewer</option>
+                            <option value="editor">Editor</option>
+                            <option value="module_admin">Module Admin</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Allowed Sections</label>
+                        <div class="section-checkboxes" id="emuSectionCheckboxes"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Entity Permissions</label>
+                        <div class="perm-matrix-wrap" id="emuPermMatrix"></div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-outline"
+                            onclick="closeModal('editModuleUserModal')">Cancel</button>
+                        <button type="submit" class="btn-primary">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+<!-- PR MODAL -->
+<div class="modal-overlay" id="prModal">
+    <div class="modal modal-lg">
+        <div class="modal-header"><h3>Create Purchase Request</h3><button class="close-btn" onclick="closeModal('prModal')"><span class="material-icons-outlined">close</span></button></div>
+        <div class="modal-body">
+            <form onsubmit="savePR(event)">
+                <input type="hidden" id="pr-plan-id">
+                <div class="form-row">
+                    <div class="form-group"><label>Plan No (if from demand)</label><input type="text" id="pr-plan-no" readonly style="background:var(--bg)"></div>
+                    <div class="form-group"><label>Priority</label>
+                        <select id="pr-priority"><option value="normal">Normal</option><option value="urgent">Urgent</option><option value="low">Low</option></select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Item Code *</label><input type="text" id="pr-item-code" required></div>
+                    <div class="form-group"><label>Required Qty *</label><input type="number" id="pr-qty" required min="0.001" step="any"></div>
+                </div>
+                <div class="form-group"><label>Item Description</label><input type="text" id="pr-desc"></div>
+                <div class="form-row">
+                    <div class="form-group"><label>Suggested Supplier</label><input type="text" id="pr-supplier"></div>
+                    <div class="form-group"><label>Estimated Unit Price</label><input type="number" id="pr-price" min="0" step="any" value="0"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Required Date</label><input type="date" id="pr-date"></div>
+                </div>
+                <div class="form-group"><label>Notes</label><textarea id="pr-notes" rows="2"></textarea></div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('prModal')">Cancel</button>
+                    <button type="submit" class="btn-primary"><span class="material-icons-outlined">send</span> Create PR</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- DECISION MODAL (Manufacture vs Buy) -->
+<div class="modal-overlay" id="decisionModal">
+    <div class="modal-content" style="max-width:700px;">
+        <div class="modal-header">
+            <h3><span class="material-icons-outlined">account_tree</span> Order Planning: Manufacture vs Buy</h3>
+            <button class="close-btn" onclick="closeModal('decisionModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body" id="decisionModalBody">
+            <div id="decisionLoading" style="text-align:center;padding:20px;">Loading BOM Analysis...</div>
+            <div id="decisionContent" style="display:none;">
+                <div style="display:flex;gap:20px;margin-bottom:20px;">
+                    <div style="flex:1;background:var(--bg-secondary);padding:15px;border-radius:6px;border:1px solid var(--border-color);">
+                        <div style="font-size:12px;color:var(--text-secondary);text-transform:uppercase;margin-bottom:5px;">PO Details</div>
+                        <div style="font-size:16px;font-weight:600;margin-bottom:4px;" id="dec-part-number"></div>
+                        <div style="font-size:14px;color:var(--text-secondary);" id="dec-customer"></div>
+                        <div style="font-size:14px;margin-top:10px;">Req Qty: <strong id="dec-qty" style="color:var(--primary-color)"></strong></div>
+                    </div>
+                    <div style="flex:1;background:var(--bg-secondary);padding:15px;border-radius:6px;border:1px solid var(--border-color);">
+                        <div style="font-size:12px;color:var(--text-secondary);text-transform:uppercase;margin-bottom:5px;">BOM Info</div>
+                        <div style="font-size:14px;" id="dec-bom-no"></div>
+                        <div style="font-size:14px;color:var(--text-secondary);" id="dec-bom-yield"></div>
+                        <div style="font-size:14px;margin-top:10px;">Raw Materials Required: <strong id="dec-rm-count"></strong></div>
+                    </div>
+                </div>
+
+                <h4>Raw Material Requirements (Manufacture)</h4>
+                <div class="table-container" style="max-height:250px;overflow-y:auto;border:1px solid var(--border-color);border-radius:4px;margin-bottom:20px;">
+                    <table class="data-table" style="width:100%;border:none;">
+                        <thead style="position:sticky;top:0;background:var(--bg-secondary);">
+                            <tr><th>RM Code</th><th>Description</th><th>Qty/Unit</th><th>Required to order</th></tr>
+                        </thead>
+                        <tbody id="dec-rm-body">
+                            <!-- populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div style="display:flex;gap:15px;justify-content:flex-end;">
+                    <button class="btn-outline" style="border-color:var(--primary-color);color:var(--primary-color);" onclick="executeDecision('buy')">
+                        <span class="material-icons-outlined">shopping_cart</span> Buy Directly (Finished Part)
+                    </button>
+                    <button class="btn-primary" onclick="executeDecision('manufacture')">
+                        <span class="material-icons-outlined">factory</span> Manufacture (Order RM)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/header.js"></script>
+<script>requireAuth();</script>
+<script src="/static/js/planning/planning_main.js"></script>
+<script src="/static/js/planning/purchase_requests.js"></script>
+<script src="/static/js/planning/notifications.js"></script>
+<script src="/static/js/planning/customer_orders.js"></script>
+<script src="/static/js/planning/auditlogs.js"></script>
+<script src="/static/js/planning/history.js"></script>
+<script src="/static/js/planning/moduleusers.js"></script>
+</body>
+</html>

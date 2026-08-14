@@ -152,7 +152,7 @@ def list_employees():
     tenant_id = request.headers.get("X-Tenant-ID", "")
     rows = db.session.execute(db.text(
         "SELECT id, emp_code, first_name, last_name, email, phone, designation, "
-        "department_id, date_of_joining, status, gender, employment_type, work_location, created_at "
+        "department_id as department, date_of_joining, status, gender, employment_type, work_location, created_at "
         "FROM hr.employees WHERE (tenant_id = :tid OR tenant_id = '' OR tenant_id IS NULL) AND is_deleted = false ORDER BY created_at DESC"
     ), {"tid": tenant_id})
     items = [{"id": r[0], "emp_code": r[1], "first_name": r[2], "last_name": r[3] or '',

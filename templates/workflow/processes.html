@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Processes — SUPERSYSTEMS</title>
+    <link rel="stylesheet" href="/static/css/header.css">
+    <link rel="stylesheet" href="/static/css/workflow/workflow.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+</head>
+<body>
+
+<header class="header">
+    <div class="header-left">
+        <div class="logo">
+            <img class="logo-light" src="/static/img/light_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <img class="logo-dark"  src="/static/img/Dark_mode_logo.png"  alt="SUPERSYSTEMS" height="36">
+            <span class="logo-text">SUPERSYSTEMS</span>
+        </div>
+        <div class="nav-item services-trigger" onclick="toggleServices()">
+            <span class="material-icons-outlined">apps</span><span>Services</span>
+            <span class="material-icons-outlined arrow">expand_more</span>
+        </div>
+    </div>
+    <div class="header-center">
+        <div class="search-box">
+            <span class="material-icons-outlined">search</span>
+            <input type="text" placeholder="Search services..." id="globalSearch" oninput="handleSearch(this.value)">
+            <div class="search-results" id="searchResults"></div>
+        </div>
+    </div>
+    <div class="header-right">
+        <button class="header-icon-btn theme-toggle" onclick="toggleTheme()">
+            <span class="material-icons-outlined icon-light">dark_mode</span>
+            <span class="material-icons-outlined icon-dark">light_mode</span>
+        </button>
+        <div class="user-menu" id="userMenu">
+            <div class="user-avatar" onclick="toggleUserMenu()"><span class="material-icons-outlined">person</span></div>
+            <div class="user-dropdown" id="userDropdown">
+                <a href="#" onclick="logout()"><span class="material-icons-outlined">logout</span>Logout</a>
+            </div>
+        </div>
+    </div>
+</header>
+
+<div class="services-panel" id="servicesPanel">
+    <div class="services-panel-header">
+        <h3>All Services</h3>
+        <div style="display:flex;align-items:center;gap:10px">
+            <button class="btn-outline" id="toggleAllServicesBtn" onclick="toggleAllServices()"><span class="material-icons-outlined">unfold_less</span> Collapse All</button>
+            <button class="close-btn" onclick="toggleServices()"><span class="material-icons-outlined">close</span></button>
+        </div>
+    </div>
+    <div class="services-grid" id="servicesGrid"></div>
+</div>
+<div class="overlay" id="overlay" onclick="toggleServices()"></div>
+
+<div class="wf-layout">
+
+    <!-- SIDEBAR -->
+    <aside class="wf-sidebar">
+        <div class="sidebar-header">
+            <span class="material-icons-outlined">account_tree</span>
+            <h3>Workflow & Costing</h3>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/workflow" class="sidebar-link">
+                <span class="material-icons-outlined">arrow_back</span>All Routings
+            </a>
+            <div class="sidebar-divider"></div>
+            <div class="sidebar-section-label">Master Data</div>
+            <a href="/workflow/processes" class="sidebar-link active">
+                <span class="material-icons-outlined">category</span>All Processes
+            </a>
+            <a href="/machine" class="sidebar-link">
+                <span class="material-icons-outlined">memory</span>Machine Master ↗
+            </a>
+        </nav>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="wf-content">
+
+        <!-- PAGE HEADER -->
+        <div class="rd-breadcrumb">
+            <a href="/workflow">Workflow & Costing</a>
+            <span class="material-icons-outlined">chevron_right</span>
+            <span>All Processes</span>
+        </div>
+
+        <div class="proc-page-header">
+            <div class="proc-page-title">
+                <div class="proc-page-icon"><span class="material-icons-outlined">category</span></div>
+                <div>
+                    <div style="font-size:20px;font-weight:700;color:var(--text-primary)">All Processes</div>
+                    <div style="font-size:13px;color:var(--text-secondary);margin-top:2px">Define reusable manufacturing processes with machine assignments</div>
+                </div>
+            </div>
+            <button class="btn-primary" onclick="openNewProcess()">
+                <span class="material-icons-outlined">add</span>New Process
+            </button>
+        </div>
+
+        <!-- SEARCH + STATS BAR -->
+        <div class="proc-toolbar">
+            <div class="proc-search">
+                <span class="material-icons-outlined">search</span>
+                <input type="text" id="procSearch" placeholder="Search by name or code…" oninput="filterProcs(this.value)">
+            </div>
+            <div class="proc-stats" id="procStats"></div>
+        </div>
+
+        <!-- PROCESS GRID -->
+        <div class="proc-grid" id="procGrid">
+            <div class="rd-loading">
+                <span class="material-icons-outlined rd-spin">autorenew</span>
+                <span>Loading processes…</span>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<!-- SLIDE-OVER PANEL -->
+<div class="proc-panel-overlay" id="procPanelOverlay" onclick="closePanel()"></div>
+<div class="proc-panel" id="procPanel">
+    <div class="proc-panel-topbar">
+        <div class="proc-panel-title" id="panelTitle">Process Detail</div>
+        <div style="display:flex;gap:6px;align-items:center">
+            <button class="btn-outline" id="panelEditBtn" onclick="togglePanelEdit()">
+                <span class="material-icons-outlined">edit</span>Edit
+            </button>
+            <button class="close-btn" onclick="closePanel()"><span class="material-icons-outlined">close</span></button>
+        </div>
+    </div>
+
+    <!-- VIEW MODE -->
+    <div id="panelView">
+        <div class="proc-panel-hero" id="panelHero"></div>
+        <div class="proc-panel-body">
+            <div class="rd-detail-section-label">Machines Assigned</div>
+            <div id="panelMachines"></div>
+            <button class="btn-primary" style="margin-top:14px" onclick="openAddMachine()">
+                <span class="material-icons-outlined">add</span>Add Machine
+            </button>
+        </div>
+    </div>
+
+    <!-- EDIT MODE -->
+    <div id="panelEdit" style="display:none">
+        <div class="proc-panel-body">
+            <form onsubmit="saveProcess(event)">
+                <div class="form-group">
+                    <label>Process Code</label>
+                    <input type="text" id="editCode" placeholder="e.g. PRC-001">
+                </div>
+                <div class="form-group">
+                    <label>Process Name *</label>
+                    <input type="text" id="editName" required placeholder="e.g. CNC Turning">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="editDesc" rows="3" placeholder="What this process involves…"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="togglePanelEdit()">Cancel</button>
+                    <button type="submit" class="btn-primary"><span class="material-icons-outlined">check</span>Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- NEW PROCESS MODAL -->
+<div class="modal-overlay" id="newProcModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3>New Process</h3>
+            <button class="close-btn" onclick="closeM('newProcModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="createProcess(event)">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Process Code <span style="color:var(--text-muted);font-weight:400">(auto-generated if blank)</span></label>
+                        <input type="text" id="newCode" placeholder="PRC-001">
+                    </div>
+                    <div class="form-group">
+                        <label>Process Name *</label>
+                        <input type="text" id="newName" required placeholder="e.g. CNC Turning">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="newDesc" rows="3" placeholder="Describe what this process involves…"></textarea>
+                </div>
+
+                <!-- Inline machine assignment -->
+                <div class="form-group" style="margin-top:4px">
+                    <label>Assign Machines <span style="color:var(--text-muted);font-weight:400">(optional — can add later)</span></label>
+                    <div class="proc-machine-adder">
+                        <div style="position:relative;flex:1">
+                            <input type="text" id="newMachSearch" placeholder="Search machine…" autocomplete="off" oninput="searchMachinesNew(this.value)">
+                            <div id="newMachDropdown" class="part-search-dropdown" style="display:none"></div>
+                        </div>
+                        <label style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:500;color:var(--text-secondary);white-space:nowrap;margin:0">
+                            <input type="checkbox" id="newMachPref" style="width:auto"> Preferred
+                        </label>
+                        <button type="button" class="btn-sm" onclick="addMachineToNew()">
+                            <span class="material-icons-outlined">add</span>Add
+                        </button>
+                    </div>
+                    <div id="newMachList" class="proc-mach-preview"></div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeM('newProcModal')">Cancel</button>
+                    <button type="submit" class="btn-primary"><span class="material-icons-outlined">check</span>Create Process</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ADD MACHINE TO EXISTING PROCESS MODAL -->
+<div class="modal-overlay" id="addMachModal">
+    <div class="modal">
+        <div class="modal-header">
+            <div>
+                <h3>Add Machine</h3>
+                <div id="addMachProcLabel" style="font-size:11px;color:var(--text-muted);margin-top:2px"></div>
+            </div>
+            <button class="close-btn" onclick="closeM('addMachModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="saveAddMachine(event)">
+                <div class="form-group" style="position:relative">
+                    <label>Machine *</label>
+                    <input type="text" id="amSearch" placeholder="Type to search…" autocomplete="off" oninput="searchMachinesAM(this.value)">
+                    <div id="amDropdown" class="part-search-dropdown" style="display:none"></div>
+                    <input type="hidden" id="amMachId">
+                    <div id="amMachSelected" style="font-size:11px;color:var(--accent);margin-top:3px"></div>
+                </div>
+                <div class="form-group" style="display:flex;align-items:center;gap:8px;padding-top:4px">
+                    <input type="checkbox" id="amPref" style="width:auto">
+                    <label for="amPref" style="margin:0;cursor:pointer;font-size:13px">Preferred Machine</label>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeM('addMachModal')">Cancel</button>
+                    <button type="submit" class="btn-primary"><span class="material-icons-outlined">check</span>Add Machine</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- DELETE CONFIRM -->
+<div class="modal-overlay" id="deleteModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Confirm Delete</h3>
+            <button class="close-btn" onclick="closeM('deleteModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <p id="deleteMsg" style="font-size:13px;color:var(--text-secondary);margin-bottom:16px"></p>
+            <div class="form-actions">
+                <button class="btn-secondary" onclick="closeM('deleteModal')">Cancel</button>
+                <button class="btn-primary" style="background:#e53935" id="deleteConfirmBtn">
+                    <span class="material-icons-outlined">delete</span>Delete
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="wf-toast" id="wfToast"></div>
+
+<script src="/static/js/header.js"></script>
+<script>requireAuth();</script>
+<script src="/static/js/workflow/processes.js"></script>
+</body>
+</html>

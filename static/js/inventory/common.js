@@ -22,8 +22,6 @@ function showSection(sectionId) {
     else if (sectionId === 'locations') loadLocations();
     else if (sectionId === 'stockmovements') loadStockMovements();
     else if (sectionId === 'counts') loadStockCounts();
-    else if (sectionId === 'batches') loadBatches();
-    else if (sectionId === 'serials') loadSerials();
     else if (sectionId === 'reorder') loadReorderAlerts();
     else if (sectionId === 'reports') loadValuation();
     else if (sectionId === 'auditlogs') loadAuditLogs();
