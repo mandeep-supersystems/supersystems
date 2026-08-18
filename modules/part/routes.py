@@ -355,6 +355,21 @@ def update_category(cat_id):
     
     _log_audit('UPDATE', 'Category', old_values.get("name", cat_id), details=f"Category '{cat_id}' updated", old_values=old_values, new_values=new_values)
     db.session.commit()
+
+    # Sync columns_config and description_columns to ALL subcategories of this category
+    if "columns" in data or "description_columns" in data:
+        updated_cat = db.session.execute(db.text(
+            "SELECT columns_config, description_columns FROM part.categories WHERE id=:id"
+        ), {"id": cat_id}).first()
+        if updated_cat:
+            db.session.execute(db.text(
+                "UPDATE part.subcategories SET columns_config=:cc, description_columns=:dc, updated_at=NOW() "
+                "WHERE category_id=:cid AND is_deleted=false"
+            ), {"cc": json.dumps(updated_cat[0] if isinstance(updated_cat[0], list) else (json.loads(updated_cat[0]) if updated_cat[0] else [])),
+                "dc": json.dumps(updated_cat[1] if isinstance(updated_cat[1], list) else (json.loads(updated_cat[1]) if updated_cat[1] else [])),
+                "cid": cat_id})
+            db.session.commit()
+
     return {"success": True, "message": "Category updated"}
 
 
@@ -438,12 +453,17 @@ def create_subcategory():
 
     # Get category info
     cat = db.session.execute(db.text(
-        "SELECT name, series_prefix FROM part.categories WHERE id = :id AND is_deleted = false"
+        "SELECT name, series_prefix, columns_config, description_columns FROM part.categories WHERE id = :id AND is_deleted = false"
     ), {"id": data["category_id"]}).first()
     if not cat:
         return {"success": False, "message": "Category not found"}, 404
 
     cat_name, cat_series = cat[0], cat[1]
+    # Always inherit columns_config and description_columns from category
+    cat_cols = cat[2] if isinstance(cat[2], list) else (json.loads(cat[2]) if cat[2] else [])
+    cat_desc_cols = cat[3] if isinstance(cat[3], list) else (json.loads(cat[3]) if cat[3] else [])
+    columns_config = json.dumps(cat_cols)
+    description_columns = json.dumps(cat_desc_cols)
     sub_series = data["series_prefix"]
 
     # Check duplicate series_prefix within same category
@@ -542,6 +562,26 @@ def delete_subcategory(sub_id):
     return {"success": True, "message": "Subcategory deleted"}
 
 
+# ─── SYNC SUBCATEGORY COLUMNS FROM CATEGORY ───
+
+@part_bp.route("/categories/<cat_id>/sync-subcategories", methods=["POST"])
+def sync_subcategory_columns(cat_id):
+    """Sync columns_config and description_columns from category to all its subcategories."""
+    cat = db.session.execute(db.text(
+        "SELECT name, columns_config, description_columns FROM part.categories WHERE id=:id AND is_deleted=false"
+    ), {"id": cat_id}).first()
+    if not cat:
+        return {"success": False, "message": "Category not found"}, 404
+    cc = json.dumps(cat[1] if isinstance(cat[1], list) else (json.loads(cat[1]) if cat[1] else []))
+    dc = json.dumps(cat[2] if isinstance(cat[2], list) else (json.loads(cat[2]) if cat[2] else []))
+    result = db.session.execute(db.text(
+        "UPDATE part.subcategories SET columns_config=:cc, description_columns=:dc, updated_at=NOW() "
+        "WHERE category_id=:cid AND is_deleted=false"
+    ), {"cc": cc, "dc": dc, "cid": cat_id})
+    db.session.commit()
+    return {"success": True, "message": f"Synced columns to all subcategories of '{cat[0]}'"}
+
+
 # ─── GENERATE PART CODE ───
 
 @part_bp.route("/generate", methods=["POST"])
@@ -596,23 +636,33 @@ def generate_part():
                    'is_bought_out', 'is_manufactured', 'status', 'created_at', 'updated_at',
                    'obsoleted_at', 'obsolete_reason'}
 
-    # Duplicate check: check that all configured custom column values match exactly
+    # Use category-level columns_config for duplicate check (authoritative source)
+    cat_cols_row = db.session.execute(db.text(
+        "SELECT columns_config FROM part.categories WHERE id = :id"
+    ), {"id": category_id}).first()
+    cat_columns_config = cat_cols_row[0] if cat_cols_row else []
+    if not isinstance(cat_columns_config, list):
+        try: cat_columns_config = json.loads(cat_columns_config) if cat_columns_config else []
+        except: cat_columns_config = []
+    # Fall back to subcategory columns_config if category has none
+    dup_cols = cat_columns_config if cat_columns_config else columns_config
+
+    # Duplicate check using the per-category field combination
     try:
         dup_wheres = ["status = 'active'"]
         dup_params = {}
-        for col in columns_config:
+        for col in dup_cols:
             col_name = re.sub(r'[^a-z0-9_]', '_', col["name"].lower().strip())
             if col_name in SYSTEM_COLS:
                 continue
             val = col_values.get(col["name"]) or col_values.get(col_name)
             if val is not None and str(val).strip() != "":
-                # Use CAST() instead of ::text to avoid SQLAlchemy named-param parsing conflict
                 dup_wheres.append(f"LOWER(COALESCE(CAST({col_name} AS TEXT), '')) = LOWER(:{col_name}_val)")
                 dup_params[f"{col_name}_val"] = str(val).strip()
             else:
                 dup_wheres.append(f"(COALESCE(CAST({col_name} AS TEXT), '') = '')")
 
-        if columns_config and len(dup_wheres) > 1:
+        if dup_cols and len(dup_wheres) > 1:
             dup_query = f"SELECT part_number FROM {table_name} WHERE {' AND '.join(dup_wheres)} LIMIT 1"
             dup = db.session.execute(db.text(dup_query), dup_params).first()
             if dup:
@@ -652,7 +702,9 @@ def generate_part():
     params = {"id": str(uuid.uuid4()), "part_number": part_number, "subcategory_id": subcategory_id, "description": description, "created_by": created_by,
               "is_bought_out": is_bought_out, "is_manufactured": is_manufactured}
 
-    for col in columns_config:
+    # Use category columns for insert (authoritative), fall back to subcategory
+    insert_cols = cat_columns_config if cat_columns_config else columns_config
+    for col in insert_cols:
         col_name = re.sub(r'[^a-z0-9_]', '_', col["name"].lower().strip())
         # Skip system columns to avoid duplicate column in INSERT
         if col_name in SYSTEM_COLS:

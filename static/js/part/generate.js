@@ -159,7 +159,8 @@ document.addEventListener('click', function(e) {
 // ─── COLUMNS + GENERATE ───
 function loadGenColumns() {
     if (!_selSub || !_selCat) return;
-    const cols = parseCols(_selSub.columns_config);
+    // Always use category columns as authoritative source for generate form
+    const cols = (_selCat.columns && _selCat.columns.length > 0) ? _selCat.columns : parseCols(_selSub.columns_config);
     const sep = _selCat.separator || '-';
     document.getElementById('genPreview').style.display = 'block';
     document.getElementById('genManufacturers').style.display = 'block';
@@ -203,7 +204,8 @@ function updatePartTypeSel() {
 
 async function generatePart() {
     if (!_selSub) return;
-    const cols = parseCols(_selSub.columns_config);
+    // Use category columns as authoritative source
+    const cols = (_selCat && _selCat.columns && _selCat.columns.length > 0) ? _selCat.columns : parseCols(_selSub.columns_config);
     const values = {};
     cols.forEach(c => { const input = document.getElementById('gen_col_' + c.name); if (input && input.value.trim()) values[c.name] = input.value.trim(); });
     const is_bought_out = document.getElementById('ptBought')?.checked ?? true;
@@ -230,7 +232,9 @@ async function generatePart() {
                 : ' <span style="font-size:11px;background:#e3f2fd;color:#1565c0;padding:2px 8px;border-radius:8px;font-weight:700">BOUGHT-OUT</span>';
             document.getElementById('genResult').innerHTML = `<div class="success-msg"><span class="material-icons-outlined">check_circle</span> Generated: <strong>${data.data.part_number}</strong>${typeLabel}${desc}</div>`;
             document.getElementById('partPreviewText').textContent = data.data.part_number;
-            cols.forEach(c => { const input = document.getElementById('gen_col_' + c.name); if (input) input.value = ''; });
+            // Clear using category columns
+            const clearCols = (_selCat && _selCat.columns && _selCat.columns.length > 0) ? _selCat.columns : cols;
+            clearCols.forEach(c => { const input = document.getElementById('gen_col_' + c.name); if (input) input.value = ''; });
             document.getElementById('genMpnMakeList').innerHTML = '';
             addGenMpnMakeRow();
             loadGeneratedParts(_selSub.id);
