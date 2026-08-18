@@ -591,20 +591,28 @@ def generate_part():
     except Exception:
         db.session.rollback()
 
+    # System columns that should never be treated as custom columns
+    SYSTEM_COLS = {'id', 'part_number', 'subcategory_id', 'description', 'created_by',
+                   'is_bought_out', 'is_manufactured', 'status', 'created_at', 'updated_at',
+                   'obsoleted_at', 'obsolete_reason'}
+
     # Duplicate check: check that all configured custom column values match exactly
     try:
         dup_wheres = ["status = 'active'"]
         dup_params = {}
         for col in columns_config:
             col_name = re.sub(r'[^a-z0-9_]', '_', col["name"].lower().strip())
+            if col_name in SYSTEM_COLS:
+                continue
             val = col_values.get(col["name"]) or col_values.get(col_name)
             if val is not None and str(val).strip() != "":
-                dup_wheres.append(f"LOWER(COALESCE({col_name}::text, '')) = LOWER(:{col_name}_val)")
+                # Use CAST() instead of ::text to avoid SQLAlchemy named-param parsing conflict
+                dup_wheres.append(f"LOWER(COALESCE(CAST({col_name} AS TEXT), '')) = LOWER(:{col_name}_val)")
                 dup_params[f"{col_name}_val"] = str(val).strip()
             else:
-                dup_wheres.append(f"(COALESCE({col_name}::text, '') = '')")
-        
-        if columns_config:
+                dup_wheres.append(f"(COALESCE(CAST({col_name} AS TEXT), '') = '')")
+
+        if columns_config and len(dup_wheres) > 1:
             dup_query = f"SELECT part_number FROM {table_name} WHERE {' AND '.join(dup_wheres)} LIMIT 1"
             dup = db.session.execute(db.text(dup_query), dup_params).first()
             if dup:
@@ -646,6 +654,9 @@ def generate_part():
 
     for col in columns_config:
         col_name = re.sub(r'[^a-z0-9_]', '_', col["name"].lower().strip())
+        # Skip system columns to avoid duplicate column in INSERT
+        if col_name in SYSTEM_COLS:
+            continue
         if col_name in col_values:
             col_names.append(col_name)
             col_placeholders.append(f":{col_name}")
