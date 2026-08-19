@@ -165,25 +165,52 @@ def _safe_table_name(category_name, cat_series):
     return f'part."{tname}"'
 
 
-def _generate_next_part_number(cat_series, sub_series, category_id, separator='-', subcategory_id=None):
-    """Generate next part: {cat_series}{sep}{sub_series}{sep}{seq_str} using per-subcategory atomic increment."""
+def _generate_next_part_number(cat_series, sub_series, category_id, separator='-', subcategory_id=None, table_name=None):
+    """Generate next part: {cat_series}{sep}{sub_series}{sep}{seq_str}.
+    Finds the lowest unused sequence number to fill gaps left by deleted parts."""
     padding_row = db.session.execute(db.text(
         "SELECT COALESCE(sequence_padding, 4) FROM part.categories WHERE id = :id"
     ), {"id": category_id}).first()
     padding = padding_row[0] if padding_row else 4
 
+    # Get current max sequence from subcategory counter
     if subcategory_id:
-        row = db.session.execute(db.text(
-            "UPDATE part.subcategories SET current_sequence = current_sequence + 1, updated_at = NOW() "
-            "WHERE id = :id RETURNING current_sequence"
+        seq_row = db.session.execute(db.text(
+            "SELECT current_sequence FROM part.subcategories WHERE id = :id"
         ), {"id": subcategory_id}).first()
-        next_seq = row[0] if row else 1
+        current_max = seq_row[0] if seq_row else 0
     else:
-        row = db.session.execute(db.text(
-            "UPDATE part.categories SET current_sequence = current_sequence + 1, updated_at = NOW() "
-            "WHERE id = :id RETURNING current_sequence"
+        seq_row = db.session.execute(db.text(
+            "SELECT current_sequence FROM part.categories WHERE id = :id"
         ), {"id": category_id}).first()
-        next_seq = row[0] if row else 1
+        current_max = seq_row[0] if seq_row else 0
+
+    # Find lowest unused sequence by checking actual table for gaps
+    next_seq = None
+    if table_name:
+        prefix = f"{cat_series}{separator}{sub_series}{separator}"
+        for candidate in range(1, current_max + 2):
+            candidate_pn = f"{prefix}{str(candidate).zfill(padding)}"
+            exists = db.session.execute(db.text(
+                f"SELECT 1 FROM {table_name} WHERE part_number = :pn LIMIT 1"
+            ), {"pn": candidate_pn}).first()
+            if not exists:
+                next_seq = candidate
+                break
+
+    if next_seq is None:
+        next_seq = current_max + 1
+
+    # Update the sequence counter if next_seq exceeds current max
+    if next_seq > current_max:
+        if subcategory_id:
+            db.session.execute(db.text(
+                "UPDATE part.subcategories SET current_sequence = :seq, updated_at = NOW() WHERE id = :id"
+            ), {"seq": next_seq, "id": subcategory_id})
+        else:
+            db.session.execute(db.text(
+                "UPDATE part.categories SET current_sequence = :seq, updated_at = NOW() WHERE id = :id"
+            ), {"seq": next_seq, "id": category_id})
 
     seq_str = str(next_seq).zfill(padding)
     return f"{cat_series}{separator}{sub_series}{separator}{seq_str}"
@@ -649,7 +676,7 @@ def generate_part():
 
     # Duplicate check using the per-category field combination
     try:
-        dup_wheres = ["status = 'active'"]
+        dup_wheres = ["LOWER(COALESCE(status,'active')) != 'obsolete'"]
         dup_params = {}
         for col in dup_cols:
             col_name = re.sub(r'[^a-z0-9_]', '_', col["name"].lower().strip())
@@ -688,7 +715,7 @@ def generate_part():
         except Exception:
             pass
     else:
-        part_number = _generate_next_part_number(cat_series, sub_series, category_id, separator, subcategory_id)
+        part_number = _generate_next_part_number(cat_series, sub_series, category_id, separator, subcategory_id, table_name)
 
     # Insert into dynamic table
     created_by = request.headers.get('X-User-Name', '') or request.headers.get('X-User-Email', '')
