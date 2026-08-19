@@ -677,14 +677,16 @@ def generate_part():
     # Fall back to subcategory columns_config if category has none
     dup_cols = cat_columns_config if cat_columns_config else columns_config
 
-    # Duplicate check using the per-category field combination
+    # Duplicate check: block if same field values exist anywhere in the category table
     try:
         dup_wheres = ["LOWER(COALESCE(status,'active')) != 'obsolete'"]
         dup_params = {}
+        has_dup_fields = False
         for col in dup_cols:
             col_name = re.sub(r'[^a-z0-9_]', '_', col["name"].lower().strip())
             if col_name in SYSTEM_COLS:
                 continue
+            has_dup_fields = True
             val = col_values.get(col["name"]) or col_values.get(col_name)
             if val is not None and str(val).strip() != "":
                 dup_wheres.append(f"LOWER(COALESCE(CAST(\"{col_name}\" AS TEXT), '')) = LOWER(:{col_name}_val)")
@@ -692,7 +694,7 @@ def generate_part():
             else:
                 dup_wheres.append(f"(COALESCE(CAST(\"{col_name}\" AS TEXT), '') = '')")
 
-        if dup_cols and len(dup_wheres) > 1:
+        if has_dup_fields and len(dup_wheres) > 1:
             dup_query = f"SELECT part_number FROM {table_name} WHERE {' AND '.join(dup_wheres)} LIMIT 1"
             dup = db.session.execute(db.text(dup_query), dup_params).first()
             if dup:
