@@ -282,7 +282,7 @@
                             <th>Code</th>
                             <th>Series Prefix</th>
                             <th>Separator</th>
-                            <th>Description</th>
+                            <th>Columns</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -659,6 +659,63 @@
         </section>
 
     </main>
+</div>
+
+<!-- EDIT CATEGORY MODAL -->
+<div class="modal-overlay" id="editCategoryModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3>Edit Category</h3>
+            <button class="close-btn" onclick="partCloseModal('editCategoryModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="saveEditCategory(event)">
+                <input type="hidden" id="editCatId">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Category Name *</label>
+                        <input type="text" id="editCatName" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <input type="text" id="editCatDesc">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Separator</label>
+                    <div style="display:flex;gap:8px;margin-top:4px">
+                        <div class="part-cat-sep-btn" data-sep="-" data-active="1" onclick="setEditCatSep('-')" style="display:flex;align-items:center;justify-content:center;width:44px;height:38px;border:2px solid var(--accent);border-radius:8px;font-size:20px;font-weight:700;cursor:pointer;color:var(--accent);background:var(--accent-light)">-</div>
+                        <div class="part-cat-sep-btn" data-sep="." data-active="0" onclick="setEditCatSep('.')" style="display:flex;align-items:center;justify-content:center;width:44px;height:38px;border:2px solid var(--border-color);border-radius:8px;font-size:20px;font-weight:700;cursor:pointer;color:var(--text-secondary);background:var(--bg-primary)">.</div>
+                        <div class="part-cat-sep-btn" data-sep="/" data-active="0" onclick="setEditCatSep('/')" style="display:flex;align-items:center;justify-content:center;width:44px;height:38px;border:2px solid var(--border-color);border-radius:8px;font-size:20px;font-weight:700;cursor:pointer;color:var(--text-secondary);background:var(--bg-primary)">/</div>
+                    </div>
+                </div>
+                <div class="columns-section">
+                    <div class="columns-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                        <label style="margin:0">Columns <span style="font-size:11px;color:var(--text-muted)">(changes sync to all subcategories automatically)</span></label>
+                    </div>
+                    <div id="editCatColsList" style="padding:8px;border:1px solid var(--border-color);border-radius:6px;max-height:200px;overflow-y:auto;margin-bottom:8px"></div>
+                    <div style="display:flex;gap:8px;align-items:center">
+                        <input type="text" id="editCatNewColName" placeholder="Column name (e.g. voltage)" style="flex:2;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;font-size:13px">
+                        <select id="editCatNewColType" style="flex:1;padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;font-size:13px">
+                            <option value="varchar">Text</option>
+                            <option value="numeric">Number</option>
+                            <option value="boolean">Boolean</option>
+                            <option value="date">Date</option>
+                        </select>
+                        <button type="button" class="btn-outline btn-sm" onclick="addEditCatColumn()"><span class="material-icons-outlined">add</span> Add</button>
+                    </div>
+                </div>
+                <div class="desc-cols-section" style="margin-top:12px">
+                    <label>Description Columns <span class="form-hint-inline">(auto-concat as part description)</span></label>
+                    <div id="editCatDescCols" style="padding:10px;border:1px solid var(--border-color);border-radius:6px;max-height:100px;overflow-y:auto;margin-top:6px"></div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="partCloseModal('editCategoryModal')">Cancel</button>
+                    <button type="submit" class="btn-primary"><span class="material-icons-outlined">sync</span> Save & Sync All Subcategories</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 
 <!-- CATEGORY MODAL -->
