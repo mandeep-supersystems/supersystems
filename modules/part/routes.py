@@ -645,18 +645,21 @@ def generate_part():
     # Build description from selected columns
     description = _build_description(columns_config, col_values, desc_columns, cat_name, sub_name, cat_code)
 
-    # Ensure all required columns exist (for tables created before these features were added)
-    try:
-        db.session.execute(db.text(f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS description TEXT DEFAULT ''"))
-        db.session.execute(db.text(f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS created_by VARCHAR(200) DEFAULT ''"))
-        db.session.execute(db.text(f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS is_bought_out BOOLEAN DEFAULT true"))
-        db.session.execute(db.text(f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS is_manufactured BOOLEAN DEFAULT false"))
-        db.session.execute(db.text(f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active'"))
-        db.session.execute(db.text(f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS obsoleted_at TIMESTAMP"))
-        db.session.execute(db.text(f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS obsolete_reason TEXT"))
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
+    # Ensure all required columns exist — each in its own savepoint so failures don't affect the session
+    for col_ddl in [
+        f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS description TEXT DEFAULT ''",
+        f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS created_by VARCHAR(200) DEFAULT ''",
+        f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS is_bought_out BOOLEAN DEFAULT true",
+        f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS is_manufactured BOOLEAN DEFAULT false",
+        f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'Active'",
+        f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS obsoleted_at TIMESTAMP",
+        f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS obsolete_reason TEXT",
+    ]:
+        try:
+            db.session.execute(db.text(col_ddl))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
     # System columns that should never be treated as custom columns
     SYSTEM_COLS = {'id', 'part_number', 'subcategory_id', 'description', 'created_by',
