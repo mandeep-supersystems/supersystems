@@ -515,6 +515,15 @@ def create_subcategory():
 @part_bp.route("/subcategories/<sub_id>", methods=["PUT"])
 def update_subcategory(sub_id):
     data = request.get_json()
+
+    old_sub = db.session.execute(db.text(
+        "SELECT name, code, series_prefix, category_id FROM part.subcategories WHERE id=:id"
+    ), {"id": sub_id}).first()
+    if not old_sub:
+        return {"success": False, "message": "Subcategory not found"}, 404
+    old_values = {"name": old_sub[0], "code": old_sub[1], "series_prefix": old_sub[2], "category_id": old_sub[3]}
+    category_id = data.get("category_id") or old_sub[3]
+
     updates = []
     params = {"id": sub_id}
     if "name" in data:
@@ -529,6 +538,7 @@ def update_subcategory(sub_id):
     if "category_id" in data:
         updates.append("category_id=:category_id")
         params["category_id"] = data["category_id"]
+    # columns_config and description_columns are always inherited from category — never stored per-subcategory independently
     if "columns_config" in data:
         updates.append("columns_config=:columns_config")
         params["columns_config"] = json.dumps(data["columns_config"])
@@ -536,26 +546,42 @@ def update_subcategory(sub_id):
         updates.append("description_columns=:description_columns")
         params["description_columns"] = json.dumps(data["description_columns"])
 
-    old_sub = db.session.execute(db.text("SELECT name, code, series_prefix, category_id FROM part.subcategories WHERE id=:id"), {"id": sub_id}).first()
-    old_values = {}
-    if old_sub:
-        old_values = {
-            "name": old_sub[0], "code": old_sub[1], "series_prefix": old_sub[2],
-            "category_id": old_sub[3]
-        }
-        
     if not updates:
         return {"success": False, "message": "No fields to update"}, 400
     updates.append("updated_at=NOW()")
     db.session.execute(db.text(
         f"UPDATE part.subcategories SET {', '.join(updates)} WHERE id=:id"
     ), params)
-    
+
+    # If description_columns changed, propagate to category AND all sibling subcategories
+    if "description_columns" in data:
+        dc_json = json.dumps(data["description_columns"])
+        # Update category's description_columns
+        db.session.execute(db.text(
+            "UPDATE part.categories SET description_columns=:dc, updated_at=NOW() WHERE id=:cid"
+        ), {"dc": dc_json, "cid": category_id})
+        # Sync to ALL subcategories of this category (including this one)
+        db.session.execute(db.text(
+            "UPDATE part.subcategories SET description_columns=:dc, updated_at=NOW() "
+            "WHERE category_id=:cid AND is_deleted=false"
+        ), {"dc": dc_json, "cid": category_id})
+
+    # If columns_config changed, propagate to category AND all sibling subcategories
+    if "columns_config" in data:
+        cc_json = json.dumps(data["columns_config"])
+        db.session.execute(db.text(
+            "UPDATE part.categories SET columns_config=:cc, updated_at=NOW() WHERE id=:cid"
+        ), {"cc": cc_json, "cid": category_id})
+        db.session.execute(db.text(
+            "UPDATE part.subcategories SET columns_config=:cc, updated_at=NOW() "
+            "WHERE category_id=:cid AND is_deleted=false"
+        ), {"cc": cc_json, "cid": category_id})
+
     new_values = {
         "name": data.get("name", old_values.get("name")),
         "code": data.get("code", old_values.get("code")),
         "series_prefix": data.get("series_prefix", old_values.get("series_prefix")),
-        "category_id": data.get("category_id", old_values.get("category_id"))
+        "category_id": category_id
     }
     _log_audit('UPDATE', 'Subcategory', old_values.get("name", sub_id), details=f"Subcategory '{sub_id}' updated", old_values=old_values, new_values=new_values)
     db.session.commit()
@@ -1757,23 +1783,56 @@ def get_part_detail(part_number):
         aml_list.append(aml_dict)
 
     # Inventory from inventory_stock_levels + inventory_locations
-    inv_rows = db.session.execute(db.text(
-        "SELECT sl.bin_code, sl.manufacturer, sl.qty_on_hand, "
-        "COALESCE(il.location_code,'') as location_code, "
-        "COALESCE(il.plant,'') as plant, "
-        "COALESCE(il.floor_name,'') as floor_name, "
-        "COALESCE(il.shelf_name,'') as shelf_name "
-        "FROM inventory_stock_levels sl "
-        "LEFT JOIN inventory_locations il ON il.bin_code = sl.bin_code "
-        "WHERE sl.part_number = :pn AND sl.is_deleted = false "
-        "ORDER BY sl.bin_code, sl.manufacturer"
-    ), {"pn": part_number}).fetchall()
-    inventory_items = [{
-        "bin_code": r[0], "manufacturer": r[1] or '',
-        "qty": float(r[2] or 0),
-        "location_code": r[3], "plant": r[4],
-        "floor": r[5], "shelf": r[6]
-    } for r in inv_rows]
+    try:
+        inv_rows = db.session.execute(db.text(
+            "SELECT sl.bin_code, COALESCE(sl.manufacturer,'') as manufacturer, sl.qty_on_hand, "
+            "COALESCE(il.location_code, sl.bin_code, '') as location_code, "
+            "COALESCE(il.plant, sl.warehouse_code, '') as plant, "
+            "COALESCE(il.floor_name,'') as floor_name, "
+            "COALESCE(il.shelf_name,'') as shelf_name, "
+            "COALESCE(sl.zone_code,'') as zone_code, "
+            "COALESCE(sl.warehouse_code,'') as warehouse_code "
+            "FROM inventory_stock_levels sl "
+            "LEFT JOIN inventory_locations il ON il.bin_code = sl.bin_code "
+            "WHERE sl.part_number = :pn AND sl.is_deleted = false "
+            "AND sl.qty_on_hand > 0 "
+            "ORDER BY sl.bin_code, sl.manufacturer"
+        ), {"pn": part_number}).fetchall()
+        inventory_items = [{
+            "bin_code": r[0], "manufacturer": r[1] or '',
+            "qty": float(r[2] or 0),
+            "location_code": r[3], "plant": r[4],
+            "floor": r[5], "shelf": r[6],
+            "zone": r[7], "warehouse": r[8]
+        } for r in inv_rows]
+    except Exception as e:
+        db.session.rollback()
+        # Fallback: try without manufacturer column (older schema)
+        try:
+            inv_rows = db.session.execute(db.text(
+                "SELECT sl.bin_code, '' as manufacturer, sl.qty_on_hand, "
+                "COALESCE(il.location_code, sl.bin_code, '') as location_code, "
+                "COALESCE(il.plant, sl.warehouse_code, '') as plant, "
+                "COALESCE(il.floor_name,'') as floor_name, "
+                "COALESCE(il.shelf_name,'') as shelf_name, "
+                "COALESCE(sl.zone_code,'') as zone_code, "
+                "COALESCE(sl.warehouse_code,'') as warehouse_code "
+                "FROM inventory_stock_levels sl "
+                "LEFT JOIN inventory_locations il ON il.bin_code = sl.bin_code "
+                "WHERE sl.part_number = :pn AND sl.is_deleted = false "
+                "AND sl.qty_on_hand > 0 "
+                "ORDER BY sl.bin_code"
+            ), {"pn": part_number}).fetchall()
+            inventory_items = [{
+                "bin_code": r[0], "manufacturer": '',
+                "qty": float(r[2] or 0),
+                "location_code": r[3], "plant": r[4],
+                "floor": r[5], "shelf": r[6],
+                "zone": r[7], "warehouse": r[8]
+            } for r in inv_rows]
+        except Exception:
+            db.session.rollback()
+            inventory_items = []
     total_inventory_qty = sum(i["qty"] for i in inventory_items)
 
     return {"success": True, "data": {

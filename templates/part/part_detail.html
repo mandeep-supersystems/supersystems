@@ -383,17 +383,19 @@
                                 <table class="data-table">
                                     <thead>
                                         <tr>
+                                            <th>Warehouse</th>
+                                            <th>Zone</th>
+                                            <th>Bin</th>
                                             <th>Location</th>
                                             <th>Plant</th>
                                             <th>Floor</th>
                                             <th>Shelf</th>
-                                            <th>Bin</th>
                                             <th>Manufacturer (Make)</th>
                                             <th style="text-align:right">Qty</th>
                                         </tr>
                                     </thead>
                                     <tbody id="pdInventoryBody">
-                                        <tr><td colspan="7" class="empty">No inventory found.</td></tr>
+                                        <tr><td colspan="9" class="empty">No inventory found.</td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -1072,15 +1074,17 @@
             const badge = document.getElementById('invTotalBadge');
             if (badge) badge.textContent = 'Total: ' + (total || 0).toLocaleString();
             if (!inventory || inventory.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="empty">No inventory records found.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" class="empty">No inventory records found.</td></tr>';
                 return;
             }
             tbody.innerHTML = inventory.map(i => `<tr>
+                <td><strong style="font-family:monospace">${esc(i.warehouse || '—')}</strong></td>
+                <td style="font-size:12px;color:var(--text-muted)">${esc(i.zone || '—')}</td>
+                <td><strong style="font-family:monospace;color:#00796B">${esc(i.bin_code)}</strong></td>
                 <td style="font-size:12px;color:var(--text-muted)">${esc(i.location_code || '—')}</td>
                 <td>${esc(i.plant || '—')}</td>
                 <td>${esc(i.floor || '—')}</td>
                 <td>${esc(i.shelf || '—')}</td>
-                <td><strong style="font-family:monospace;color:#00796B">${esc(i.bin_code)}</strong></td>
                 <td>${esc(i.manufacturer || '—')}</td>
                 <td style="text-align:right"><strong>${i.qty.toLocaleString()}</strong></td>
             </tr>`).join('');

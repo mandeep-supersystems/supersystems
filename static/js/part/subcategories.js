@@ -111,10 +111,13 @@ function editSubcategory(encodedData) {
     const sel = document.getElementById('editSubCategory');
     sel.innerHTML = categories.map(c => `<option value="${c.id}" ${c.id === s.category_id ? 'selected' : ''}>${esc(c.name)} (${esc(c.series_prefix)})</option>`).join('');
 
-    // Always use category columns as authoritative source
+    // Always use category columns as authoritative source for column definitions
     const cat = categories.find(c => c.id === s.category_id);
     const catCols = (cat && cat.columns && cat.columns.length > 0) ? cat.columns : [];
-    const descCols = cat && cat.description_columns ? (Array.isArray(cat.description_columns) ? cat.description_columns : []) : [];
+    // Use the subcategory's own description_columns as the current selection
+    const currentDescCols = s.description_columns
+        ? (Array.isArray(s.description_columns) ? s.description_columns : [])
+        : (cat && cat.description_columns ? (Array.isArray(cat.description_columns) ? cat.description_columns : []) : []);
 
     const renderEditCols = (cols, selectedDescCols) => {
         if (cols.length > 0) {
@@ -132,7 +135,7 @@ function editSubcategory(encodedData) {
         }
     };
 
-    renderEditCols(catCols, descCols);
+    renderEditCols(catCols, currentDescCols);
 
     sel.onchange = function() {
         const newCat = categories.find(c => c.id === this.value);
