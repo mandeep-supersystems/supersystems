@@ -657,10 +657,10 @@ def generate_part():
                 continue
             val = col_values.get(col["name"]) or col_values.get(col_name)
             if val is not None and str(val).strip() != "":
-                dup_wheres.append(f"LOWER(COALESCE(CAST({col_name} AS TEXT), '')) = LOWER(:{col_name}_val)")
+                dup_wheres.append(f"LOWER(COALESCE(CAST(\"{col_name}\" AS TEXT), '')) = LOWER(:{col_name}_val)")
                 dup_params[f"{col_name}_val"] = str(val).strip()
             else:
-                dup_wheres.append(f"(COALESCE(CAST({col_name} AS TEXT), '') = '')")
+                dup_wheres.append(f"(COALESCE(CAST(\"{col_name}\" AS TEXT), '') = '')")
 
         if dup_cols and len(dup_wheres) > 1:
             dup_query = f"SELECT part_number FROM {table_name} WHERE {' AND '.join(dup_wheres)} LIMIT 1"
@@ -710,7 +710,7 @@ def generate_part():
         if col_name in SYSTEM_COLS:
             continue
         if col_name in col_values:
-            col_names.append(col_name)
+            col_names.append(f'"{col_name}"')
             col_placeholders.append(f":{col_name}")
             params[col_name] = col_values[col_name]
 
