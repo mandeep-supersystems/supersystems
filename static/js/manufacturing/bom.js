@@ -185,7 +185,12 @@ function navigateToBomDetail(bomId) {
 }
 
 function navigateToBomDetailByPart(partCode) {
-    location.hash = '#bom#' + partCode;
+    const targetHash = '#bom#' + partCode;
+    if (location.hash === targetHash) {
+        loadBomDetailByPart(partCode);
+    } else {
+        location.hash = targetHash;
+    }
 }
 
 async function loadBomDetailByPart(partCode, version = '') {
