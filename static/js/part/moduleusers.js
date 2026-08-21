@@ -1,15 +1,14 @@
 // ─── PART MODULE: USER MANAGEMENT ───
 const ROLE_DEFAULT_SECTIONS = {
-    module_admin: ['overview', 'categories', 'subcategories', 'generate', 'allparts', 'assembly', 'partmapping', 'auditlogs', 'obsolete', 'moduleusers'],
-    editor:       ['overview', 'categories', 'subcategories', 'generate', 'allparts', 'assembly', 'partmapping', 'auditlogs', 'obsolete'],
-    viewer:       ['overview', 'allparts', 'assembly', 'obsolete']
+    module_admin: ['overview', 'categories', 'subcategories', 'generate', 'allparts', 'partmapping', 'auditlogs', 'obsolete', 'moduleusers'],
+    editor:       ['overview', 'categories', 'subcategories', 'generate', 'allparts', 'partmapping', 'auditlogs', 'obsolete'],
+    viewer:       ['overview', 'allparts', 'obsolete']
 };
 const PART_ENTITIES = [
     { id: 'categories',         label: 'Categories' },
     { id: 'subcategories',      label: 'Subcategories' },
     { id: 'generate_part_code', label: 'Generate Part Code' },
     { id: 'all_parts',          label: 'All Parts' },
-    { id: 'assembly',           label: 'Assembly' },
     { id: 'part_mapping',       label: 'Part Mapping' },
     { id: 'audit_logs',         label: 'Audit Logs' },
     { id: 'obsolete_parts',     label: 'Obsolete Parts' },

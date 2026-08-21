@@ -37,7 +37,7 @@ MODULES = [
 
 # Entities per module (what sections/buttons exist)
 MODULE_ENTITIES = {
-    "Part Management": ["categories", "subcategories", "generate_part_code", "all_parts", "assembly", "part_mapping", "audit_logs", "obsolete_parts", "user_management"],
+    "Part Management": ["categories", "subcategories", "generate_part_code", "all_parts", "part_mapping", "audit_logs", "obsolete_parts", "user_management"],
     "Raw Material Management": ["criteria", "rm_master", "rm_part_mapping", "user_management"],
     "Auth & Security": ["users", "roles", "modules", "permissions", "audit_logs"],
     "Inventory Management": ["stock_levels", "stock_movements", "transfers", "adjustments", "counts", "reports"],
