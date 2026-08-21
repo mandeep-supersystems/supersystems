@@ -175,6 +175,12 @@ def create_app(config_name="development"):
             return redirect('/?access=denied&module=Part+Management')
         return render_template("part/part_detail.html", part_number=part_number)
 
+    @app.route("/assembly/detail/<part_number>")
+    def assembly_detail_page(part_number):
+        if not _check_module_access('Part Management'):
+            return redirect('/?access=denied&module=Part+Management')
+        return render_template("part/assembly_detail.html", part_number=part_number)
+
     @app.route("/auth")
     @app.route("/auth/<section>")
     def auth_security_page(section=None):

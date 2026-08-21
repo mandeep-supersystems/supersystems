@@ -55,6 +55,7 @@ function showSection(section) {
     if (section === 'auditlogs') loadAuditLogs();
     if (section === 'obsolete') loadObsoleteParts();
     if (section === 'moduleusers') loadModuleUsers();
+    if (section === 'assembly') loadAssembly();
 }
 
 // ─── HELPERS ───

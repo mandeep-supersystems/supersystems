@@ -100,6 +100,9 @@
             <a class="sidebar-link" data-section="allparts" onclick="showSection('allparts')">
                 <span class="material-icons-outlined">view_list</span>All Parts
             </a>
+            <a class="sidebar-link" data-section="assembly" onclick="showSection('assembly')">
+                <span class="material-icons-outlined">build_circle</span>Assembly
+            </a>
             <a class="sidebar-link" data-section="partmapping" onclick="showSection('partmapping')">
                 <span class="material-icons-outlined">swap_horiz</span>Part Mapping
             </a>
@@ -482,6 +485,36 @@
                         <tr><th>Part Number</th><th>Category</th><th>Subcategory</th><th>Value</th><th>Description</th><th>Status</th></tr>
                     </thead>
                     <tbody id="allPartsBody">
+                        <tr><td colspan="7" class="empty">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ASSEMBLY SECTION -->
+        <section class="content-section" id="sec-assembly">
+            <div class="section-header" style="flex-wrap:wrap;gap:12px">
+                <h2>Assembly</h2>
+                <div style="display:flex;gap:12px;align-items:center;flex:1;justify-content:flex-end;min-width:300px">
+                    <input type="search" id="assemblySearchInput" placeholder="Search assemblies..." oninput="filterAssemblyTable(this.value)" style="max-width:240px;padding:6px 12px;border-radius:6px;border:1px solid var(--border-color);font-size:13px">
+                    <button class="btn-primary" onclick="showSection('generate')">
+                        <span class="material-icons-outlined">bolt</span> Generate Assembly Code
+                    </button>
+                </div>
+            </div>
+            <!-- Series filter chips -->
+            <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap" id="assemblySeriesFilter">
+                <button class="col-tag" style="cursor:pointer;padding:4px 14px;border-radius:20px;border:2px solid var(--accent);background:var(--accent-light);color:var(--accent);font-weight:700" data-series="" onclick="filterAssemblySeries('')">All</button>
+                <button class="col-tag" style="cursor:pointer;padding:4px 14px;border-radius:20px;border:2px solid var(--border-color);background:var(--bg-primary);color:var(--text-secondary)" data-series="901" onclick="filterAssemblySeries('901')">901 – Assembly</button>
+                <button class="col-tag" style="cursor:pointer;padding:4px 14px;border-radius:20px;border:2px solid var(--border-color);background:var(--bg-primary);color:var(--text-secondary)" data-series="902" onclick="filterAssemblySeries('902')">902 – Assembly</button>
+                <button class="col-tag" style="cursor:pointer;padding:4px 14px;border-radius:20px;border:2px solid var(--border-color);background:var(--bg-primary);color:var(--text-secondary)" data-series="903" onclick="filterAssemblySeries('903')">903 – Assembly</button>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr><th>Part Number</th><th>Subcategory</th><th>Value</th><th>Description</th><th>Status</th><th>Created</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody id="assemblyTableBody">
                         <tr><td colspan="7" class="empty">Loading...</td></tr>
                     </tbody>
                 </table>
@@ -1058,6 +1091,7 @@
 <script src="/static/js/part/subcategories.js"></script>
 <script src="/static/js/part/generate.js"></script>
 <script src="/static/js/part/allparts.js"></script>
+<script src="/static/js/part/assembly.js"></script>
 <script src="/static/js/part/partmapping.js"></script>
 <script src="/static/js/part/auditlogs.js"></script>
 <script src="/static/js/part/moduleusers.js"></script>
