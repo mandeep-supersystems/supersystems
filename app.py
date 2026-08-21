@@ -343,6 +343,17 @@ def create_app(config_name="development"):
             return redirect('/?access=denied&module=Manufacturing')
         return render_template("manufacturing/manufacturing.html")
 
+    @app.route("/manufacturing/bom/<bom_id>")
+    def manufacturing_bom_detail(bom_id):
+        if not _check_module_access('Manufacturing'):
+            return redirect('/?access=denied&module=Manufacturing')
+        part_code = db.session.execute(db.text(
+            "SELECT fg_part_number FROM manufacturing_boms WHERE id = :id AND is_deleted = false LIMIT 1"
+        ), {"id": bom_id}).scalar()
+        if part_code:
+            return redirect(f"/manufacturing#bom#{part_code}")
+        return redirect("/manufacturing#bom")
+
     @app.route("/planning")
     @app.route("/planning/<section>")
     def planning_page(section=None):

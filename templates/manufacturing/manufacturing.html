@@ -153,30 +153,243 @@
 
         <!-- BOM SECTION -->
         <section id="sec-bom" class="content-section">
-            <div class="section-header">
-                <h2>Bill of Materials (BOM)</h2>
-                <button class="btn-primary" onclick="openNewBomModal()"><span class="material-icons-outlined">add</span>Create BOM</button>
+            
+            <!-- 1. BOM LIST PANEL -->
+            <div id="bomListPanel">
+                <div class="bom-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                    <h2 style="margin:0;">⚙️ Manufacturing BOM Manager</h2>
+                    <button class="btn-primary" onclick="openNewBomModal()"><span class="material-icons-outlined">add</span> Create BOM</button>
+                </div>
+
+                <!-- Search box -->
+                <div style="position:relative; margin-bottom:12px; max-width:400px;">
+                    <input type="text" id="bomListSearch" placeholder="Search by assembly part number or description..." oninput="filterBomListTable(this.value)" style="width:100%; padding:8px 12px 8px 32px; border:1px solid var(--border-color); border-radius:6px; outline:none; background:var(--bg-primary); font-size:13px;">
+                    <span class="material-icons-outlined" style="position:absolute; left:8px; top:50%; transform:translateY(-50%); color:var(--text-secondary); font-size:16px;">search</span>
+                </div>
+
+                <div class="card" style="background:var(--bg-primary); border:1px solid var(--border-color); border-radius:8px; padding:16px;">
+                    <div class="table-responsive">
+                        <table class="data-table" id="bomAssemblyListTable">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Part Code</th>
+                                    <th>Description</th>
+                                    <th>Version</th>
+                                    <th>Status</th>
+                                    <th style="text-align:center;">Components</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bomAssemblyListBody">
+                                <tr><td colspan="7" style="text-align:center;">Loading assemblies...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
-            <div class="card">
-                <div class="table-responsive">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>BOM No</th>
-                                <th>FG Part (-99)</th>
-                                <th>Version</th>
-                                <th>Yield Qty</th>
-                                <th>Components</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="bomsBody">
-                            <tr><td colspan="6" style="text-align:center;">Loading BOMs...</td></tr>
-                        </tbody>
-                    </table>
+
+            <!-- 2. BOM DETAIL PANEL (slides/toggles inline) -->
+            <div id="bomDetailPanel" style="display:none;">
+                <div class="bom-detail-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <button class="btn-outline" onclick="closeBomDetail()" style="padding:6px 12px; display:flex; align-items:center; gap:6px;">
+                            <span class="material-icons-outlined">arrow_back</span> Back
+                        </button>
+                        <div class="bom-title-wrap">
+                            <h2 id="detBomTitle" style="margin:0; font-size:20px;">Loading BOM...</h2>
+                            <div style="display:flex; gap:8px; align-items:center; margin-top:2px;">
+                                <span class="badge badge-info" id="detBomNo">-</span>
+                                <span class="badge badge-success" id="detBomVersion">V1</span>
+                                <span class="badge" id="detBomStatus" style="background:#e0e7ff; color:#4f46e5;">Draft</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bom-tabbar" style="display:flex; gap:4px; background:var(--bg-primary); padding:4px; border-radius:8px; border:1px solid var(--border-color);">
+                        <button class="tab-btn active" id="tab-btn-structure" onclick="switchBomTab('structure')">Structure</button>
+                        <button class="tab-btn" id="tab-btn-costing" onclick="switchBomTab('costing')">Costing</button>
+                        <button class="tab-btn" id="tab-btn-files" onclick="switchBomTab('files')">Files</button>
+                        <button class="tab-btn" id="tab-btn-versions" onclick="switchBomTab('versions')">Versions</button>
+                        <button class="tab-btn" id="tab-btn-history" onclick="switchBomTab('history')">History</button>
+                    </div>
+                </div>
+
+                <!-- BOM WORKSPACE -->
+                <div class="bom-workspace-layout" style="display:flex; gap:16px;">
+                    <!-- Collapsible Sidebar Tree -->
+                    <div class="bom-tree-sidebar" id="detTreeSidebar" style="width:260px; background:var(--bg-primary); border:1px solid var(--border-color); border-radius:8px; padding:12px; height:calc(100vh - 220px); overflow-y:auto; transition: width 0.3s ease;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                            <strong style="font-size:13px; color:var(--text-primary);">BOM Structure</strong>
+                            <div style="display:flex; gap:2px;">
+                                <button class="btn-icon" onclick="expandAllTreeNodes()" title="Expand All" style="padding:2px;"><span class="material-icons-outlined" style="font-size:16px;">unfold_more</span></button>
+                                <button class="btn-icon" onclick="collapseAllTreeNodes()" title="Collapse All" style="padding:2px;"><span class="material-icons-outlined" style="font-size:16px;">unfold_less</span></button>
+                            </div>
+                        </div>
+                        <div class="tree-search-box" style="position:relative; margin-bottom:10px;">
+                            <input type="text" placeholder="Filter structure..." id="treeSearchInput" oninput="filterTreeNodes(this.value)" style="width:100%; padding:6px 8px 6px 26px; font-size:11px; border:1px solid var(--border-color); border-radius:4px; outline:none;">
+                            <span class="material-icons-outlined" style="position:absolute; left:6px; top:50%; transform:translateY(-50%); font-size:14px; color:var(--text-secondary);">search</span>
+                        </div>
+                        <div id="bomTreeContainer">
+                            <!-- Loaded via JS -->
+                        </div>
+                    </div>
+
+                    <!-- Main Content Pane -->
+                    <div class="bom-main-pane" style="flex:1; background:var(--bg-primary); border:1px solid var(--border-color); border-radius:8px; padding:16px; height:calc(100vh - 220px); overflow-y:auto; position:relative;">
+                        
+                        <!-- 1. STRUCTURE VIEW -->
+                        <div id="pane-structure" class="bom-pane-content active">
+                            <div class="toolbar" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid var(--border-color);">
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <button class="btn-icon" onclick="toggleTreeSidebarCollapse()" title="Toggle Sidebar" style="background:var(--bg-secondary); border:1px solid var(--border-color);"><span class="material-icons-outlined" id="sidebarCollapseIcon">menu_open</span></button>
+                                    <span style="font-size:13px; font-weight:600;" id="currentSelectedNodeLabel">Active Items List</span>
+                                </div>
+                                
+                                <div style="display:flex; gap:6px;">
+                                    <!-- Read Only Toolbar -->
+                                    <div id="toolbar-readonly" style="display:flex; gap:6px;">
+                                        <button class="btn-outline" onclick="startEditingBom()" id="btnStartEditBom"><span class="material-icons-outlined" style="font-size:16px;">edit</span> Edit BOM</button>
+                                        <button class="btn-primary" onclick="openReleaseBomModal()" id="btnReleaseBom"><span class="material-icons-outlined" style="font-size:16px;">verified</span> Release Version</button>
+                                    </div>
+                                    <!-- Edit Mode Toolbar -->
+                                    <div id="toolbar-edit" style="display:none; gap:6px;">
+                                        <button class="btn-primary" onclick="openAddBomItemModal('component')"><span class="material-icons-outlined" style="font-size:16px;">add</span> Add Component</button>
+                                        <button class="btn-primary" onclick="openAddBomItemModal('assembly')" style="background:#4f46e5; border-color:#4f46e5;"><span class="material-icons-outlined" style="font-size:16px;">add</span> Add Assembly</button>
+                                        <div style="width:1px; background:var(--border-color); margin:0 4px;"></div>
+                                        <button class="btn-primary" onclick="saveEditingBom()" style="background:#10b981; border-color:#10b981;"><span class="material-icons-outlined" style="font-size:16px;">save</span> Save Changes</button>
+                                        <button class="btn-outline" onclick="cancelEditingBom()" style="color:#ef4444; border-color:#fecaca;"><span class="material-icons-outlined" style="font-size:16px;">cancel</span> Cancel</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Part Code</th>
+                                            <th>Description</th>
+                                            <th>Procurement</th>
+                                            <th>Quantity</th>
+                                            <th>Unit</th>
+                                            <th>Unit Cost</th>
+                                            <th>Total Cost</th>
+                                            <th>Scrap</th>
+                                            <th>Op Ref</th>
+                                            <th class="actions-header" style="width:100px;">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="bomItemsTableBody">
+                                        <tr><td colspan="10" style="text-align:center; color:var(--text-secondary);">Loading items...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- 2. COSTING VIEW -->
+                        <div id="pane-costing" class="bom-pane-content" style="display:none;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid var(--border-color);">
+                                <strong style="font-size:15px;">Cost Analysis & Sourcing Selections</strong>
+                                <div style="display:flex; gap:12px; font-size:13px;">
+                                    <div>Total Cost: <strong id="c-total" style="font-size:15px; color:#10b981;">Rs. 0.00</strong></div>
+                                </div>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Part Code</th>
+                                            <th>Description</th>
+                                            <th>Default Cost</th>
+                                            <th>Sourcing & Custom Cost Selection</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="bomCostingTableBody">
+                                        <tr><td colspan="4" style="text-align:center; color:var(--text-secondary);">Loading costing data...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- 3. FILES VIEW -->
+                        <div id="pane-files" class="bom-pane-content" style="display:none;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid var(--border-color);">
+                                <strong style="font-size:15px;">Drawing Attachments & CAD Files</strong>
+                                <button class="btn-primary" onclick="openUploadBomFileModal()"><span class="material-icons-outlined" style="font-size:16px;">cloud_upload</span> Upload File</button>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Filename</th>
+                                            <th>Doc Type</th>
+                                            <th>Revision</th>
+                                            <th>Size</th>
+                                            <th>Uploaded By</th>
+                                            <th>Uploaded At</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="bomFilesTableBody">
+                                        <tr><td colspan="7" style="text-align:center; color:var(--text-secondary);">Loading attachments...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- 4. VERSIONS VIEW -->
+                        <div id="pane-versions" class="bom-pane-content" style="display:none;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid var(--border-color);">
+                                <strong style="font-size:15px;">Version Snapshot History</strong>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Version</th>
+                                            <th>Type</th>
+                                            <th>Status</th>
+                                            <th>Change Log</th>
+                                            <th>Released At</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="bomVersionsTableBody">
+                                        <tr><td colspan="6" style="text-align:center; color:var(--text-secondary);">Loading version logs...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- 5. HISTORY VIEW -->
+                        <div id="pane-history" class="bom-pane-content" style="display:none;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid var(--border-color);">
+                                <strong style="font-size:15px;">BOM Audit Log History</strong>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Action</th>
+                                            <th>Details</th>
+                                            <th>Performed By</th>
+                                            <th>Timestamp</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="bomHistoryTableBody">
+                                        <tr><td colspan="4" style="text-align:center; color:var(--text-secondary);">Loading history...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                    </div>
                 </div>
             </div>
         </section>
+
+
+
+
 
         <!-- PRODUCTION ORDERS SECTION -->
         <section id="sec-productionorders" class="content-section">
@@ -535,6 +748,182 @@
         </div>
     </div>
 </div>
+
+
+<!-- ADD BOM ITEM MODAL -->
+<div class="modal-overlay" id="addMfgBomItemModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="addBomItemModalTitle">Add BOM Item</h3>
+            <button class="close-btn" onclick="closeModal('addMfgBomItemModal')">
+                <span class="material-icons-outlined">close</span>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="saveNewBomItem(event)">
+                <input type="hidden" id="abiParentId">
+                <input type="hidden" id="abiChildType">
+                <div class="form-group">
+                    <label id="abiSearchLabel">Search Component *</label>
+                    <input type="text" id="abiPartSearch" placeholder="Type part number or description..." oninput="searchPartsForBom(this.value)" autocomplete="off">
+                    <input type="hidden" id="abiSelectedPart">
+                    <div id="abiPartSearchResults" class="emp-search-results"></div>
+                    <div id="abiPartSelected" class="emp-selected-inline" style="display:none">
+                        <span id="abiPartSelLabel"></span>
+                        <button type="button" class="btn-icon" onclick="clearSelectedBomPart()"><span class="material-icons-outlined">close</span></button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Quantity *</label>
+                    <input type="number" step="0.0001" id="abiQty" value="1" required style="width:100%;">
+                </div>
+                <div class="form-group">
+                    <label>Unit *</label>
+                    <input type="text" id="abiUnit" value="Nos" required style="width:100%;">
+                </div>
+                <div class="form-group" id="abiProcurementGroup">
+                    <label>Procurement Sourcing *</label>
+                    <select id="abiProcurement" style="width:100%;">
+                        <option value="bought_out">Bought Out</option>
+                        <option value="manufacturing">Manufactured (Recursive Rollup)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Scrap Factor (%)</label>
+                    <input type="number" step="0.1" id="abiScrap" value="0" style="width:100%;">
+                </div>
+                <div class="form-group">
+                    <label>Operation Ref (e.g. -01)</label>
+                    <input type="text" id="abiOpRef" value="-01" style="width:100%;">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-outline" onclick="closeModal('addMfgBomItemModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Add Item</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- EDIT BOM ITEM MODAL -->
+<div class="modal-overlay" id="editMfgBomItemModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Edit BOM Line Item</h3>
+            <button class="close-btn" onclick="closeModal('editMfgBomItemModal')">
+                <span class="material-icons-outlined">close</span>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="saveEditBomItem(event)">
+                <input type="hidden" id="ebiItemId">
+                <div class="form-group">
+                    <label>Part Number</label>
+                    <div class="form-static" id="ebiPartNo">-</div>
+                </div>
+                <div class="form-group">
+                    <label>Quantity *</label>
+                    <input type="number" step="0.0001" id="ebiQty" required style="width:100%;">
+                </div>
+                <div class="form-group">
+                    <label>Unit *</label>
+                    <input type="text" id="ebiUnit" required style="width:100%;">
+                </div>
+                <div class="form-group" id="ebiProcurementGroup">
+                    <label>Procurement Sourcing *</label>
+                    <select id="ebiProcurement" style="width:100%;">
+                        <option value="bought_out">Bought Out</option>
+                        <option value="manufacturing">Manufactured (Recursive Rollup)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Scrap Factor (%)</label>
+                    <input type="number" step="0.1" id="ebiScrap" style="width:100%;">
+                </div>
+                <div class="form-group">
+                    <label>Operation Ref</label>
+                    <input type="text" id="ebiOpRef" style="width:100%;">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-outline" onclick="closeModal('editMfgBomItemModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- RELEASE BOM MODAL -->
+<div class="modal-overlay" id="releaseMfgBomModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Release BOM Version</h3>
+            <button class="close-btn" onclick="closeModal('releaseMfgBomModal')">
+                <span class="material-icons-outlined">close</span>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="submitReleaseBom(event)">
+                <div class="form-group">
+                    <label>BOM Version to Release</label>
+                    <div class="form-static" id="relBomVersionLabel" style="font-weight:700;">-</div>
+                </div>
+                <div class="form-group">
+                    <label>Change Log / Release Description *</label>
+                    <textarea id="relBomChangeDesc" required placeholder="Describe what changed in this version..." style="width:100%; min-height:80px; padding:8px; border:1px solid var(--border-color); border-radius:4px; resize:vertical; outline:none; font-family:inherit;"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-outline" onclick="closeModal('releaseMfgBomModal')">Cancel</button>
+                    <button type="submit" class="btn-primary" style="background:#10b981; border-color:#10b981;">Release & Lock</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- UPLOAD FILE MODAL -->
+<div class="modal-overlay" id="uploadMfgBomFileModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Upload Drawing or Document</h3>
+            <button class="close-btn" onclick="closeModal('uploadMfgBomFileModal')">
+                <span class="material-icons-outlined">close</span>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form onsubmit="submitUploadBomFile(event)" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label>Select File *</label>
+                    <input type="file" id="ufFile" required style="width:100%;">
+                </div>
+                <div class="form-group">
+                    <label>Document Type *</label>
+                    <select id="ufDocType" style="width:100%;">
+                        <option value="CAD Drawing">CAD Drawing</option>
+                        <option value="Standard Operating Procedure">Standard Operating Procedure</option>
+                        <option value="Assembly Guide">Assembly Guide</option>
+                        <option value="Inspection Sheet">Inspection Sheet</option>
+                        <option value="Datasheet">Datasheet</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Revision *</label>
+                    <input type="text" id="ufRevision" value="A" required style="width:100%;">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <input type="text" id="ufDescription" placeholder="Quick description of file content..." style="width:100%;">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-outline" onclick="closeModal('uploadMfgBomFileModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Upload Attachment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 
 <script src="/static/js/header.js"></script>
 <script>requireAuth();</script>

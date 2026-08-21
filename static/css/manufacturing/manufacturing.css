@@ -47,3 +47,184 @@
     border-radius: 6px;
     font-size: 12px;
 }
+
+
+/* ── MANUFACTURING BOM EXTENDED UI STYLES ── */
+
+.bom-tabbar .tab-btn {
+    border: none;
+    background: transparent;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.bom-tabbar .tab-btn:hover {
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+}
+
+.bom-tabbar .tab-btn.active {
+    color: var(--accent);
+    background: var(--bg-secondary);
+    font-weight: 700;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Tree Nodes structure visual hierarchy */
+.tree-node-item {
+    margin-bottom: 2px;
+}
+
+.tree-node-row {
+    display: flex;
+    align-items: center;
+    padding: 4px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-primary);
+    transition: background 0.15s ease;
+}
+
+.tree-node-row:hover {
+    background: var(--bg-secondary);
+}
+
+.tree-node-row.active {
+    background: #e0e7ff;
+    color: #4f46e5;
+    font-weight: 600;
+}
+
+.tree-node-indent {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.tree-node-indent-block {
+    width: 14px;
+    height: 20px;
+    border-left: 1px dashed var(--border-color);
+    margin-left: 6px;
+    position: relative;
+}
+
+.tree-node-toggle {
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.tree-node-toggle:hover {
+    color: var(--text-primary);
+}
+
+.tree-node-icon {
+    font-size: 16px;
+    margin-right: 6px;
+    color: var(--text-secondary);
+}
+
+.tree-node-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+}
+
+/* Tab panes visibility */
+.bom-pane-content {
+    display: none;
+}
+.bom-pane-content.active {
+    display: block;
+}
+
+/* Badges for procurement */
+.badge-procurement-manufacturing {
+    background: #e0f2fe;
+    color: #0369a1;
+    cursor: pointer;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.badge-procurement-bought_out {
+    background: #fef3c7;
+    color: #d97706;
+    cursor: pointer;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.badge-status-draft {
+    background: #f3f4f6;
+    color: #4b5563;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.badge-status-released {
+    background: #d1fae5;
+    color: #065f46;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+/* Search suggestions inside BOM add item */
+.emp-search-results {
+    position: absolute;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    max-height: 180px;
+    overflow-y: auto;
+    width: 100%;
+    z-index: 100;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.search-result-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.search-result-item:hover {
+    background: var(--bg-secondary);
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+.emp-selected-inline {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-top: 4px;
+}
