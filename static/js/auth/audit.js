@@ -2,17 +2,22 @@
 
 let secAuditPage = 1;
 let secLoginHistoryPage = 1;
+let secAccessLogPage = 1;
 let currentAuditTab = 'logs';
+let _accessLogCache = [];
 
 function switchAuditSubtab(type) {
     currentAuditTab = type;
     document.getElementById('subtabAuditLogs').classList.toggle('active', type === 'logs');
     document.getElementById('subtabLoginHistory').classList.toggle('active', type === 'login');
+    document.getElementById('subtabAccessLog').classList.toggle('active', type === 'access');
     document.getElementById('auditLogsWrap').style.display = type === 'logs' ? 'block' : 'none';
     document.getElementById('loginHistoryWrap').style.display = type === 'login' ? 'block' : 'none';
+    document.getElementById('accessLogWrap').style.display = type === 'access' ? 'block' : 'none';
 
     if (type === 'logs') loadSecAuditLogs(1);
-    else loadSecLoginHistory(1);
+    else if (type === 'login') loadSecLoginHistory(1);
+    else loadAccessLog(1);
 }
 
 async function loadSecAuditLogs(page = 1) {
@@ -146,11 +151,14 @@ async function loadSecLoginHistory(page = 1) {
 
 function exportAuditLogs() {
     const isLoginTab = currentAuditTab === 'login';
-    const rows = document.querySelectorAll(isLoginTab ? '#loginHistoryBody tr' : '#auditLogsBody tr');
+    const isAccessTab = currentAuditTab === 'access';
+    const rows = document.querySelectorAll(isLoginTab ? '#loginHistoryBody tr' : isAccessTab ? '#accessLogBody tr' : '#auditLogsBody tr');
     if (!rows.length || rows[0].querySelector('.empty')) { secToast('No data to export', 'error'); return; }
 
     let csv = isLoginTab
         ? 'User Email,Login Time,Logout Time,Login Type,IP Address\n'
+        : isAccessTab
+        ? 'User,Action,Module,Entity / Section,IP Address,Timestamp\n'
         : 'Action,Entity Type,Entity ID,Performed By,IP Address,Timestamp\n';
 
     rows.forEach(tr => {
@@ -164,6 +172,14 @@ function exportAuditLogs() {
                 const type = tds[3].textContent.trim();
                 const ip = tds[4].textContent.trim();
                 csv += `"${email}","${loginTime}","${logoutTime}","${type}","${ip}"\n`;
+            } else if (isAccessTab) {
+                const user = tds[0].querySelector('.cell-main')?.textContent.trim() || '';
+                const action = tds[1].textContent.trim();
+                const module = tds[2].textContent.trim();
+                const entity = tds[3].textContent.trim();
+                const ip = tds[4].textContent.trim();
+                const time = tds[5].textContent.trim();
+                csv += `"${user}","${action}","${module}","${entity}","${ip}","${time}"\n`;
             } else {
                 const action = tds[0].textContent.trim();
                 const entityMain = tds[1].querySelector('.cell-main')?.textContent.trim() || '';
@@ -179,7 +195,78 @@ function exportAuditLogs() {
     const blob = new Blob([csv], { type: 'text/csv' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = isLoginTab ? 'login_logout_history.csv' : 'auth_security_audit_logs.csv';
+    link.download = isLoginTab ? 'login_logout_history.csv' : isAccessTab ? 'who_accessed_log.csv' : 'auth_security_audit_logs.csv';
     link.click();
     secToast('Logs exported');
+}
+
+// ─── WHO ACCESSED ───
+async function loadAccessLog(page = 1) {
+    secAccessLogPage = page;
+    const tbody = document.getElementById('accessLogBody');
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">Loading...</td></tr>';
+    const moduleFilter = document.getElementById('accessLogModuleFilter')?.value || '';
+    try {
+        let url = SEC_API + '/access-log?page=' + page + '&limit=50';
+        if (moduleFilter) url += '&module=' + encodeURIComponent(moduleFilter);
+        const res = await fetch(url, { headers: SEC_HEADERS });
+        const data = await res.json();
+        if (!data.success || !data.data.items || !data.data.items.length) {
+            tbody.innerHTML = '<tr><td colspan="6" class="empty">No access records found</td></tr>';
+            document.getElementById('accessLogPagination').innerHTML = '';
+            return;
+        }
+        _accessLogCache = data.data.items;
+        _renderAccessLog(_accessLogCache);
+        const totalPages = Math.ceil(data.data.total / 50);
+        let pag = '';
+        if (totalPages > 1) {
+            if (page > 1) pag += `<button class="btn-page" onclick="loadAccessLog(${page - 1})">← Prev</button>`;
+            pag += `<span class="page-info">Page ${page} of ${totalPages}</span>`;
+            if (page < totalPages) pag += `<button class="btn-page" onclick="loadAccessLog(${page + 1})">Next →</button>`;
+        }
+        document.getElementById('accessLogPagination').innerHTML = pag;
+
+        // Populate module filter dropdown once
+        const sel = document.getElementById('accessLogModuleFilter');
+        if (sel && sel.options.length <= 1) {
+            const modules = [...new Set(data.data.items.map(r => r.module).filter(Boolean))];
+            modules.sort().forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m; opt.textContent = m;
+                sel.appendChild(opt);
+            });
+        }
+    } catch (e) { tbody.innerHTML = '<tr><td colspan="6" class="empty">Error loading access log</td></tr>'; }
+}
+
+function _renderAccessLog(items) {
+    const tbody = document.getElementById('accessLogBody');
+    if (!items.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">No records found</td></tr>'; return; }
+    tbody.innerHTML = items.map(r => {
+        const user = r.user_name || r.user_email || 'System';
+        const emailLine = r.user_email ? `<div class="cell-sub">${esc(r.user_email)}</div>` : '';
+        const actionClass = 'action-' + (r.action || '').toLowerCase();
+        return `<tr>
+            <td><div class="cell-main">${esc(user)}</div>${emailLine}</td>
+            <td><span class="action-badge ${actionClass}">${esc(r.action || '-')}</span></td>
+            <td>${esc(r.module || '-')}</td>
+            <td><div class="cell-main">${esc(r.entity_type || '-')}</div><div class="cell-sub"><code>${esc(r.entity_id || '')}</code></div></td>
+            <td><code>${esc(r.ip_address || '-')}</code></td>
+            <td>${formatTime(r.created_at)}</td>
+        </tr>`;
+    }).join('');
+}
+
+function filterAccessLog(query) {
+    if (!query.trim()) { _renderAccessLog(_accessLogCache); return; }
+    const q = query.toLowerCase();
+    _renderAccessLog(_accessLogCache.filter(r =>
+        (r.user_email || '').toLowerCase().includes(q) ||
+        (r.user_name || '').toLowerCase().includes(q) ||
+        (r.action || '').toLowerCase().includes(q) ||
+        (r.module || '').toLowerCase().includes(q) ||
+        (r.entity_type || '').toLowerCase().includes(q) ||
+        (r.entity_id || '').toLowerCase().includes(q)
+    ));
 }

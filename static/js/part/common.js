@@ -31,6 +31,7 @@ const PART_SECTIONS = [
     { id: 'subcategories', label: 'Subcategories', icon: 'folder_open' },
     { id: 'generate', label: 'Generate Part Code', icon: 'bolt' },
     { id: 'allparts', label: 'All Parts', icon: 'view_list' },
+    { id: 'assembly', label: 'Assembly', icon: 'build_circle' },
     { id: 'partmapping', label: 'Part Mapping', icon: 'swap_horiz' },
     { id: 'auditlogs', label: 'Audit Logs', icon: 'history' },
     { id: 'obsolete', label: 'Obsolete Parts', icon: 'block' },

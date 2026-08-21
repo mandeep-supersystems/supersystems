@@ -247,6 +247,7 @@
                     <div class="audit-subtabs">
                         <button class="btn-subtab active" id="subtabAuditLogs" onclick="switchAuditSubtab('logs')">System Audit Logs</button>
                         <button class="btn-subtab" id="subtabLoginHistory" onclick="switchAuditSubtab('login')">Login & Logout History</button>
+                        <button class="btn-subtab" id="subtabAccessLog" onclick="switchAuditSubtab('access')">Who Accessed</button>
                     </div>
                     <button class="btn-outline" onclick="exportAuditLogs()"><span class="material-icons-outlined">download</span> Export</button>
                 </div>
@@ -289,6 +290,32 @@
                     </table>
                 </div>
                 <div class="pagination" id="loginHistoryPagination"></div>
+            </div>
+
+            <!-- WHO ACCESSED WRAPPER -->
+            <div id="accessLogWrap" style="display:none">
+                <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+                    <select id="accessLogModuleFilter" onchange="loadAccessLog()" style="padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;font-size:13px">
+                        <option value="">All Modules</option>
+                    </select>
+                    <input type="text" id="accessLogSearch" placeholder="Search by user, action, module..." oninput="filterAccessLog(this.value)" style="flex:1;min-width:200px;padding:6px 12px;border:1px solid var(--border-color);border-radius:6px;font-size:13px">
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Action</th>
+                                <th>Module</th>
+                                <th>Entity / Section</th>
+                                <th>IP Address</th>
+                                <th>Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody id="accessLogBody"><tr><td colspan="6" class="empty">Loading...</td></tr></tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="accessLogPagination"></div>
             </div>
         </section>
 

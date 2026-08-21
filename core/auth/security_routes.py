@@ -37,7 +37,7 @@ MODULES = [
 
 # Entities per module (what sections/buttons exist)
 MODULE_ENTITIES = {
-    "Part Management": ["categories", "subcategories", "parts", "generate_part_code", "part_mapping", "audit_logs", "obsolete_parts", "user_management"],
+    "Part Management": ["categories", "subcategories", "generate_part_code", "all_parts", "assembly", "part_mapping", "audit_logs", "obsolete_parts", "user_management"],
     "Raw Material Management": ["criteria", "rm_master", "rm_part_mapping", "user_management"],
     "Auth & Security": ["users", "roles", "modules", "permissions", "audit_logs"],
     "Inventory Management": ["stock_levels", "stock_movements", "transfers", "adjustments", "counts", "reports"],
@@ -649,6 +649,38 @@ def update_access_permissions(access_id):
     _log_audit('UPDATE_PERMISSIONS', 'Module Access', access_id)
     db.session.commit()
     return {"success": True, "message": "Permissions updated"}
+
+
+# ─── MODULE ACCESS LOG (who accessed which module/section) ───
+@security_bp.route("/access-log", methods=["GET"])
+def module_access_log():
+    """Return audit log entries for module page visits and section access."""
+    tid = _get_tenant_id()
+    page = request.args.get('page', 1, type=int)
+    limit = request.args.get('limit', 50, type=int)
+    module_filter = request.args.get('module', '').strip()
+    offset = (page - 1) * limit
+
+    cond = "AND (tenant_id = :tid OR tenant_id = 'b424df0e-f766-4e94-b3fd-05777e158958' OR tenant_id = 'TEST' OR tenant_id = '' OR tenant_id IS NULL) "
+    params = {"tid": tid, "limit": limit, "offset": offset}
+    if module_filter:
+        cond += "AND module = :module "
+        params["module"] = module_filter
+
+    rows = db.session.execute(db.text(
+        f"SELECT id, action, module, entity_type, entity_id, ip_address, created_at, user_email, user_name, extra_data "
+        f"FROM audit.logs WHERE action IN ('ACCESS','LOGIN','LOGOUT','VIEW','EXPORT','IMPORT','GENERATE','GRANT_ACCESS','REVOKE_ACCESS','UPDATE_ACCESS') {cond}"
+        f"ORDER BY created_at DESC LIMIT :limit OFFSET :offset"
+    ), params)
+    logs = [{
+        "id": r[0], "action": r[1], "module": r[2], "entity_type": r[3], "entity_id": r[4],
+        "ip_address": r[5], "created_at": str(r[6]) if r[6] else None,
+        "user_email": r[7] or '', "user_name": r[8] or '', "extra_data": r[9]
+    } for r in rows]
+    total = db.session.execute(db.text(
+        f"SELECT COUNT(*) FROM audit.logs WHERE action IN ('ACCESS','LOGIN','LOGOUT','VIEW','EXPORT','IMPORT','GENERATE','GRANT_ACCESS','REVOKE_ACCESS','UPDATE_ACCESS') {cond}"
+    ), params).scalar() or 0
+    return {"success": True, "data": {"items": logs, "total": total, "page": page}}
 
 
 # ─── CHECK PERMISSION (for frontend button visibility) ───

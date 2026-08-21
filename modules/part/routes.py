@@ -1216,7 +1216,7 @@ def get_my_access():
     user_email = request.headers.get("X-User-Email", "")
 
     # All sections available
-    all_sections = ['overview', 'categories', 'subcategories', 'generate', 'allparts', 'partmapping', 'auditlogs', 'obsolete', 'moduleusers']
+    all_sections = ['overview', 'categories', 'subcategories', 'generate', 'allparts', 'assembly', 'partmapping', 'auditlogs', 'obsolete', 'moduleusers']
 
     if not user_email:
         return {"success": True, "data": {"role": "module_admin", "sections": all_sections}}
@@ -1270,10 +1270,10 @@ def get_my_access():
         sections = all_sections
         entity_permissions = {}
     elif role == 'editor':
-        sections = ['overview', 'categories', 'subcategories', 'generate', 'allparts', 'partmapping', 'auditlogs', 'obsolete']
+        sections = ['overview', 'categories', 'subcategories', 'generate', 'allparts', 'assembly', 'partmapping', 'auditlogs', 'obsolete']
         entity_permissions = {}
     else:  # viewer
-        sections = ['overview', 'allparts', 'obsolete']
+        sections = ['overview', 'allparts', 'assembly', 'obsolete']
         entity_permissions = {}
 
     return {"success": True, "data": {"role": role, "sections": sections, "entity_permissions": entity_permissions}}

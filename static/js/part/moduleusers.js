@@ -1,22 +1,18 @@
 // ─── PART MODULE: USER MANAGEMENT ───
 const ROLE_DEFAULT_SECTIONS = {
-    module_admin: ['overview', 'categories', 'subcategories', 'generate', 'allparts', 'partmapping', 'auditlogs', 'obsolete', 'moduleusers'],
-    editor:       ['overview', 'categories', 'subcategories', 'generate', 'allparts', 'partmapping', 'auditlogs', 'obsolete'],
-    viewer:       ['overview', 'allparts', 'obsolete']
+    module_admin: ['overview', 'categories', 'subcategories', 'generate', 'allparts', 'assembly', 'partmapping', 'auditlogs', 'obsolete', 'moduleusers'],
+    editor:       ['overview', 'categories', 'subcategories', 'generate', 'allparts', 'assembly', 'partmapping', 'auditlogs', 'obsolete'],
+    viewer:       ['overview', 'allparts', 'assembly', 'obsolete']
 };
 const PART_ENTITIES = [
     { id: 'categories',         label: 'Categories' },
     { id: 'subcategories',      label: 'Subcategories' },
-    { id: 'parts',              label: 'Parts (Generate)' },
     { id: 'generate_part_code', label: 'Generate Part Code' },
+    { id: 'all_parts',          label: 'All Parts' },
+    { id: 'assembly',           label: 'Assembly' },
     { id: 'part_mapping',       label: 'Part Mapping' },
-    { id: 'part_attributes',    label: 'Part Details: Attributes' },
-    { id: 'part_pos',           label: 'Part Details: Purchase Orders' },
-    { id: 'part_custpos',       label: 'Part Details: Customer POs' },
-    { id: 'part_mappings',      label: 'Part Details: Mappings' },
-    { id: 'part_rm_mappings',   label: 'Part Details: RM Mappings' },
-    { id: 'obsolete_parts',     label: 'Obsolete Parts' },
     { id: 'audit_logs',         label: 'Audit Logs' },
+    { id: 'obsolete_parts',     label: 'Obsolete Parts' },
     { id: 'user_management',    label: 'User Management' }
 ];
 const PART_ACTIONS = ['view', 'create', 'edit', 'delete', 'export', 'import'];
