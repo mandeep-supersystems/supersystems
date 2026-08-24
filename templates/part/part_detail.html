@@ -543,23 +543,32 @@
             if (!subcategoryId) return;
             const inputs = document.querySelectorAll('#pdAttributes .pd-inline-input');
             const headers = getHeaders();
-            let ok = true;
-            for (const inp of inputs) {
-                const field = inp.dataset.field;
-                const value = inp.value.trim();
-                const res = await fetch(`${API}/part-field-update`, { method: 'POST', headers, body: JSON.stringify({ part_number: PART_NUMBER, field, value, subcategory_id: subcategoryId }) });
+            const fields = {};
+            inputs.forEach(inp => { fields[inp.dataset.field] = inp.value.trim(); });
+            try {
+                const res = await fetch(`${API}/part-attributes-update`, {
+                    method: 'POST', headers,
+                    body: JSON.stringify({ part_number: PART_NUMBER, subcategory_id: subcategoryId, fields })
+                });
                 const d = await res.json();
-                if (d.success) { _partData.part[field] = value; }
-                else { ok = false; showToast(`Failed to save ${field}`, 'error'); }
-            }
-            if (ok) {
-                showToast('Attributes saved', 'success');
-                _attrEditMode = false;
-                const btn = document.getElementById('attrEditBtn');
-                btn.innerHTML = '<span class="material-icons-outlined">edit</span> Edit';
-                btn.classList.remove('pd-btn-cancel-mode');
-                _renderAttrView();
-            }
+                if (d.success) {
+                    // Update local cache
+                    Object.entries(fields).forEach(([k, v]) => { _partData.part[k] = v; });
+                    if (d.data && d.data.description != null) {
+                        _partData.part.description = d.data.description;
+                        document.getElementById('pdPartDesc').textContent = d.data.description || 'No description';
+                        document.getElementById('sbPartDesc').textContent = d.data.description || '';
+                    }
+                    showToast('Attributes saved', 'success');
+                    _attrEditMode = false;
+                    const btn = document.getElementById('attrEditBtn');
+                    btn.innerHTML = '<span class="material-icons-outlined">edit</span> Edit';
+                    btn.classList.remove('pd-btn-cancel-mode');
+                    _renderAttrView();
+                } else {
+                    showToast(d.message || 'Save failed', 'error');
+                }
+            } catch (e) { showToast('Network error', 'error'); }
         }
 
         // ── USAGE EDIT ──

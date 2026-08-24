@@ -1566,6 +1566,81 @@ def update_part_field():
     return {"success": True, "message": f"Field '{safe_field}' updated"}
 
 
+@part_bp.route("/part-attributes-update", methods=["POST"])
+def update_part_attributes():
+    """Update multiple attribute fields and rebuild description in one transaction."""
+    data = request.get_json()
+    part_number = data.get("part_number")
+    subcategory_id = data.get("subcategory_id")
+    fields = data.get("fields", {})  # {field_name: value}
+    if not part_number or not subcategory_id:
+        return {"success": False, "message": "part_number and subcategory_id required"}, 400
+
+    SYSTEM_COLS = {'id', 'part_number', 'subcategory_id', 'description', 'created_by',
+                   'is_bought_out', 'is_manufactured', 'status', 'created_at', 'updated_at',
+                   'obsoleted_at', 'obsolete_reason'}
+
+    row = db.session.execute(db.text(
+        "SELECT s.name, s.series_prefix, c.name as cat_name, c.series_prefix as cat_series, "
+        "c.id as cat_id, COALESCE(c.code, c.name) as cat_code, "
+        "c.description_columns, s.description_columns as sub_desc_cols "
+        "FROM part.subcategories s JOIN part.categories c ON s.category_id = c.id "
+        "WHERE s.id = :id AND s.is_deleted = false"
+    ), {"id": subcategory_id}).first()
+    if not row:
+        return {"success": False, "message": "Subcategory not found"}, 404
+
+    sub_name, cat_name, cat_series = row[0], row[2], row[3]
+    cat_id, cat_code = row[4], row[5]
+    # Use category description_columns (authoritative)
+    desc_cols_raw = row[6] if row[6] is not None else row[7]
+    desc_columns = desc_cols_raw if isinstance(desc_cols_raw, list) else (json.loads(desc_cols_raw) if desc_cols_raw else [])
+
+    table_name = _safe_table_name(cat_name, cat_series)
+
+    try:
+        set_clauses = []
+        params = {"pn": part_number}
+        for field, value in fields.items():
+            safe_field = re.sub(r'[^a-z0-9_]', '_', field.lower().strip())
+            if safe_field in ('id', 'part_number', 'created_at', 'status'):
+                continue
+            set_clauses.append(f'"{safe_field}" = :{safe_field}')
+            params[safe_field] = value if value != "" else None
+
+        # Rebuild description from the new field values merged with existing row
+        existing_row = db.session.execute(db.text(
+            f"SELECT * FROM {table_name} WHERE part_number = :pn LIMIT 1"
+        ), {"pn": part_number}).first()
+        if existing_row:
+            result2 = db.session.execute(db.text(
+                f"SELECT * FROM {table_name} WHERE part_number = :pn LIMIT 1"
+            ), {"pn": part_number})
+            col_keys = list(result2.keys())
+            existing_vals = dict(zip(col_keys, result2.first()))
+            # Merge new values over existing
+            merged = {k: (str(v) if v is not None else '') for k, v in existing_vals.items()}
+            for field, value in fields.items():
+                safe_field = re.sub(r'[^a-z0-9_]', '_', field.lower().strip())
+                merged[safe_field] = str(value).strip() if value else ''
+            new_description = _build_description([], merged, desc_columns, cat_name, sub_name, cat_code)
+            set_clauses.append("description = :description")
+            params["description"] = new_description
+        else:
+            new_description = None
+
+        if set_clauses:
+            db.session.execute(db.text(
+                f"UPDATE {table_name} SET {', '.join(set_clauses)}, updated_at = NOW() WHERE part_number = :pn"
+            ), params)
+        _log_audit('UPDATE', 'Part', part_number, f'Attributes updated', new_values=fields)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return {"success": False, "message": f"Database error: {str(e)}"}, 500
+    return {"success": True, "message": "Attributes saved", "data": {"description": new_description}}
+
+
 @part_bp.route("/part-detail/<part_number>", methods=["GET"])
 def get_part_detail(part_number):
     """Full detail for a single part: part data + all POs containing it."""
