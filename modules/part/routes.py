@@ -167,21 +167,21 @@ def _safe_table_name(category_name, cat_series):
 
 def _generate_next_part_number(cat_series, sub_series, category_id, separator='-', subcategory_id=None, table_name=None):
     """Generate next part: {cat_series}{sep}{sub_series}{sep}{seq_str}.
-    Finds the lowest unused sequence number to fill gaps left by deleted parts."""
+    Uses SELECT FOR UPDATE to prevent duplicate generation under concurrent requests."""
     padding_row = db.session.execute(db.text(
         "SELECT COALESCE(sequence_padding, 4) FROM part.categories WHERE id = :id"
     ), {"id": category_id}).first()
     padding = padding_row[0] if padding_row else 4
 
-    # Get current max sequence from subcategory counter
+    # Lock the row to serialize concurrent part generation
     if subcategory_id:
         seq_row = db.session.execute(db.text(
-            "SELECT current_sequence FROM part.subcategories WHERE id = :id"
+            "SELECT current_sequence FROM part.subcategories WHERE id = :id FOR UPDATE"
         ), {"id": subcategory_id}).first()
         current_max = seq_row[0] if seq_row else 0
     else:
         seq_row = db.session.execute(db.text(
-            "SELECT current_sequence FROM part.categories WHERE id = :id"
+            "SELECT current_sequence FROM part.categories WHERE id = :id FOR UPDATE"
         ), {"id": category_id}).first()
         current_max = seq_row[0] if seq_row else 0
 
@@ -201,16 +201,15 @@ def _generate_next_part_number(cat_series, sub_series, category_id, separator='-
     if next_seq is None:
         next_seq = current_max + 1
 
-    # Update the sequence counter if next_seq exceeds current max
-    if next_seq > current_max:
-        if subcategory_id:
-            db.session.execute(db.text(
-                "UPDATE part.subcategories SET current_sequence = :seq, updated_at = NOW() WHERE id = :id"
-            ), {"seq": next_seq, "id": subcategory_id})
-        else:
-            db.session.execute(db.text(
-                "UPDATE part.categories SET current_sequence = :seq, updated_at = NOW() WHERE id = :id"
-            ), {"seq": next_seq, "id": category_id})
+    # Always update the counter to the new value (holds the lock until commit)
+    if subcategory_id:
+        db.session.execute(db.text(
+            "UPDATE part.subcategories SET current_sequence = :seq, updated_at = NOW() WHERE id = :id"
+        ), {"seq": next_seq, "id": subcategory_id})
+    else:
+        db.session.execute(db.text(
+            "UPDATE part.categories SET current_sequence = :seq, updated_at = NOW() WHERE id = :id"
+        ), {"seq": next_seq, "id": category_id})
 
     seq_str = str(next_seq).zfill(padding)
     return f"{cat_series}{separator}{sub_series}{separator}{seq_str}"
@@ -1479,7 +1478,7 @@ def search_internal_parts():
             rows = db.session.execute(db.text(
                 f"SELECT part_number, COALESCE(description,'') FROM {table_name} "
                 f"WHERE (LOWER(part_number) LIKE LOWER(:q) OR LOWER(COALESCE(description,'')) LIKE LOWER(:q)) "
-                f"AND status = 'active' LIMIT 10"
+                f"AND LOWER(COALESCE(status,'active')) != 'obsolete' LIMIT 10"
             ), {"q": search})
             for r in rows:
                 results.append({"part_number": r[0], "description": r[1]})

@@ -26,7 +26,11 @@ async function loadAssemblyBomList() {
                     ? `<span class="badge" style="background:#e0e7ff; color:#4f46e5; font-weight:700;">${a.version}</span>`
                     : `<span style="font-size:11px; color:var(--text-secondary);">—</span>`;
                 const actionHtml = a.has_bom
-                    ? `<button class="btn-outline" style="padding:4px 8px; font-size:11px;" onclick="event.stopPropagation(); navigateToBomDetailByPart('${a.part_code}')">Open BOM →</button>`
+                    ? `<div style="display:flex;gap:4px;">
+                        <button class="btn-outline" style="padding:4px 8px; font-size:11px;" onclick="event.stopPropagation(); navigateToBomDetailByPart('${a.part_code}')">Open →</button>
+                        <button class="btn-icon" title="BOM History" style="padding:4px 6px; border:1px solid var(--border-color); border-radius:4px; background:var(--bg-secondary);" onclick="event.stopPropagation(); openBomHistoryModal('${a.bom_id}', '${a.part_code}')"><span class="material-icons-outlined" style="font-size:14px;">history</span></button>
+                        <button class="btn-icon" title="Delete BOM" style="padding:4px 6px; border:1px solid #fecaca; border-radius:4px; background:#fff5f5; color:#ef4444;" onclick="event.stopPropagation(); openDeleteBomModal('${a.bom_id}', '${a.part_code}')"><span class="material-icons-outlined" style="font-size:14px;">delete</span></button>
+                      </div>`
                     : `<button class="btn-primary" style="padding:4px 8px; font-size:11px;" onclick="event.stopPropagation(); openNewBomModal('${a.part_code}', '${(a.description || '').replace(/'/g, "\\'")}')">+ Create BOM</button>`;
                 
                 const desc = a.description || '—';
@@ -1017,6 +1021,62 @@ function filterBomListTable(query) {
         const text = row.innerText.toLowerCase();
         row.style.display = text.includes(q) ? '' : 'none';
     });
+}
+
+function openDeleteBomModal(bomId, partCode) {
+    document.getElementById('delBomId').value = bomId;
+    document.getElementById('delBomPartLabel').innerText = partCode;
+    document.getElementById('delBomPassword').value = '';
+    document.getElementById('delBomError').style.display = 'none';
+    document.getElementById('deleteBomModal').classList.add('active');
+}
+
+async function submitDeleteBom() {
+    const bomId = document.getElementById('delBomId').value;
+    const password = document.getElementById('delBomPassword').value.trim();
+    const errEl = document.getElementById('delBomError');
+    if (!password) { errEl.textContent = 'Password is required.'; errEl.style.display = 'block'; return; }
+
+    try {
+        const res = await fetch(API + `/boms/${bomId}/delete`, {
+            method: 'POST',
+            headers: HEADERS,
+            body: JSON.stringify({ password })
+        });
+        const json = await res.json();
+        if (json.success) {
+            showToast('BOM deleted successfully');
+            closeModal('deleteBomModal');
+            loadAssemblyBomList();
+        } else {
+            errEl.textContent = json.message || 'Incorrect password.';
+            errEl.style.display = 'block';
+        }
+    } catch (e) { errEl.textContent = 'Error deleting BOM.'; errEl.style.display = 'block'; }
+}
+
+async function openBomHistoryModal(bomId, partCode) {
+    document.getElementById('histBomPartLabel').innerText = partCode;
+    document.getElementById('histBomBody').innerHTML = '<tr><td colspan="4" style="text-align:center;">Loading...</td></tr>';
+    document.getElementById('bomHistoryModal').classList.add('active');
+    try {
+        const res = await fetch(API + `/boms/${bomId}/history`, { headers: HEADERS });
+        const json = await res.json();
+        if (json.success && json.data.length > 0) {
+            document.getElementById('histBomBody').innerHTML = json.data.map(h => `
+                <tr>
+                    <td><span class="badge" style="background:#e0e7ff;color:#4f46e5;font-weight:700;">${h.action}</span></td>
+                    <td style="font-size:12px;max-width:300px;">${h.detail || '-'}</td>
+                    <td><strong>${h.performed_by}</strong></td>
+                    <td style="font-size:11px;color:var(--text-secondary);">${h.performed_at.split('.')[0]}</td>
+                </tr>
+            `).join('');
+        } else {
+            document.getElementById('histBomBody').innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-secondary);">No history found.</td></tr>';
+        }
+    } catch (e) {
+        document.getElementById('histBomBody').innerHTML = '<tr><td colspan="4" style="text-align:center;color:red;">Error loading history.</td></tr>';
+    }
 }
 
 

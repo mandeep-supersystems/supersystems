@@ -925,6 +925,56 @@
 </div>
 
 
+<!-- DELETE BOM MODAL -->
+<div class="modal-overlay" id="deleteBomModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Delete BOM</h3>
+            <button class="close-btn" onclick="closeModal('deleteBomModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="delBomId">
+            <p style="margin-bottom:12px; font-size:13px;">You are about to permanently delete the BOM for <strong id="delBomPartLabel"></strong>. This action cannot be undone.</p>
+            <div class="form-group">
+                <label>Enter your password to confirm *</label>
+                <input type="password" id="delBomPassword" placeholder="Your account password" style="width:100%;" onkeydown="if(event.key==='Enter') submitDeleteBom()">
+            </div>
+            <div id="delBomError" style="display:none; color:#ef4444; font-size:12px; margin-top:6px;"></div>
+            <div class="form-actions" style="margin-top:16px;">
+                <button class="btn-outline" onclick="closeModal('deleteBomModal')">Cancel</button>
+                <button class="btn-primary" style="background:#ef4444; border-color:#ef4444;" onclick="submitDeleteBom()"><span class="material-icons-outlined" style="font-size:15px;">delete</span> Confirm Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- BOM HISTORY MODAL -->
+<div class="modal-overlay" id="bomHistoryModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3>BOM History — <span id="histBomPartLabel" style="color:var(--accent);"></span></h3>
+            <button class="close-btn" onclick="closeModal('bomHistoryModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th style="width:120px;">Action</th>
+                            <th>Details</th>
+                            <th style="width:120px;">Performed By</th>
+                            <th style="width:140px;">Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody id="histBomBody">
+                        <tr><td colspan="4" style="text-align:center;">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="/static/js/header.js"></script>
 <script>requireAuth();</script>
 <script src="/static/js/manufacturing/common.js"></script>

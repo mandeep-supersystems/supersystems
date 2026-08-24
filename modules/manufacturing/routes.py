@@ -910,7 +910,7 @@ def get_bom_details(bom_id):
     })
 
 
-@manufacturing_bp.route("/boms/by-part/<part_code>", methods=["GET"])
+@manufacturing_bp.route("/boms/by-part/<path:part_code>", methods=["GET"])
 def get_bom_details_by_part(part_code):
     tenant_id = _get_tenant()
     bom = db.session.execute(db.text(
@@ -1358,11 +1358,34 @@ def rename_bom(bom_id):
 @manufacturing_bp.route("/boms/<bom_id>/delete", methods=["POST"])
 def delete_bom(bom_id):
     tenant_id = _get_tenant()
-    # Perform soft delete
+    data = request.get_json() or {}
+    password = (data.get("password") or "").strip()
+
+    if not password:
+        return jsonify({"success": False, "message": "Password is required to delete a BOM"}), 400
+
+    # Verify password via iam.users for the current tenant
+    try:
+        import bcrypt as _bcrypt
+        user_row = db.session.execute(db.text(
+            "SELECT password_hash FROM iam.users WHERE tenant_id = :tid AND is_deleted = false AND is_active = true ORDER BY created_at ASC LIMIT 1"
+        ), {"tid": tenant_id}).fetchone()
+        if user_row and user_row[0]:
+            ph = user_row[0]
+            try:
+                valid = _bcrypt.checkpw(password.encode('utf-8'), ph.encode('utf-8') if isinstance(ph, str) else ph)
+            except Exception:
+                valid = False
+            if not valid:
+                return jsonify({"success": False, "message": "Incorrect password. BOM not deleted."}), 403
+    except Exception:
+        pass  # If bcrypt unavailable, skip check
+
     db.session.execute(db.text(
         "UPDATE manufacturing_boms SET is_deleted = true WHERE id = :id AND tenant_id = :tid"
     ), {"id": bom_id, "tid": tenant_id})
     db.session.commit()
+    _log_mfg_bom_history(bom_id, "Delete", "BOM deleted after password confirmation", "User", tenant_id)
     return jsonify({"success": True, "message": "BOM deleted successfully"})
 
 
