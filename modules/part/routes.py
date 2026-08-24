@@ -185,10 +185,23 @@ def _generate_next_part_number(cat_series, sub_series, category_id, separator='-
         ), {"id": category_id}).first()
         current_max = seq_row[0] if seq_row else 0
 
+    # Always sync current_max with the actual table to handle out-of-sync counters
+    # (e.g. after bulk migration that bypassed the sequence counter)
+    if table_name:
+        prefix = f"{cat_series}{separator}{sub_series}{separator}"
+        try:
+            actual_max_row = db.session.execute(db.text(
+                f"SELECT MAX(CAST(SPLIT_PART(part_number, :sep, 3) AS INTEGER)) "
+                f"FROM {table_name} WHERE part_number LIKE :prefix"
+            ), {"sep": separator, "prefix": f"{prefix}%"}).first()
+            if actual_max_row and actual_max_row[0] is not None:
+                current_max = max(current_max, actual_max_row[0])
+        except Exception:
+            db.session.rollback()
+
     # Find lowest unused sequence by checking actual table for gaps
     next_seq = None
     if table_name:
-        prefix = f"{cat_series}{separator}{sub_series}{separator}"
         for candidate in range(1, current_max + 2):
             candidate_pn = f"{prefix}{str(candidate).zfill(padding)}"
             exists = db.session.execute(db.text(
@@ -772,7 +785,16 @@ def generate_part():
             params[col_name] = col_values[col_name]
 
     insert_sql = f"INSERT INTO {table_name} ({', '.join(col_names)}) VALUES ({', '.join(col_placeholders)})"
-    db.session.execute(db.text(insert_sql), params)
+    try:
+        db.session.execute(db.text(insert_sql), params)
+    except Exception as e:
+        db.session.rollback()
+        err_str = str(e)
+        if 'UniqueViolation' in err_str or 'unique constraint' in err_str.lower() or 'duplicate key' in err_str.lower():
+            return {"success": False, "message": f"Part number {part_number} already exists. Please try again.",
+                    "data": {"existing_part": part_number, "description": description},
+                    "already_exists": True}, 409
+        return {"success": False, "message": f"Failed to insert part: {err_str}"}, 500
 
     manufacturers = data.get("manufacturers", [])
     if isinstance(manufacturers, list) and len(manufacturers) > 0:
