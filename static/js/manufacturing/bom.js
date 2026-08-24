@@ -622,7 +622,12 @@ function openAddBomItemModal(type) {
     document.getElementById('addBomItemModalTitle').innerText = type === 'assembly' ? 'Add Assembly to BOM' : 'Add Component to BOM';
     document.getElementById('abiParentId').value = currentSelectedItemId || '';
     document.getElementById('abiChildType').value = type;
-    
+
+    // Show/hide tabs — bulk only for components
+    const tabBar = document.getElementById('abiTabBar');
+    tabBar.style.display = type === 'component' ? 'flex' : 'none';
+    switchAbiTab('manual');
+
     document.getElementById('abiSearchLabel').innerText = type === 'assembly' ? 'Search Assembly *' : 'Search Component *';
     document.getElementById('abiPartSearch').value = '';
     document.getElementById('abiSelectedPart').value = '';
@@ -630,7 +635,7 @@ function openAddBomItemModal(type) {
     document.getElementById('abiUnit').value = 'Nos';
     document.getElementById('abiScrap').value = '0';
     document.getElementById('abiOpRef').value = '-01';
-    
+
     const procGroup = document.getElementById('abiProcurementGroup');
     if (type === 'assembly') {
         procGroup.style.display = 'block';
@@ -639,9 +644,149 @@ function openAddBomItemModal(type) {
         procGroup.style.display = 'none';
         document.getElementById('abiProcurement').value = 'bought_out';
     }
-    
+
     clearSelectedBomPart();
+    // Reset bulk table
+    document.getElementById('abiBulkRows').innerHTML = '';
+    document.getElementById('abiBulkError').style.display = 'none';
+    addBulkRow();
     document.getElementById('addMfgBomItemModal').classList.add('active');
+}
+
+function switchAbiTab(tab) {
+    document.getElementById('abiPaneManual').style.display = tab === 'manual' ? 'block' : 'none';
+    document.getElementById('abiPaneBulk').style.display = tab === 'bulk' ? 'block' : 'none';
+    document.getElementById('abiTabManual').classList.toggle('active', tab === 'manual');
+    document.getElementById('abiTabBulk').classList.toggle('active', tab === 'bulk');
+}
+
+let bulkRowCounter = 0;
+function addBulkRow(partCode = '', qty = 1, unit = 'Nos', scrap = 0, opRef = '-01') {
+    const id = bulkRowCounter++;
+    const tbody = document.getElementById('abiBulkRows');
+    const tr = document.createElement('tr');
+    tr.id = `bulkRow_${id}`;
+    tr.innerHTML = `
+        <td style="padding:4px 6px;">
+            <div style="position:relative;">
+                <input type="text" placeholder="Search part..." value="${partCode}" id="bulkSearch_${id}"
+                    oninput="searchBulkPart(${id}, this.value)"
+                    style="width:100%; padding:5px 8px; border:1px solid var(--border-color); border-radius:4px; font-size:12px; outline:none;">
+                <input type="hidden" id="bulkPart_${id}" value="${partCode}">
+                <div id="bulkResults_${id}" class="emp-search-results" style="position:absolute; z-index:999; width:100%;"></div>
+            </div>
+        </td>
+        <td style="padding:4px 6px;"><input type="number" step="0.0001" value="${qty}" id="bulkQty_${id}" style="width:100%; padding:5px; border:1px solid var(--border-color); border-radius:4px; font-size:12px; outline:none;"></td>
+        <td style="padding:4px 6px;"><input type="text" value="${unit}" id="bulkUnit_${id}" style="width:100%; padding:5px; border:1px solid var(--border-color); border-radius:4px; font-size:12px; outline:none;"></td>
+        <td style="padding:4px 6px;"><input type="number" step="0.1" value="${scrap}" id="bulkScrap_${id}" style="width:100%; padding:5px; border:1px solid var(--border-color); border-radius:4px; font-size:12px; outline:none;"></td>
+        <td style="padding:4px 6px;"><input type="text" value="${opRef}" id="bulkOpRef_${id}" style="width:100%; padding:5px; border:1px solid var(--border-color); border-radius:4px; font-size:12px; outline:none;"></td>
+        <td style="padding:4px 6px; text-align:center;">
+            <button type="button" onclick="document.getElementById('bulkRow_${id}').remove()" style="background:none; border:none; cursor:pointer; color:#ef4444;">
+                <span class="material-icons-outlined" style="font-size:16px;">delete</span>
+            </button>
+        </td>
+    `;
+    tbody.appendChild(tr);
+}
+
+function searchBulkPart(rowId, q) {
+    clearTimeout(partSearchTimer);
+    const resultsDiv = document.getElementById(`bulkResults_${rowId}`);
+    if (!q || q.trim().length < 2) { resultsDiv.innerHTML = ''; return; }
+    partSearchTimer = setTimeout(async () => {
+        try {
+            const res = await fetch(`/api/v1/part/search-parts?q=${encodeURIComponent(q)}`, { headers: HEADERS });
+            const json = await res.json();
+            if (json.success && json.data.length > 0) {
+                resultsDiv.innerHTML = json.data.map(p => `
+                    <div class="search-result-item" onclick="pickBulkPart(${rowId}, '${p.part_number}', '${(p.description||'').replace(/'/g,"\\'")}')">
+                        <strong>${p.part_number}</strong> — ${p.description || ''}
+                    </div>
+                `).join('');
+            } else {
+                resultsDiv.innerHTML = '<div style="padding:6px 8px; font-size:12px; color:var(--text-secondary);">No parts found.</div>';
+            }
+        } catch(e) { resultsDiv.innerHTML = ''; }
+    }, 300);
+}
+
+function pickBulkPart(rowId, partNumber, desc) {
+    document.getElementById(`bulkSearch_${rowId}`).value = `${partNumber} — ${desc}`;
+    document.getElementById(`bulkPart_${rowId}`).value = partNumber;
+    document.getElementById(`bulkResults_${rowId}`).innerHTML = '';
+}
+
+function parseBulkCsv(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        const lines = e.target.result.split('\n').filter(l => l.trim());
+        // Skip header row
+        const dataLines = lines[0].toLowerCase().includes('part_code') ? lines.slice(1) : lines;
+        document.getElementById('abiBulkRows').innerHTML = '';
+        bulkRowCounter = 0;
+        dataLines.forEach(line => {
+            const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+            if (!cols[0]) return;
+            addBulkRow(cols[0], cols[1] || 1, cols[2] || 'Nos', cols[3] || 0, cols[4] || '-01');
+        });
+    };
+    reader.readAsText(file);
+    input.value = '';
+}
+
+function downloadBulkCsvTemplate() {
+    const csv = 'part_code,qty,unit,scrap_factor,op_ref\n901.1.0001,2,Nos,0,-01\n901.1.0002,1,Nos,0,-01';
+    const a = document.createElement('a');
+    a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+    a.download = 'bom_bulk_template.csv';
+    a.click();
+}
+
+async function submitBulkBomItems() {
+    const rows = document.querySelectorAll('#abiBulkRows tr');
+    const errEl = document.getElementById('abiBulkError');
+    errEl.style.display = 'none';
+
+    const items = [];
+    for (const row of rows) {
+        const id = row.id.replace('bulkRow_', '');
+        const partCode = document.getElementById(`bulkPart_${id}`).value.trim();
+        if (!partCode) { errEl.textContent = 'All rows must have a part selected.'; errEl.style.display = 'block'; return; }
+        items.push({
+            child_type: 'component',
+            child_part_code: partCode,
+            quantity: parseFloat(document.getElementById(`bulkQty_${id}`).value || 1),
+            unit: document.getElementById(`bulkUnit_${id}`).value || 'Nos',
+            scrap_factor: parseFloat(document.getElementById(`bulkScrap_${id}`).value || 0),
+            operation_ref: document.getElementById(`bulkOpRef_${id}`).value || '-01',
+            procurement_type: 'bought_out',
+            parent_item_id: document.getElementById('abiParentId').value || null,
+            level: currentSelectedItemId ? (bomData.items.find(i => i.id === currentSelectedItemId)?.level + 1 || 1) : 1
+        });
+    }
+
+    if (items.length === 0) { errEl.textContent = 'Add at least one row.'; errEl.style.display = 'block'; return; }
+
+    let failed = 0;
+    for (const item of items) {
+        try {
+            const res = await fetch(API + `/boms/${currentBomId}/add-item`, {
+                method: 'POST', headers: HEADERS, body: JSON.stringify(item)
+            });
+            const json = await res.json();
+            if (!json.success) failed++;
+        } catch(e) { failed++; }
+    }
+
+    if (failed > 0) {
+        showToast(`${items.length - failed} added, ${failed} failed.`, 'error');
+    } else {
+        showToast(`${items.length} component(s) added successfully`);
+        closeModal('addMfgBomItemModal');
+        loadBomDetail(currentBomId);
+    }
 }
 
 function searchPartsForBom(q) {
