@@ -275,7 +275,7 @@ def get_all_customer_orders():
         
     # Also valid parts from BOMs (finished goods)
     bom_rows = db.session.execute(db.text(
-        "SELECT fg_part_number FROM manufacturing_boms WHERE status = 'active' AND " + _tid_cond()
+        "SELECT fg_part_number FROM manufacturing_boms WHERE status IN ('active', 'Released') AND " + _tid_cond()
     ), {"tid": tid}).fetchall()
     for br in bom_rows:
         valid_parts.add(br[0])
@@ -338,7 +338,7 @@ def analyze_bom(part_number):
             fg_part = part_number if part_number.endswith("-99") else f"{part_number}-99"
             bom_row = db.session.execute(db.text(
                 "SELECT id, bom_no, COALESCE(yield_qty,1) FROM public.manufacturing_boms "
-                "WHERE fg_part_number IN (:fg, :pn) AND status = 'active' "
+                "WHERE fg_part_number IN (:fg, :pn) AND status IN ('active', 'Released') "
                 "AND (tenant_id = :tid OR tenant_id = '' OR tenant_id IS NULL) LIMIT 1"
             ), {"fg": fg_part, "pn": part_number, "tid": tid}).first()
             if bom_row:

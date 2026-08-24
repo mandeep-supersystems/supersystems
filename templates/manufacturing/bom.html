@@ -142,7 +142,7 @@
             <span class="material-icons-outlined" style="font-size:15px;">arrow_back</span> Back to BOMs
         </button>
         <span style="color:var(--text-secondary);font-size:13px;">Bill of Materials /</span>
-        <span id="detBomTitle" style="font-weight:600;font-size:13px;">—</span>
+        <span id="detBomTitle" style="font-weight:600;font-size:13px;cursor:pointer;" title="Double-click to rename BOM Name">—</span>
     </div>
 
     <!-- BOM Header Card -->
@@ -173,6 +173,9 @@
                 </button>
                 <button class="btn-outline" id="btnReleaseBom" onclick="openReleaseBomModal()" style="font-size:12px;padding:5px 10px;color:#10b981;border-color:#10b981;">
                     <span class="material-icons-outlined" style="font-size:15px;">check_circle</span> Release
+                </button>
+                <button class="btn-outline" id="btnVersionCopy" onclick="openVersionCopyModal()" style="font-size:12px;padding:5px 10px;color:#6366f1;border-color:#a5b4fc;">
+                    <span class="material-icons-outlined" style="font-size:15px;">content_copy</span> Version / Copy
                 </button>
                 <button class="btn-outline" onclick="deleteBomHeader(currentBomId, document.getElementById('detBomNo').innerText)" style="font-size:12px;padding:5px 10px;color:#ef4444;border-color:#ef4444;">
                     <span class="material-icons-outlined" style="font-size:15px;">delete</span>
@@ -467,6 +470,7 @@
                     <label>Change Description</label>
                     <textarea id="relBomChangeDesc" style="width:100%;min-height:60px;padding:8px;border:1px solid var(--border-color);border-radius:4px;outline:none;font-family:inherit;" placeholder="Describe what changed in this release..."></textarea>
                 </div>
+                <div id="relBomError" style="display:none;margin-top:10px;"></div>
                 <div class="form-actions">
                     <button type="button" class="btn-outline" onclick="closeModal('releaseMfgBomModal')">Cancel</button>
                     <button type="submit" class="btn-primary" style="background:#10b981;">Release</button>

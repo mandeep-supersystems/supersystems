@@ -72,7 +72,7 @@ def create_app(config_name="development"):
     from modules.inventory.routes import inventory_bp
     from modules.finance.routes import finance_bp
     from modules.hr.routes import hr_bp
-    from modules.manufacturing.routes import manufacturing_bp
+    from modules.manufacturing.routes import manufacturing_bp, bom_api_bp
     from modules.quality.routes import quality_bp
     from modules.warehouse.routes import warehouse_bp
     from modules.maintenance.routes import maintenance_bp
@@ -99,6 +99,7 @@ def create_app(config_name="development"):
     app.register_blueprint(finance_bp, url_prefix="/api/v1/finance")
     app.register_blueprint(hr_bp, url_prefix="/api/v1/hr")
     app.register_blueprint(manufacturing_bp, url_prefix="/api/v1/manufacturing")
+    app.register_blueprint(bom_api_bp, url_prefix="/api/bom")
     app.register_blueprint(quality_bp, url_prefix="/api/v1/quality")
     app.register_blueprint(warehouse_bp, url_prefix="/api/v1/warehouse")
     app.register_blueprint(maintenance_bp, url_prefix="/api/v1/maintenance")

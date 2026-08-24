@@ -5,6 +5,8 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request
 from extensions import db
 
+bom_api_bp = Blueprint("bom_api_bp", __name__)
+
 import os
 import io
 from werkzeug.utils import secure_filename
@@ -1055,16 +1057,51 @@ def move_bom_item(bom_id, item_id):
     return jsonify({"success": True, "message": "Item moved successfully"})
 
 
+def get_unreleased_sub_assemblies(bom_id, tenant_id, visited_parts=None):
+    if visited_parts is None:
+        visited_parts = set()
+        
+    unreleased = []
+    
+    # Get all active items in the current BOM
+    items = db.session.execute(db.text(
+        "SELECT child_part_code, child_type FROM manufacturing_bom_items "
+        "WHERE bom_id = :bid AND tenant_id = :tid AND status = 'Active'"
+    ), {"bid": bom_id, "tid": tenant_id}).fetchall()
+    
+    for item in items:
+        part_code, child_type = item[0], item[1]
+        if child_type == 'assembly':
+            if part_code in visited_parts:
+                continue
+            visited_parts.add(part_code)
+            
+            # Look up BOM for this part
+            sub_bom = db.session.execute(db.text(
+                "SELECT id, status FROM manufacturing_boms WHERE fg_part_number = :part AND is_deleted = false AND tenant_id = :tid LIMIT 1"
+            ), {"part": part_code, "tid": tenant_id}).fetchone()
+            
+            if not sub_bom:
+                unreleased.append({"part_code": part_code, "status": "No BOM"})
+            elif sub_bom[1] != 'Released':
+                unreleased.append({"part_code": part_code, "status": sub_bom[1]})
+                unreleased.extend(get_unreleased_sub_assemblies(sub_bom[0], tenant_id, visited_parts))
+            else:
+                unreleased.extend(get_unreleased_sub_assemblies(sub_bom[0], tenant_id, visited_parts))
+                
+    return unreleased
+
+
 @manufacturing_bp.route("/boms/<bom_id>/enter-edit", methods=["POST"])
 def enter_edit(bom_id):
     tenant_id = _get_tenant()
 
-    # Clear old temporary edits
+    # Clear old temporary edits under version '_edit_'
     db.session.execute(db.text(
-        "DELETE FROM manufacturing_bom_item_snapshots WHERE bom_id = :bid AND version = 'TEMP_EDIT' AND tenant_id = :tid"
+        "DELETE FROM manufacturing_bom_item_snapshots WHERE bom_id = :bid AND version = '_edit_' AND tenant_id = :tid"
     ), {"bid": bom_id, "tid": tenant_id})
 
-    # Save live items into TEMP_EDIT snapshot
+    # Save live items into '_edit_' snapshot
     items = db.session.execute(db.text(
         "SELECT id, parent_item_id, child_type, child_part_code, quantity, unit, level, reference, notes, material, unit_cost, status, revision, scrap_factor, operation_ref, procurement_type "
         "FROM manufacturing_bom_items WHERE bom_id = :bid AND tenant_id = :tid"
@@ -1077,7 +1114,7 @@ def enter_edit(bom_id):
 
         db.session.execute(db.text(
             "INSERT INTO manufacturing_bom_item_snapshots (id, bom_id, version, original_item_id, parent_item_id, child_type, child_part_code, description, quantity, unit, level, reference, notes, material, unit_cost, status, revision, scrap_factor, operation_ref, procurement_type, tenant_id) "
-            "VALUES (:id, :bid, 'TEMP_EDIT', :orig, :parent, :ctype, :cno, :desc, :qty, :unit, :lvl, :ref, :notes, :mat, :cost, :status, :rev, :scrap, :op, :proc_type, :tid)"
+            "VALUES (:id, :bid, '_edit_', :orig, :parent, :ctype, :cno, :desc, :qty, :unit, :lvl, :ref, :notes, :mat, :cost, :status, :rev, :scrap, :op, :proc_type, :tid)"
         ), {
             "id": str(uuid.uuid4()), "bid": bom_id, "orig": str(item[0]), "parent": str(item[1]) if item[1] else None,
             "ctype": item[2], "cno": item[3], "desc": desc, "qty": float(item[4] or 1), "unit": item[5], "lvl": int(item[6] or 1),
@@ -1099,10 +1136,10 @@ def cancel_edit(bom_id):
         "DELETE FROM manufacturing_bom_items WHERE bom_id = :bid AND tenant_id = :tid"
     ), {"bid": bom_id, "tid": tenant_id})
 
-    # Restore from TEMP_EDIT snapshot
+    # Restore from '_edit_' snapshot
     snaps = db.session.execute(db.text(
         "SELECT original_item_id, parent_item_id, child_type, child_part_code, quantity, unit, level, reference, notes, material, unit_cost, status, revision, scrap_factor, operation_ref, procurement_type "
-        "FROM manufacturing_bom_item_snapshots WHERE bom_id = :bid AND version = 'TEMP_EDIT' AND tenant_id = :tid"
+        "FROM manufacturing_bom_item_snapshots WHERE bom_id = :bid AND version = '_edit_' AND tenant_id = :tid"
     ), {"bid": bom_id, "tid": tenant_id}).fetchall()
 
     for s in snaps:
@@ -1115,9 +1152,9 @@ def cancel_edit(bom_id):
             "cost": float(s[10] or 0), "status": s[11], "rev": s[12], "scrap": float(s[13] or 0), "op": s[14], "proc_type": s[15], "tid": tenant_id
         })
 
-    # Clear TEMP_EDIT snapshot
+    # Clear '_edit_' snapshot
     db.session.execute(db.text(
-        "DELETE FROM manufacturing_bom_item_snapshots WHERE bom_id = :bid AND version = 'TEMP_EDIT' AND tenant_id = :tid"
+        "DELETE FROM manufacturing_bom_item_snapshots WHERE bom_id = :bid AND version = '_edit_' AND tenant_id = :tid"
     ), {"bid": bom_id, "tid": tenant_id})
     db.session.commit()
 
@@ -1129,88 +1166,31 @@ def cancel_edit(bom_id):
 @manufacturing_bp.route("/boms/<bom_id>/save-edit", methods=["POST"])
 def save_edit(bom_id):
     tenant_id = _get_tenant()
-    data = request.get_json() or {}
-    bump_type = data.get("bump_type") # major / minor / none
-    desc = data.get("change_description") or ""
 
-    # Clear TEMP_EDIT
+    # Clear '_edit_' snapshot
     db.session.execute(db.text(
-        "DELETE FROM manufacturing_bom_item_snapshots WHERE bom_id = :bid AND version = 'TEMP_EDIT' AND tenant_id = :tid"
+        "DELETE FROM manufacturing_bom_item_snapshots WHERE bom_id = :bid AND version = '_edit_' AND tenant_id = :tid"
     ), {"bid": bom_id, "tid": tenant_id})
-
-    # Retrieve current version
-    current_ver = db.session.execute(db.text(
-        "SELECT current_version FROM manufacturing_boms WHERE id = :id AND tenant_id = :tid"
-    ), {"id": bom_id, "tid": tenant_id}).scalar() or "V1"
-
-    new_ver = current_ver
-    if bump_type in ["minor", "major"]:
-        try:
-            # Assumes format like V1, V2, etc. Or V1.0, V1.1.
-            # Let's perform a simple version increment
-            ver_clean = current_ver.replace("V", "")
-            if "." in ver_clean:
-                parts = ver_clean.split(".")
-                major = int(parts[0])
-                minor = int(parts[1]) if len(parts) > 1 else 0
-            else:
-                major = int(ver_clean)
-                minor = 0
-
-            if bump_type == "major":
-                major += 1
-                minor = 0
-            else:
-                minor += 1
-            new_ver = f"V{major}.{minor}" if minor > 0 else f"V{major}"
-        except:
-            new_ver = current_ver + ".1"
-
-    # Save frozen snapshot for previous version
-    items = db.session.execute(db.text(
-        "SELECT id, parent_item_id, child_type, child_part_code, quantity, unit, level, reference, notes, material, unit_cost, status, revision, scrap_factor, operation_ref, procurement_type "
-        "FROM manufacturing_bom_items WHERE bom_id = :bid AND tenant_id = :tid"
-    ), {"bid": bom_id, "tid": tenant_id}).fetchall()
-
-    for item in items:
-        part_desc = db.session.execute(db.text(
-            "SELECT name FROM part.masters WHERE part_number = :p AND is_deleted = false AND tenant_id = :tid LIMIT 1"
-        ), {"p": item[3], "tid": tenant_id}).scalar() or ""
-
-        db.session.execute(db.text(
-            "INSERT INTO manufacturing_bom_item_snapshots (id, bom_id, version, original_item_id, parent_item_id, child_type, child_part_code, description, quantity, unit, level, reference, notes, material, unit_cost, status, revision, scrap_factor, operation_ref, procurement_type, tenant_id) "
-            "VALUES (:id, :bid, :v, :orig, :parent, :ctype, :cno, :desc, :qty, :unit, :lvl, :ref, :notes, :mat, :cost, :status, :rev, :scrap, :op, :proc_type, :tid)"
-        ), {
-            "id": str(uuid.uuid4()), "bid": bom_id, "v": current_ver, "orig": str(item[0]), "parent": str(item[1]) if item[1] else None,
-            "ctype": item[2], "cno": item[3], "desc": part_desc, "qty": float(item[4] or 1), "unit": item[5], "lvl": int(item[6] or 1),
-            "ref": item[7], "notes": item[8], "mat": item[9], "cost": float(item[10] or 0), "status": item[11], "rev": item[12],
-            "scrap": float(item[13] or 0), "op": item[14], "proc_type": item[15], "tid": tenant_id
-        })
-
-    # Record the version in manufacturing_bom_versions
-    ver_id = str(uuid.uuid4())
-    db.session.execute(db.text(
-        "INSERT INTO manufacturing_bom_versions (id, bom_id, version, version_type, status, change_description, released_at, created_by, tenant_id, created_at) "
-        "VALUES (:id, :bid, :v, :vtype, 'Draft', :desc, NOW(), 'User', :tid, NOW())"
-    ), {"id": ver_id, "bid": bom_id, "v": current_ver, "vtype": bump_type or "minor", "desc": desc, "tid": tenant_id})
-
-    # Update current version in BOM header
-    db.session.execute(db.text(
-        "UPDATE manufacturing_boms SET current_version = :ver, status = 'Draft' WHERE id = :id AND tenant_id = :tid"
-    ), {"ver": new_ver, "id": bom_id, "tid": tenant_id})
     db.session.commit()
 
     _sync_bom_lines(bom_id, tenant_id)
-    _log_mfg_bom_history(bom_id, "Save Edit", f"BOM edits saved. Old version {current_ver} frozen. Live working copy is now version {new_ver}", "User", tenant_id)
+    _log_mfg_bom_history(bom_id, "Save Edit", "BOM edits saved.", "User", tenant_id)
 
-    return jsonify({"success": True, "message": "Edits saved successfully", "new_version": new_ver})
+    return jsonify({"success": True, "message": "Edits saved successfully"})
 
 
 @manufacturing_bp.route("/boms/<bom_id>/release", methods=["POST"])
 def release_bom(bom_id):
     tenant_id = _get_tenant()
-    data = request.get_json() or {}
-    desc = data.get("change_description") or ""
+
+    # Recursive Validation for unreleased sub-assemblies
+    unreleased = get_unreleased_sub_assemblies(bom_id, tenant_id)
+    if unreleased:
+        return jsonify({
+            "success": False,
+            "message": "Cannot release BOM: One or more nested sub-assemblies are not released.",
+            "blocking_assemblies": unreleased
+        }), 400
 
     current_ver = db.session.execute(db.text(
         "SELECT current_version FROM manufacturing_boms WHERE id = :id AND tenant_id = :tid"
@@ -1221,16 +1201,330 @@ def release_bom(bom_id):
         "UPDATE manufacturing_bom_versions SET status = 'Released', released_at = NOW() WHERE bom_id = :bid AND version = :v AND tenant_id = :tid"
     ), {"bid": bom_id, "v": current_ver, "tid": tenant_id})
 
-    # Update BOM header status to active
+    # Update BOM status to Released
     db.session.execute(db.text(
-        "UPDATE manufacturing_boms SET status = 'active' WHERE id = :id AND tenant_id = :tid"
+        "UPDATE manufacturing_boms SET status = 'Released' WHERE id = :id AND tenant_id = :tid"
     ), {"id": bom_id, "tid": tenant_id})
+
+    # Check if a snapshot exists for the current version, if not, write a permanent snapshot to BomItemSnapshot
+    snap_exists = db.session.execute(db.text(
+        "SELECT 1 FROM manufacturing_bom_item_snapshots WHERE bom_id = :bid AND version = :v AND tenant_id = :tid LIMIT 1"
+    ), {"bid": bom_id, "v": current_ver, "tid": tenant_id}).fetchone()
+
+    if not snap_exists:
+        items = db.session.execute(db.text(
+            "SELECT id, parent_item_id, child_type, child_part_code, quantity, unit, level, reference, notes, material, unit_cost, status, revision, scrap_factor, operation_ref, procurement_type "
+            "FROM manufacturing_bom_items WHERE bom_id = :bid AND tenant_id = :tid"
+        ), {"bid": bom_id, "tid": tenant_id}).fetchall()
+
+        for item in items:
+            part_desc = db.session.execute(db.text(
+                "SELECT name FROM part.masters WHERE part_number = :p AND is_deleted = false AND tenant_id = :tid LIMIT 1"
+            ), {"p": item[3], "tid": tenant_id}).scalar() or ""
+
+            db.session.execute(db.text(
+                "INSERT INTO manufacturing_bom_item_snapshots (id, bom_id, version, original_item_id, parent_item_id, child_type, child_part_code, description, quantity, unit, level, reference, notes, material, unit_cost, status, revision, scrap_factor, operation_ref, procurement_type, tenant_id) "
+                "VALUES (:id, :bid, :v, :orig, :parent, :ctype, :cno, :desc, :qty, :unit, :lvl, :ref, :notes, :mat, :cost, :status, :rev, :scrap, :op, :proc_type, :tid)"
+            ), {
+                "id": str(uuid.uuid4()), "bid": bom_id, "v": current_ver, "orig": str(item[0]), "parent": str(item[1]) if item[1] else None,
+                "ctype": item[2], "cno": item[3], "desc": part_desc, "qty": float(item[4] or 1), "unit": item[5], "lvl": int(item[6] or 1),
+                "ref": item[7], "notes": item[8], "mat": item[9], "cost": float(item[10] or 0), "status": item[11], "rev": item[12],
+                "scrap": float(item[13] or 0), "op": item[14], "proc_type": item[15], "tid": tenant_id
+            })
+
     db.session.commit()
 
     _sync_bom_lines(bom_id, tenant_id)
-    _log_mfg_bom_history(bom_id, "Release", f"BOM version {current_ver} officially released and locked.", "User", tenant_id)
+    _log_mfg_bom_history(bom_id, "Release", f"BOM version {current_ver} officially released.", "User", tenant_id)
 
     return jsonify({"success": True, "message": f"BOM version {current_ver} released successfully"})
+
+
+@bom_api_bp.route("/<bom_id>/version_increment", methods=["POST"])
+def version_increment(bom_id):
+    tenant_id = _get_tenant()
+    data = request.get_json() or {}
+    bump_type = data.get("bump_type") # major / minor
+    desc = data.get("change_description") or ""
+
+    if bump_type not in ["minor", "major"]:
+        return jsonify({"success": False, "message": "Invalid version bump type. Must be 'major' or 'minor'"}), 400
+
+    # Retrieve current version
+    current_ver = db.session.execute(db.text(
+        "SELECT current_version FROM manufacturing_boms WHERE id = :id AND tenant_id = :tid"
+    ), {"id": bom_id, "tid": tenant_id}).scalar() or "V1"
+
+    # 1. Snapshot the current state under the old version code (e.g. 'V1') if not already snapshotted
+    snap_exists = db.session.execute(db.text(
+        "SELECT 1 FROM manufacturing_bom_item_snapshots WHERE bom_id = :bid AND version = :v AND tenant_id = :tid LIMIT 1"
+    ), {"bid": bom_id, "v": current_ver, "tid": tenant_id}).fetchone()
+
+    if not snap_exists:
+        items = db.session.execute(db.text(
+            "SELECT id, parent_item_id, child_type, child_part_code, quantity, unit, level, reference, notes, material, unit_cost, status, revision, scrap_factor, operation_ref, procurement_type "
+            "FROM manufacturing_bom_items WHERE bom_id = :bid AND tenant_id = :tid"
+        ), {"bid": bom_id, "tid": tenant_id}).fetchall()
+
+        for item in items:
+            part_desc = db.session.execute(db.text(
+                "SELECT name FROM part.masters WHERE part_number = :p AND is_deleted = false AND tenant_id = :tid LIMIT 1"
+            ), {"p": item[3], "tid": tenant_id}).scalar() or ""
+
+            db.session.execute(db.text(
+                "INSERT INTO manufacturing_bom_item_snapshots (id, bom_id, version, original_item_id, parent_item_id, child_type, child_part_code, description, quantity, unit, level, reference, notes, material, unit_cost, status, revision, scrap_factor, operation_ref, procurement_type, tenant_id) "
+                "VALUES (:id, :bid, :v, :orig, :parent, :ctype, :cno, :desc, :qty, :unit, :lvl, :ref, :notes, :mat, :cost, :status, :rev, :scrap, :op, :proc_type, :tid)"
+            ), {
+                "id": str(uuid.uuid4()), "bid": bom_id, "v": current_ver, "orig": str(item[0]), "parent": str(item[1]) if item[1] else None,
+                "ctype": item[2], "cno": item[3], "desc": part_desc, "qty": float(item[4] or 1), "unit": item[5], "lvl": int(item[6] or 1),
+                "ref": item[7], "notes": item[8], "mat": item[9], "cost": float(item[10] or 0), "status": item[11], "rev": item[12],
+                "scrap": float(item[13] or 0), "op": item[14], "proc_type": item[15], "tid": tenant_id
+            })
+
+    # 2. Increment version label
+    new_ver = current_ver
+    try:
+        ver_clean = current_ver.replace("V", "").strip()
+        if "." in ver_clean:
+            parts = ver_clean.split(".")
+            major = int(parts[0])
+            minor = int(parts[1]) if len(parts) > 1 else 0
+        else:
+            major = int(ver_clean)
+            minor = 0
+
+        if bump_type == "major":
+            major += 1
+            minor = 0
+        else:
+            minor += 1
+        new_ver = f"V{major}.{minor}" if minor > 0 else f"V{major}"
+    except Exception:
+        new_ver = current_ver + ".1"
+
+    # 3. Create a new BomVersion record with user supplied change description in Draft
+    ver_id = str(uuid.uuid4())
+    db.session.execute(db.text(
+        "INSERT INTO manufacturing_bom_versions (id, bom_id, version, version_type, status, change_description, released_at, created_by, tenant_id, created_at) "
+        "VALUES (:id, :bid, :v, :vtype, 'Draft', :desc, NULL, 'User', :tid, NOW())"
+    ), {"id": ver_id, "bid": bom_id, "v": new_ver, "vtype": bump_type, "desc": desc, "tid": tenant_id})
+
+    # 4. Set BOM status back to 'Draft' and update current version code
+    db.session.execute(db.text(
+        "UPDATE manufacturing_boms SET current_version = :ver, status = 'Draft' WHERE id = :id AND tenant_id = :tid"
+    ), {"ver": new_ver, "id": bom_id, "tid": tenant_id})
+
+    db.session.commit()
+
+    _sync_bom_lines(bom_id, tenant_id)
+    _log_mfg_bom_history(bom_id, "Version Increment", f"BOM version incremented from {current_ver} to {new_ver}. Status set to Draft.", "User", tenant_id)
+
+    return jsonify({"success": True, "message": "Version incremented successfully", "new_version": new_ver})
+
+
+@bom_api_bp.route("/<bom_id>/copy", methods=["POST"])
+def copy_bom(bom_id):
+    tenant_id = _get_tenant()
+    data = request.get_json() or {}
+    new_part_code = (data.get("new_assembly_part_code") or "").strip()
+    new_name = (data.get("new_name") or "").strip()
+
+    if not new_part_code:
+        return jsonify({"success": False, "message": "New assembly part code is required"}), 400
+
+    # Verify if a BOM already exists for the target part code
+    existing = db.session.execute(db.text(
+        "SELECT id FROM manufacturing_boms WHERE fg_part_number = :fg AND is_deleted = false AND tenant_id = :tid LIMIT 1"
+    ), {"fg": new_part_code, "tid": tenant_id}).fetchone()
+    if existing:
+        return jsonify({"success": False, "message": f"A BOM already exists for part code {new_part_code}"}), 400
+
+    # Retrieve target part info from part master to get description
+    part_row = db.session.execute(db.text(
+        "SELECT name, description FROM part.masters WHERE part_number = :p AND is_deleted = false AND tenant_id = :tid LIMIT 1"
+    ), {"p": new_part_code, "tid": tenant_id}).fetchone()
+    
+    # Relaxed tenant check if not found
+    if not part_row:
+        part_row = db.session.execute(db.text(
+            "SELECT name, description FROM part.masters WHERE part_number = :p AND is_deleted = false LIMIT 1"
+        ), {"p": new_part_code}).fetchone()
+
+    part_desc = part_row[1] or part_row[0] if part_row else ""
+    if not new_name:
+        new_name = f"BOM for {new_part_code}"
+
+    # 1. Create a new BOM header row
+    new_bom_id = str(uuid.uuid4())
+    bom_no = f"BOM-{new_part_code}"
+
+    db.session.execute(db.text(
+        "INSERT INTO manufacturing_boms (id, bom_no, fg_part_number, fg_description, current_version, effective_date, status, yield_qty, unit, notes, name, tenant_id) "
+        "VALUES (:id, :bno, :fg, :desc, 'V1', :eff, 'Draft', 1, 'pcs', :notes, :name, :tid)"
+    ), {
+        "id": new_bom_id, "bno": bom_no, "fg": new_part_code, "desc": part_desc,
+        "eff": datetime.now().strftime('%Y-%m-%d'), "notes": f"Copied from BOM ID {bom_id}",
+        "name": new_name, "tid": tenant_id
+    })
+
+    # Create Draft Version V1 record for the new BOM
+    ver_id = str(uuid.uuid4())
+    db.session.execute(db.text(
+        "INSERT INTO manufacturing_bom_versions (id, bom_id, version, version_type, status, change_description, tenant_id, created_at) "
+        "VALUES (:id, :bid, 'V1', 'minor', 'Draft', 'Initial copied version', :tid, NOW())"
+    ), {"id": ver_id, "bid": new_bom_id, "tid": tenant_id})
+
+    # 2. Duplicate the entire BOM hierarchy (deep copy of all active BomItem records)
+    items = db.session.execute(db.text(
+        "SELECT id, parent_item_id, child_type, child_part_code, quantity, unit, level, reference, notes, material, unit_cost, status, revision, scrap_factor, operation_ref, procurement_type "
+        "FROM manufacturing_bom_items WHERE bom_id = :bid AND tenant_id = :tid"
+    ), {"bid": bom_id, "tid": tenant_id}).fetchall()
+
+    # Generate mapping of old item ID to new item ID
+    id_map = {}
+    for item in items:
+        id_map[str(item[0])] = str(uuid.uuid4())
+
+    # Insert copied items mapping parent item IDs appropriately
+    for item in items:
+        old_id = str(item[0])
+        old_parent_id = str(item[1]) if item[1] else None
+        new_parent_id = id_map.get(old_parent_id) if old_parent_id else None
+
+        db.session.execute(db.text(
+            "INSERT INTO manufacturing_bom_items (id, bom_id, parent_item_id, child_type, child_part_code, quantity, unit, level, reference, notes, material, unit_cost, status, revision, scrap_factor, operation_ref, procurement_type, tenant_id, created_at) "
+            "VALUES (:id, :bid, :parent, :ctype, :cno, :qty, :unit, :lvl, :ref, :notes, :mat, :cost, :status, :rev, :scrap, :op, :proc_type, :tid, NOW())"
+        ), {
+            "id": id_map[old_id], "bid": new_bom_id, "parent": new_parent_id, "ctype": item[2], "cno": item[3],
+            "qty": float(item[4] or 1), "unit": item[5], "lvl": int(item[6] or 1), "ref": item[7], "notes": item[8], "mat": item[9],
+            "cost": float(item[10] or 0), "status": item[11], "rev": item[12], "scrap": float(item[13] or 0), "op": item[14], "proc_type": item[15], "tid": tenant_id
+        })
+
+    db.session.commit()
+    
+
+
+    _sync_bom_lines(new_bom_id, tenant_id)
+    _log_mfg_bom_history(new_bom_id, "Create", f"BOM created via Copy from BOM ID {bom_id}", "User", tenant_id)
+    _log_mfg_bom_history(bom_id, "Copy BOM", f"BOM copied to new assembly part code {new_part_code}", "User", tenant_id)
+
+    return jsonify({"success": True, "message": "BOM copied successfully", "new_bom_id": new_bom_id})
+
+
+@manufacturing_bp.route("/boms/<bom_id>/rename", methods=["POST"])
+def rename_bom(bom_id):
+    tenant_id = _get_tenant()
+    data = request.get_json() or {}
+    new_name = (data.get("name") or "").strip()
+
+    if not new_name:
+        return jsonify({"success": False, "message": "New name cannot be empty"}), 400
+
+    db.session.execute(db.text(
+        "UPDATE manufacturing_boms SET name = :name WHERE id = :id AND tenant_id = :tid"
+    ), {"name": new_name, "id": bom_id, "tid": tenant_id})
+    db.session.commit()
+
+    _log_mfg_bom_history(bom_id, "Rename", f"Renamed BOM to {new_name}", "User", tenant_id)
+    return jsonify({"success": True, "message": "BOM renamed successfully"})
+
+
+@manufacturing_bp.route("/boms/<bom_id>/delete", methods=["POST"])
+def delete_bom(bom_id):
+    tenant_id = _get_tenant()
+    data = request.get_json() or {}
+    password = (data.get("password") or "").strip()
+
+    if not password:
+        return jsonify({"success": False, "message": "Password is required to delete a BOM"}), 400
+
+    # 1. Fetch current BOM status to ensure it's a Draft
+    bom_row = db.session.execute(db.text(
+        "SELECT status FROM manufacturing_boms WHERE id = :id AND is_deleted = false AND tenant_id = :tid"
+    ), {"id": bom_id, "tid": tenant_id}).fetchone()
+
+    if not bom_row:
+        return jsonify({"success": False, "message": "BOM not found"}), 404
+
+    bom_status = bom_row[0]
+    if bom_status != 'Draft':
+        return jsonify({"success": False, "message": "Only Draft BOMs can be deleted."}), 400
+
+    # 2. Verify password via iam.users for the current tenant/user
+    user_id = None
+    try:
+        verify_jwt_in_request(optional=True)
+        identity = get_jwt_identity()
+        if isinstance(identity, str):
+            identity = json.loads(identity)
+        if isinstance(identity, dict):
+            user_id = identity.get("user_id")
+    except Exception:
+        pass
+
+    valid = False
+    if user_id:
+        user_row = db.session.execute(db.text(
+            "SELECT password_hash FROM iam.users WHERE id = :uid AND tenant_id = :tid AND is_deleted = false AND is_active = true"
+        ), {"uid": user_id, "tid": tenant_id}).fetchone()
+        if user_row and user_row[0]:
+            ph = user_row[0]
+            try:
+                import bcrypt as _bcrypt
+                valid = _bcrypt.checkpw(password.encode('utf-8'), ph.encode('utf-8') if isinstance(ph, str) else ph)
+            except Exception:
+                pass
+    else:
+        # Fallback to checking all active users of this tenant
+        hashes = db.session.execute(db.text(
+            "SELECT email, password_hash FROM iam.users WHERE tenant_id = :tid AND is_deleted = false AND is_active = true"
+        ), {"tid": tenant_id}).fetchall()
+        
+        import bcrypt as _bcrypt
+        for row in hashes:
+            if row[1]:
+                ph = row[1]
+                try:
+                    if _bcrypt.checkpw(password.encode('utf-8'), ph.encode('utf-8') if isinstance(ph, str) else ph):
+                        valid = True
+                        break
+                except Exception:
+                    pass
+
+    if not valid:
+        return jsonify({"success": False, "message": "Incorrect password. BOM not deleted."}), 403
+
+    # 3. Perform a complete hard delete of all BOM related data
+    db.session.execute(db.text(
+        "DELETE FROM manufacturing_bom_items WHERE bom_id = :bid AND tenant_id = :tid"
+    ), {"bid": bom_id, "tid": tenant_id})
+
+    db.session.execute(db.text(
+        "DELETE FROM manufacturing_bom_item_snapshots WHERE bom_id = :bid AND tenant_id = :tid"
+    ), {"bid": bom_id, "tid": tenant_id})
+
+    db.session.execute(db.text(
+        "DELETE FROM manufacturing_bom_versions WHERE bom_id = :bid AND tenant_id = :tid"
+    ), {"bid": bom_id, "tid": tenant_id})
+
+    db.session.execute(db.text(
+        "DELETE FROM manufacturing_bom_files WHERE bom_id = :bid AND tenant_id = :tid"
+    ), {"bid": bom_id, "tid": tenant_id})
+
+    db.session.execute(db.text(
+        "DELETE FROM manufacturing_bom_history WHERE bom_id = :bid AND tenant_id = :tid"
+    ), {"bid": bom_id, "tid": tenant_id})
+
+    db.session.execute(db.text(
+        "DELETE FROM manufacturing_bom_costing_selections WHERE bom_id = :bid AND tenant_id = :tid"
+    ), {"bid": bom_id, "tid": tenant_id})
+
+    db.session.execute(db.text(
+        "DELETE FROM manufacturing_boms WHERE id = :id AND tenant_id = :tid"
+    ), {"id": bom_id, "tid": tenant_id})
+
+    db.session.commit()
+    return jsonify({"success": True, "message": "BOM and all associated data deleted successfully"})
 
 
 @manufacturing_bp.route("/boms/<bom_id>/versions", methods=["GET"])
@@ -1355,56 +1649,31 @@ def select_bom_costing_vendor(bom_id):
     return jsonify({"success": True, "message": "Costing selection saved"})
 
 
-@manufacturing_bp.route("/boms/<bom_id>/rename", methods=["POST"])
-def rename_bom(bom_id):
-    tenant_id = _get_tenant()
-    data = request.get_json() or {}
-    new_name = (data.get("name") or "").strip()
-    
-    if not new_name:
-        return jsonify({"success": False, "message": "New name cannot be empty"}), 400
+# ─── BOM API CLEAN BLUEPRINT WRAPPERS ───
 
-    db.session.execute(db.text(
-        "UPDATE manufacturing_boms SET name = :name WHERE id = :id AND tenant_id = :tid"
-    ), {"name": new_name, "id": bom_id, "tid": tenant_id})
-    db.session.commit()
+@bom_api_bp.route("/<bom_id>/enter_edit", methods=["POST"])
+def enter_edit_clean(bom_id):
+    return enter_edit(bom_id)
 
-    _log_mfg_bom_history(bom_id, "Rename", f"Renamed BOM to {new_name}", "User", tenant_id)
-    return jsonify({"success": True, "message": "BOM renamed successfully"})
+@bom_api_bp.route("/<bom_id>/cancel_edit", methods=["POST", "GET"])
+def cancel_edit_clean(bom_id):
+    return cancel_edit(bom_id)
 
+@bom_api_bp.route("/<bom_id>/save_edit", methods=["POST"])
+def save_edit_clean(bom_id):
+    return save_edit(bom_id)
 
-@manufacturing_bp.route("/boms/<bom_id>/delete", methods=["POST"])
-def delete_bom(bom_id):
-    tenant_id = _get_tenant()
-    data = request.get_json() or {}
-    password = (data.get("password") or "").strip()
+@bom_api_bp.route("/<bom_id>/release", methods=["POST"])
+def release_bom_clean(bom_id):
+    return release_bom(bom_id)
 
-    if not password:
-        return jsonify({"success": False, "message": "Password is required to delete a BOM"}), 400
+@bom_api_bp.route("/<bom_id>/rename", methods=["POST"])
+def rename_bom_clean(bom_id):
+    return rename_bom(bom_id)
 
-    # Verify password via iam.users for the current tenant
-    try:
-        import bcrypt as _bcrypt
-        user_row = db.session.execute(db.text(
-            "SELECT password_hash FROM iam.users WHERE tenant_id = :tid AND is_deleted = false AND is_active = true ORDER BY created_at ASC LIMIT 1"
-        ), {"tid": tenant_id}).fetchone()
-        if user_row and user_row[0]:
-            ph = user_row[0]
-            try:
-                valid = _bcrypt.checkpw(password.encode('utf-8'), ph.encode('utf-8') if isinstance(ph, str) else ph)
-            except Exception:
-                valid = False
-            if not valid:
-                return jsonify({"success": False, "message": "Incorrect password. BOM not deleted."}), 403
-    except Exception:
-        pass  # If bcrypt unavailable, skip check
-
-    db.session.execute(db.text(
-        "UPDATE manufacturing_boms SET is_deleted = true WHERE id = :id AND tenant_id = :tid"
-    ), {"id": bom_id, "tid": tenant_id})
-    db.session.commit()
-    _log_mfg_bom_history(bom_id, "Delete", "BOM deleted after password confirmation", "User", tenant_id)
-    return jsonify({"success": True, "message": "BOM deleted successfully"})
+@bom_api_bp.route("/<bom_id>/delete", methods=["POST"])
+def delete_bom_clean(bom_id):
+    return delete_bom(bom_id)
 
 
 @manufacturing_bp.route("/assembly-boms-list", methods=["GET"])

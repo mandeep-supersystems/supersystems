@@ -295,9 +295,10 @@ function switchBomTab(tabName) {
 function refreshActiveTab() {
     if (!bomData) return;
     
+    renderToolbars();
+    
     if (activeBomTab === 'structure') {
         renderStructureGrid();
-        renderToolbars();
     } else if (activeBomTab === 'costing') {
         loadCostingTab();
     } else if (activeBomTab === 'files') {
@@ -506,72 +507,268 @@ async function toggleItemProcurement(itemId, currentProc) {
 
 // ─── EDIT MODE TRANSITIONS ───
 
+// ─── EDIT MODE TRANSITIONS ───
+
 async function startEditingBom() {
+    if (bomData && (bomData.status === 'Released' || bomData.status === 'active')) {
+        openVersionCopyModal();
+        return;
+    }
     try {
-        const res = await fetch(API + `/boms/${currentBomId}/enter-edit`, { method: 'POST', headers: HEADERS });
+        const res = await fetch(`/api/bom/${currentBomId}/enter_edit`, { method: 'POST', headers: HEADERS });
         const json = await res.json();
         if (json.success) {
             editMode = true;
             showToast('BOM Edit Mode activated');
-            loadBomDetail(currentBomId);
+            await loadBomDetail(currentBomId);
         } else { showToast(json.message, 'error'); }
     } catch (e) { showToast('Error entering edit mode', 'error'); }
 }
 
 async function cancelEditingBom() {
+    if (!confirm('Cancel all changes and revert to the last saved state?')) return;
     try {
-        const res = await fetch(API + `/boms/${currentBomId}/cancel-edit`, { method: 'POST', headers: HEADERS });
+        const res = await fetch(`/api/bom/${currentBomId}/cancel_edit`, { method: 'POST', headers: HEADERS });
         const json = await res.json();
         if (json.success) {
             editMode = false;
             showToast('Edits cancelled, draft rolled back');
-            loadBomDetail(currentBomId);
+            await loadBomDetail(currentBomId);
         } else { showToast(json.message, 'error'); }
     } catch (e) { showToast('Error reverting edits', 'error'); }
 }
 
-function saveEditingBom() {
-    openModal('Save BOM Changes', `
-        <div class="form-group">
-            <label>Save Type *</label>
-            <select id="saveBumpType" style="width:100%; padding:6px; border-radius:4px; border:1px solid var(--border-color);" onchange="onSaveBumpChange()">
-                <option value="none">Quick Save (Keep current version ${bomData.current_version})</option>
-                <option value="minor">Minor Bump (Increment minor version, e.g. V1.0 to V1.1)</option>
-                <option value="major">Major Bump (Increment major version, e.g. V1 to V2)</option>
-            </select>
-        </div>
-        <div class="form-group" id="saveChangeDescGroup" style="display:none;">
-            <label>Change Log / Comments *</label>
-            <textarea id="saveChangeDesc" placeholder="Describe the changes made in this revision..." style="width:100%; min-height:80px; padding:8px; border:1px solid var(--border-color); border-radius:4px; outline:none; font-family:inherit;"></textarea>
-        </div>
-        <div class="form-actions">
-            <button class="btn-outline" onclick="closeModal()">Cancel</button>
-            <button class="btn-primary" onclick="submitSaveEditingBom()">Commit Save</button>
-        </div>
-    `);
+async function saveEditingBom() {
+    if (!confirm('Save all changes and exit edit mode?')) return;
+    try {
+        const res = await fetch(`/api/bom/${currentBomId}/save_edit`, { method: 'POST', headers: HEADERS });
+        const json = await res.json();
+        if (json.success) {
+            editMode = false;
+            showToast('BOM saved successfully');
+            await loadBomDetail(currentBomId);
+        } else { showToast(json.message, 'error'); }
+    } catch (e) { showToast('Error saving edits', 'error'); }
 }
 
-function onSaveBumpChange() {
-    const bumpType = document.getElementById('saveBumpType').value;
-    const descGroup = document.getElementById('saveChangeDescGroup');
-    if (bumpType === 'none') {
-        descGroup.style.display = 'none';
+function backToBomList() {
+    if (editMode) {
+        if (confirm('You have unsaved changes in BOM edit mode. If you leave, your changes will be discarded. Proceed?')) {
+            editMode = false;
+            fetch(`/api/bom/${currentBomId}/cancel_edit`, {
+                method: 'POST',
+                headers: HEADERS
+            }).then(() => {
+                location.hash = '#bom';
+            }).catch(() => {
+                location.hash = '#bom';
+            });
+        }
     } else {
-        descGroup.style.display = 'block';
+        location.hash = '#bom';
     }
 }
 
-async function submitSaveEditingBom() {
-    const bumpType = document.getElementById('saveBumpType').value;
-    const desc = document.getElementById('saveChangeDesc') ? document.getElementById('saveChangeDesc').value.trim() : '';
+// ─── RELEASING ───
+
+function openReleaseBomModal() {
+    document.getElementById('relBomVersionLabel').innerText = bomData.current_version;
+    const errEl = document.getElementById('relBomError');
+    if (errEl) { errEl.style.display = 'none'; errEl.innerHTML = ''; }
+    document.getElementById('releaseMfgBomModal').classList.add('active');
+}
+
+async function submitReleaseBom(event) {
+    event.preventDefault();
+    const errEl = document.getElementById('relBomError');
+    if (errEl) { errEl.style.display = 'none'; errEl.innerHTML = ''; }
     
-    if (bumpType !== 'none' && !desc) {
-        showToast('Change log description is required for version bumps', 'error');
+    try {
+        const res = await fetch(`/api/bom/${currentBomId}/release`, {
+            method: 'POST',
+            headers: HEADERS
+        });
+        const json = await res.json();
+        if (json.success) {
+            showToast('BOM version released successfully');
+            closeModal('releaseMfgBomModal');
+            loadBomDetail(currentBomId);
+        } else {
+            if (json.blocking_assemblies) {
+                const blockingList = json.blocking_assemblies.map(a => `<li><code>${a.part_code}</code> (${a.status})</li>`).join('');
+                if (errEl) {
+                    errEl.innerHTML = `<div style="margin-top:10px; padding:10px; background:#fff5f5; border:1px solid #fecaca; color:#ef4444; border-radius:4px; font-size:12px; line-height: 1.4;">
+                        <strong>Cannot release BOM. The following sub-assemblies are not released:</strong>
+                        <ul style="margin-top:5px; padding-left:18px; text-align: left;">${blockingList}</ul>
+                    </div>`;
+                    errEl.style.display = 'block';
+                } else {
+                    showToast('Cannot release BOM: Unreleased sub-assemblies present.', 'error');
+                }
+            } else {
+                showToast(json.message || 'Error releasing BOM', 'error');
+            }
+        }
+    } catch (e) { showToast('Error releasing BOM', 'error'); }
+}
+
+// ─── VERSION & COPY (SAVE AS) MODAL ───
+
+let copyPartSearchTimer = null;
+
+function searchCopyAssembliesAutocomplete(q) {
+    clearTimeout(copyPartSearchTimer);
+    const resultsDiv = document.getElementById('copyBomFgSearchResults');
+    if (!q || q.trim().length < 2) {
+        resultsDiv.innerHTML = '';
+        return;
+    }
+    
+    copyPartSearchTimer = setTimeout(async () => {
+        try {
+            const res = await fetch(API + `/search-assemblies?q=${encodeURIComponent(q)}`, { headers: HEADERS });
+            const json = await res.json();
+            if (json.success && json.data.length > 0) {
+                resultsDiv.innerHTML = json.data.map(p => `
+                    <div class="search-result-item" style="padding:8px 10px; cursor:pointer; border-bottom:1px solid var(--border-color); font-size:12px; transition: background 0.2s;" onclick="pickCopyBomPart('${p.part_number}', '${(p.description || '').replace(/'/g, "\\'")}')" onmouseover="this.style.background='var(--bg-secondary)'" onmouseout="this.style.background='none'">
+                        <strong>${p.part_number}</strong> — ${p.description || ''}
+                    </div>
+                `).join('');
+            } else {
+                resultsDiv.innerHTML = '<div style="padding:8px; font-size:12px; color:var(--text-secondary);">No matching assembly parts found.</div>';
+            }
+        } catch (e) {
+            resultsDiv.innerHTML = '<div style="padding:8px; font-size:12px; color:red;">Error searching assembly parts.</div>';
+        }
+    }, 300);
+}
+
+function pickCopyBomPart(partNumber, desc) {
+    document.getElementById('copyBomFgPart').value = partNumber;
+    document.getElementById('copyBomName').value = desc;
+    document.getElementById('copyAbiPartSearchGroup').style.display = 'none';
+    document.getElementById('copyBomFgSearchResults').innerHTML = '';
+    
+    const selectedState = document.getElementById('copyAbiPartSelectedState');
+    document.getElementById('copyBomFgSelLabel').innerHTML = `<strong>${partNumber}</strong> — ${desc}`;
+    selectedState.style.display = 'block';
+}
+
+function clearCopyBomPart() {
+    document.getElementById('copyBomFgPart').value = '';
+    document.getElementById('copyBomName').value = '';
+    document.getElementById('copyAbiPartSearchGroup').style.display = 'block';
+    document.getElementById('copyBomFgSearch').value = '';
+    document.getElementById('copyAbiPartSelectedState').style.display = 'none';
+    document.getElementById('copyBomFgSearchResults').innerHTML = '';
+}
+
+function openVersionCopyModal() {
+    const isReleased = (bomData.status === 'Released' || bomData.status === 'active');
+    
+    openModal('BOM Versioning & Copy (Save As)', `
+        <div style="display:flex; border-bottom:1px solid var(--border-color); margin-bottom:15px; background: var(--bg-secondary); border-radius: 4px; padding: 3px;">
+            <button id="tab-version-inc" class="tab-btn active" style="flex:1; padding:6px 12px; font-size:12px; font-weight:600; border-radius:4px; border:none; outline:none; background:none; cursor:pointer;" onclick="switchVersionTab('version-inc')">
+                Version Increment
+            </button>
+            <button id="tab-version-copy" class="tab-btn" style="flex:1; padding:6px 12px; font-size:12px; font-weight:600; border-radius:4px; border:none; outline:none; background:none; cursor:pointer;" onclick="switchVersionTab('version-copy')">
+                Copy BOM (Save As)
+            </button>
+        </div>
+
+        <!-- tab content: Version Increment -->
+        <div id="pane-version-inc" style="display:block;">
+            ${!isReleased ? `
+                <div style="padding:10px; background:#fff8e1; border:1px solid #ffe082; color:#b78103; border-radius:4px; margin-bottom:15px; font-size:12px; line-height: 1.4;">
+                    ⚠️ Version Increment is only available for <strong>Released</strong> BOMs. Current status is <strong>Draft</strong>.
+                </div>
+            ` : ''}
+            <div class="form-group">
+                <label>Version Bump Type *</label>
+                <select id="verBumpType" style="width:100%; padding:6px; border-radius:4px; border:1px solid var(--border-color);" ${!isReleased ? 'disabled' : ''}>
+                    <option value="minor">Minor Bump (Increment minor version label, e.g. V1 -> V1.1)</option>
+                    <option value="major">Major Bump (Increment major version label, e.g. V1.1 -> V2)</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-top:10px;">
+                <label>Change Description / Comments *</label>
+                <textarea id="verChangeDesc" placeholder="Describe the changes for this new draft version..." style="width:100%; min-height:80px; padding:8px; border:1px solid var(--border-color); border-radius:4px; outline:none; font-family:inherit;" ${!isReleased ? 'disabled' : ''}></textarea>
+            </div>
+            <div class="form-actions" style="margin-top:15px;">
+                <button class="btn-outline" onclick="closeModal()">Cancel</button>
+                <button class="btn-primary" onclick="submitVersionIncrement()" ${!isReleased ? 'disabled' : ''}>Increment Version</button>
+            </div>
+        </div>
+
+        <!-- tab content: Copy BOM -->
+        <div id="pane-version-copy" style="display:none;">
+            <div class="form-group" id="copyAbiPartSearchGroup">
+                <label>Search Target Assembly Part *</label>
+                <input type="text" id="copyBomFgSearch" placeholder="Search category 'Assembly' parts..." oninput="searchCopyAssembliesAutocomplete(this.value)" autocomplete="off">
+                <input type="hidden" id="copyBomFgPart" value="">
+                <div id="copyBomFgSearchResults" class="emp-search-results" style="max-height:150px; overflow-y:auto; margin-top:4px;"></div>
+            </div>
+            
+            <div class="form-group" id="copyAbiPartSelectedState" style="display: none; margin-bottom: 10px;">
+                <label>Selected Assembly Part Code</label>
+                <div class="emp-selected-inline" style="display:flex; align-items:center; justify-content:space-between; padding:6px 10px; background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:4px;">
+                    <span id="copyBomFgSelLabel" style="font-size:12px;"></span>
+                    <button type="button" class="btn-icon" style="background:none; border:none; cursor:pointer; color:var(--text-secondary);" onclick="clearCopyBomPart()"><span class="material-icons-outlined" style="font-size:16px;">close</span></button>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-top: 10px;">
+                <label>New BOM Name / Description *</label>
+                <input type="text" id="copyBomName" placeholder="Engine Assembly - Copy">
+            </div>
+
+            <div class="form-actions" style="margin-top:15px;">
+                <button class="btn-outline" onclick="closeModal()">Cancel</button>
+                <button class="btn-primary" onclick="submitCopyBom()">Copy BOM</button>
+            </div>
+        </div>
+    `);
+    
+    // Default to Copy tab if not released
+    if (!isReleased) {
+        switchVersionTab('version-copy');
+    }
+}
+
+function switchVersionTab(tab) {
+    const tabInc = document.getElementById('tab-version-inc');
+    const tabCopy = document.getElementById('tab-version-copy');
+    const paneInc = document.getElementById('pane-version-inc');
+    const paneCopy = document.getElementById('pane-version-copy');
+    
+    if (tab === 'version-inc') {
+        tabInc.style.background = 'var(--bg-primary)';
+        tabInc.style.color = 'var(--text-primary)';
+        tabCopy.style.background = 'none';
+        tabCopy.style.color = 'var(--text-secondary)';
+        paneInc.style.display = 'block';
+        paneCopy.style.display = 'none';
+    } else {
+        tabInc.style.background = 'none';
+        tabInc.style.color = 'var(--text-secondary)';
+        tabCopy.style.background = 'var(--bg-primary)';
+        tabCopy.style.color = 'var(--text-primary)';
+        paneInc.style.display = 'none';
+        paneCopy.style.display = 'block';
+    }
+}
+
+async function submitVersionIncrement() {
+    const bumpType = document.getElementById('verBumpType').value;
+    const desc = document.getElementById('verChangeDesc').value.trim();
+    
+    if (!desc) {
+        showToast('Change description is required', 'error');
         return;
     }
     
     try {
-        const res = await fetch(API + `/boms/${currentBomId}/save-edit`, {
+        const res = await fetch(`/api/bom/${currentBomId}/version_increment`, {
             method: 'POST',
             headers: HEADERS,
             body: JSON.stringify({
@@ -581,40 +778,144 @@ async function submitSaveEditingBom() {
         });
         const json = await res.json();
         if (json.success) {
-            editMode = false;
-            showToast('BOM saved successfully');
+            showToast(`Version incremented to ${json.new_version}. Entering edit mode...`);
             closeModal();
-            loadBomDetail(currentBomId);
-        } else { showToast(json.message, 'error'); }
-    } catch (e) { showToast('Error saving edits', 'error'); }
+            // Auto-enter edit mode for the new draft version
+            const enterRes = await fetch(`/api/bom/${currentBomId}/enter_edit`, { method: 'POST', headers: HEADERS });
+            const enterJson = await enterRes.json();
+            if (enterJson.success) {
+                editMode = true;
+            }
+            await loadBomDetail(currentBomId);
+        } else {
+            showToast(json.message, 'error');
+        }
+    } catch (e) {
+        showToast('Error incrementing version', 'error');
+    }
 }
 
-// ─── RELEASING ───
-
-function openReleaseBomModal() {
-    document.getElementById('relBomVersionLabel').innerText = bomData.current_version;
-    document.getElementById('relBomChangeDesc').value = '';
-    document.getElementById('releaseMfgBomModal').classList.add('active');
-}
-
-async function submitReleaseBom(event) {
-    event.preventDefault();
-    const desc = document.getElementById('relBomChangeDesc').value.trim();
+async function submitCopyBom() {
+    const partCode = document.getElementById('copyBomFgPart').value;
+    const name = document.getElementById('copyBomName').value.trim();
+    
+    if (!partCode) {
+        showToast('Please search and select a target assembly part', 'error');
+        return;
+    }
+    if (!name) {
+        showToast('BOM name is required', 'error');
+        return;
+    }
     
     try {
-        const res = await fetch(API + `/boms/${currentBomId}/release`, {
+        const res = await fetch(`/api/bom/${currentBomId}/copy`, {
             method: 'POST',
             headers: HEADERS,
-            body: JSON.stringify({ change_description: desc })
+            body: JSON.stringify({
+                new_assembly_part_code: partCode,
+                new_name: name
+            })
         });
         const json = await res.json();
         if (json.success) {
-            showToast('BOM version released & locked');
-            closeModal('releaseMfgBomModal');
-            loadBomDetail(currentBomId);
-        } else { showToast(json.message, 'error'); }
-    } catch (e) { showToast('Error releasing BOM', 'error'); }
+            showToast('BOM copied successfully!');
+            closeModal();
+            navigateToBomDetail(json.new_bom_id);
+        } else {
+            showToast(json.message, 'error');
+        }
+    } catch (e) {
+        showToast('Error copying BOM', 'error');
+    }
 }
+
+// ─── RENAME & DELETE HELPERS ───
+
+function deleteBomHeader(bomId, partCode) {
+    openDeleteBomModal(bomId, partCode);
+}
+
+document.addEventListener('dblclick', function(e) {
+    if (e.target && e.target.id === 'detBomTitle') {
+        renameBomHeader();
+    }
+});
+
+async function renameBomHeader() {
+    if (!currentBomId) return;
+    const oldName = document.getElementById('detBomTitle').innerText;
+    const newName = prompt('Enter new BOM Name / Description:', oldName);
+    if (newName === null) return; // Cancelled
+    const trimmed = newName.trim();
+    if (!trimmed) {
+        showToast('BOM Name cannot be empty', 'error');
+        return;
+    }
+    
+    try {
+        const res = await fetch(`/api/bom/${currentBomId}/rename`, {
+            method: 'POST',
+            headers: HEADERS,
+            body: JSON.stringify({ name: trimmed })
+        });
+        const json = await res.json();
+        if (json.success) {
+            showToast('BOM renamed successfully');
+            document.getElementById('detBomTitle').innerText = trimmed;
+            loadBomDetail(currentBomId);
+        } else {
+            showToast(json.message, 'error');
+        }
+    } catch (e) {
+        showToast('Error renaming BOM', 'error');
+    }
+}
+
+// ─── PAGE UNLOAD & NAVIGATION INTERCEPTORS ───
+
+window.addEventListener('beforeunload', function(e) {
+    if (editMode) {
+        e.preventDefault();
+        e.returnValue = 'You have unsaved changes in BOM edit mode. Leaving will discard them.';
+        return e.returnValue;
+    }
+});
+
+window.addEventListener('unload', function() {
+    if (editMode && currentBomId) {
+        // SendBeacon cancel_edit to guarantee DB rollback on page close/unload
+        navigator.sendBeacon(`/api/bom/${currentBomId}/cancel_edit`);
+    }
+});
+
+document.addEventListener('click', function(e) {
+    const a = e.target.closest('a');
+    if (a && editMode) {
+        const href = a.getAttribute('href');
+        if (href) {
+            const currentHash = location.hash;
+            const targetHash = href.includes('#') ? '#' + href.split('#')[1] : '';
+            
+            // If navigating away from the current editing view
+            if (targetHash !== currentHash) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (confirm('You have unsaved changes in BOM edit mode. If you leave, your changes will be discarded. Proceed?')) {
+                    editMode = false; // Bypass beforeunload
+                    fetch(`/api/bom/${currentBomId}/cancel_edit`, {
+                        method: 'POST',
+                        headers: HEADERS
+                    }).then(() => {
+                        window.location.href = href;
+                    }).catch(() => {
+                        window.location.href = href;
+                    });
+                }
+            }
+        }
+    }
+}, true); // capturing phase
 
 // ─── ADDING & EDITING BOM ITEMS MODALS ───
 
@@ -1135,10 +1436,10 @@ async function loadVersionsTab() {
                     <td><strong>${v.version}</strong></td>
                     <td>${v.version_type}</td>
                     <td><span class="badge ${v.status === 'Released' ? 'badge-status-released' : 'badge-status-draft'}">${v.status}</span></td>
-                    <td>${v.change_description}</td>
+                    <td>${v.change_description || '-'}</td>
                     <td>${v.released_at ? v.released_at.split('.')[0] : '-'}</td>
                     <td>
-                        <button class="btn-outline" onclick="loadBomDetail('${currentBomId}', '${v.version}')" style="padding:4px 8px; font-size:11px;">
+                        <button class="btn-outline" onclick="viewVersionSnapshot('${v.version}')" style="padding:4px 8px; font-size:11px;">
                             View Snapshot
                         </button>
                     </td>
@@ -1150,6 +1451,11 @@ async function loadVersionsTab() {
     } catch (e) {
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:red;">Error loading version snapshots.</td></tr>';
     }
+}
+
+function viewVersionSnapshot(version) {
+    switchBomTab('structure');
+    loadBomDetail(currentBomId, version);
 }
 
 // ─── HISTORY TAB IMPLEMENTATION ───

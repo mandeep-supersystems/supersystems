@@ -490,6 +490,21 @@ def get_all_customer_orders():
         proj_id = str(r[0])
         proj_name = r[1]
         pos = r[2]
+
+# ─── CUSTOMER ORDERS ───
+
+@planning_bp.route("/customer-orders", methods=["GET"])
+def get_all_customer_orders():
+    tid = _tid()
+    rows = db.session.execute(db.text(
+        "SELECT id, project_name, customer_pos FROM project.projects WHERE is_deleted = false AND " + _tid_cond()
+    ), {"tid": tid}).fetchall()
+    
+    orders = []
+    for r in rows:
+        proj_id = str(r[0])
+        proj_name = r[1]
+        pos = r[2]
         if isinstance(pos, str):
             try:
                 pos = json.loads(pos)
@@ -501,8 +516,8 @@ def get_all_customer_orders():
                 po["project_name"] = proj_name
                 orders.append(po)
                 
-    # Sort orders by date or version if needed
     return {"success": True, "data": orders}
+
 
 @planning_bp.route("/bom-analysis/<part_number>", methods=["GET"])
 def analyze_bom(part_number):
@@ -514,14 +529,14 @@ def analyze_bom(part_number):
         
     bom_row = db.session.execute(db.text(
         "SELECT id, bom_no, version, yield_qty FROM manufacturing_boms "
-        "WHERE fg_part_number = :fg AND status = 'active' AND " + _tid_cond() + " LIMIT 1"
+        "WHERE fg_part_number = :fg AND status IN ('active', 'Released') AND " + _tid_cond() + " LIMIT 1"
     ), {"fg": fg_part, "tid": tid}).first()
     
     if not bom_row:
         # Also check without -99 just in case
         bom_row = db.session.execute(db.text(
             "SELECT id, bom_no, version, yield_qty FROM manufacturing_boms "
-            "WHERE fg_part_number = :fg AND status = 'active' AND " + _tid_cond() + " LIMIT 1"
+            "WHERE fg_part_number = :fg AND status IN ('active', 'Released') AND " + _tid_cond() + " LIMIT 1"
         ), {"fg": part_number, "tid": tid}).first()
         
     if not bom_row:
@@ -554,4 +569,3 @@ def analyze_bom(part_number):
         "yield_qty": yield_qty,
         "components": components
     }}
-
