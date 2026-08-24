@@ -1609,15 +1609,13 @@ def update_part_attributes():
             params[safe_field] = value if value != "" else None
 
         # Rebuild description from the new field values merged with existing row
-        existing_row = db.session.execute(db.text(
+        result2 = db.session.execute(db.text(
             f"SELECT * FROM {table_name} WHERE part_number = :pn LIMIT 1"
-        ), {"pn": part_number}).first()
+        ), {"pn": part_number})
+        col_keys = list(result2.keys())
+        existing_row = result2.first()
         if existing_row:
-            result2 = db.session.execute(db.text(
-                f"SELECT * FROM {table_name} WHERE part_number = :pn LIMIT 1"
-            ), {"pn": part_number})
-            col_keys = list(result2.keys())
-            existing_vals = dict(zip(col_keys, result2.first()))
+            existing_vals = dict(zip(col_keys, existing_row))
             # Merge new values over existing
             merged = {k: (str(v) if v is not None else '') for k, v in existing_vals.items()}
             for field, value in fields.items():

@@ -85,6 +85,27 @@ def _count_mfg_bom_items_sql(bom_id, tenant_id, visited=None):
     return total
 
 
+def _lookup_part_description(part_code, tenant_id):
+    """Look up part description from dynamic category tables (authoritative source)."""
+    import re as _re
+    cats = db.session.execute(db.text(
+        "SELECT name, series_prefix FROM part.categories WHERE is_deleted = false"
+    )).fetchall()
+    for cat in cats:
+        tbl = 'part."{}_{}"'.format(
+            _re.sub(r'[^a-z0-9]', '_', cat[0].lower().strip()).strip('_'), cat[1]
+        )
+        try:
+            row = db.session.execute(db.text(
+                f"SELECT COALESCE(description, '') FROM {tbl} WHERE part_number = :p LIMIT 1"
+            ), {"p": part_code}).scalar()
+            if row:
+                return row
+        except Exception:
+            db.session.rollback()
+    return ""
+
+
 def _expand_mfg_bom_items_sql(bom_id, tenant_id, base_level=1, visited=None):
     if visited is None:
         visited = set()
@@ -122,9 +143,7 @@ def _expand_mfg_bom_items_sql(bom_id, tenant_id, base_level=1, visited=None):
         proc_type = r[15] or ('manufacturing' if child_type == 'assembly' else 'bought_out')
         pinned = r[16] or ""
 
-        desc = db.session.execute(db.text(
-            "SELECT name FROM part.masters WHERE part_number = :p AND is_deleted = false AND tenant_id = :tid LIMIT 1"
-        ), {"p": part_code, "tid": tenant_id}).scalar() or ""
+        desc = _lookup_part_description(part_code, tenant_id)
 
         cost = 0.0
         sub_bom_id = None
@@ -223,27 +242,7 @@ def _expand_mfg_bom_snapshots_sql(bom_id, version, tenant_id, base_level=1, visi
         op_ref = r[14] or ""
         proc_type = r[15] or ('manufacturing' if child_type == 'assembly' else 'bought_out')
 
-        desc = db.session.execute(db.text(
-            "SELECT name FROM part.masters WHERE part_number = :p AND is_deleted = false AND tenant_id = :tid LIMIT 1"
-        ), {"p": part_code, "tid": tenant_id}).scalar() or ""
-
-        if not desc:
-            # Try dynamic category tables
-            cats = db.session.execute(db.text(
-                "SELECT name, series_prefix FROM part.categories WHERE is_deleted = false"
-            )).fetchall()
-            import re as _re
-            for cat in cats:
-                tbl = f'part."{_re.sub(chr(91)+"^a-z0-9"+chr(93), "_", cat[0].lower().strip()).strip("_")}_{cat[1]}"'
-                try:
-                    row = db.session.execute(db.text(
-                        f"SELECT COALESCE(description, name, '') FROM {tbl} WHERE part_number = :p LIMIT 1"
-                    ), {"p": part_code}).scalar()
-                    if row:
-                        desc = row
-                        break
-                except Exception:
-                    db.session.rollback()
+        desc = _lookup_part_description(part_code, tenant_id)
 
         item_data = {
             "id": item_id,
@@ -293,9 +292,7 @@ def _sync_bom_lines(bom_id, tenant_id):
     ), {"bid": bom_id, "tid": tenant_id}).fetchall()
 
     for idx, (ctype, cno, qty, unit, scrap, op) in enumerate(items, start=1):
-        desc = db.session.execute(db.text(
-            "SELECT name FROM part.masters WHERE part_number = :p AND is_deleted = false AND tenant_id = :tid LIMIT 1"
-        ), {"p": cno, "tid": tenant_id}).scalar() or ""
+        desc = _lookup_part_description(cno, tenant_id)
         
         db.session.execute(db.text(
             "INSERT INTO manufacturing_bom_lines (id, bom_id, sequence, component_type, component_no, component_description, qty_per, unit, scrap_factor, operation_ref, tenant_id) "
@@ -1115,9 +1112,7 @@ def enter_edit(bom_id):
     ), {"bid": bom_id, "tid": tenant_id}).fetchall()
 
     for item in items:
-        desc = db.session.execute(db.text(
-            "SELECT name FROM part.masters WHERE part_number = :p AND is_deleted = false AND tenant_id = :tid LIMIT 1"
-        ), {"p": item[3], "tid": tenant_id}).scalar() or ""
+        desc = _lookup_part_description(item[3], tenant_id)
 
         db.session.execute(db.text(
             "INSERT INTO manufacturing_bom_item_snapshots (id, bom_id, version, original_item_id, parent_item_id, child_type, child_part_code, description, quantity, unit, level, reference, notes, material, unit_cost, status, revision, scrap_factor, operation_ref, procurement_type, tenant_id) "
@@ -1225,9 +1220,7 @@ def release_bom(bom_id):
         ), {"bid": bom_id, "tid": tenant_id}).fetchall()
 
         for item in items:
-            part_desc = db.session.execute(db.text(
-                "SELECT name FROM part.masters WHERE part_number = :p AND is_deleted = false AND tenant_id = :tid LIMIT 1"
-            ), {"p": item[3], "tid": tenant_id}).scalar() or ""
+            part_desc = _lookup_part_description(item[3], tenant_id)
 
             db.session.execute(db.text(
                 "INSERT INTO manufacturing_bom_item_snapshots (id, bom_id, version, original_item_id, parent_item_id, child_type, child_part_code, description, quantity, unit, level, reference, notes, material, unit_cost, status, revision, scrap_factor, operation_ref, procurement_type, tenant_id) "
@@ -1274,9 +1267,7 @@ def version_increment(bom_id):
         ), {"bid": bom_id, "tid": tenant_id}).fetchall()
 
         for item in items:
-            part_desc = db.session.execute(db.text(
-                "SELECT name FROM part.masters WHERE part_number = :p AND is_deleted = false AND tenant_id = :tid LIMIT 1"
-            ), {"p": item[3], "tid": tenant_id}).scalar() or ""
+            part_desc = _lookup_part_description(item[3], tenant_id)
 
             db.session.execute(db.text(
                 "INSERT INTO manufacturing_bom_item_snapshots (id, bom_id, version, original_item_id, parent_item_id, child_type, child_part_code, description, quantity, unit, level, reference, notes, material, unit_cost, status, revision, scrap_factor, operation_ref, procurement_type, tenant_id) "
@@ -1286,7 +1277,7 @@ def version_increment(bom_id):
                 "ctype": item[2], "cno": item[3], "desc": part_desc, "qty": float(item[4] or 1), "unit": item[5], "lvl": int(item[6] or 1),
                 "ref": item[7], "notes": item[8], "mat": item[9], "cost": float(item[10] or 0), "status": item[11], "rev": item[12],
                 "scrap": float(item[13] or 0), "op": item[14], "proc_type": item[15], "tid": tenant_id
-            })
+            }
 
     # 2. Increment version label
     new_ver = current_ver
@@ -1346,18 +1337,7 @@ def copy_bom(bom_id):
     if existing:
         return jsonify({"success": False, "message": f"A BOM already exists for part code {new_part_code}"}), 400
 
-    # Retrieve target part info from part master to get description
-    part_row = db.session.execute(db.text(
-        "SELECT name, description FROM part.masters WHERE part_number = :p AND is_deleted = false AND tenant_id = :tid LIMIT 1"
-    ), {"p": new_part_code, "tid": tenant_id}).fetchone()
-    
-    # Relaxed tenant check if not found
-    if not part_row:
-        part_row = db.session.execute(db.text(
-            "SELECT name, description FROM part.masters WHERE part_number = :p AND is_deleted = false LIMIT 1"
-        ), {"p": new_part_code}).fetchone()
-
-    part_desc = part_row[1] or part_row[0] if part_row else ""
+    part_desc = _lookup_part_description(new_part_code, tenant_id)
     if not new_name:
         new_name = f"BOM for {new_part_code}"
 
@@ -1588,9 +1568,7 @@ def get_bom_costing_prices(bom_id):
 
     costing_data = []
     for part in parts_list:
-        desc = db.session.execute(db.text(
-            "SELECT name FROM part.masters WHERE part_number = :p AND is_deleted = false AND tenant_id = :tid LIMIT 1"
-        ), {"p": part, "tid": tenant_id}).scalar() or ""
+        desc = _lookup_part_description(part, tenant_id)
 
         # Fetch vendors list (from master.vendors)
         vendors_rows = db.session.execute(db.text(
