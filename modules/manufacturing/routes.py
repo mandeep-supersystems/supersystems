@@ -850,6 +850,19 @@ def revoke_module_user(access_id):
 
 # ── ADDITIONAL DETAILED MANUFACTURING BOM ROUTES ──
 
+@manufacturing_bp.route("/boms/by-part/<path:part_code>", methods=["GET"])
+def get_bom_details_by_part(part_code):
+    tenant_id = _get_tenant()
+    bom = db.session.execute(db.text(
+        "SELECT id FROM manufacturing_boms WHERE fg_part_number = :p AND is_deleted = false AND tenant_id = :tid LIMIT 1"
+    ), {"p": part_code, "tid": tenant_id}).fetchone()
+    
+    if not bom:
+        return jsonify({"success": False, "message": f"Manufacturing BOM not found for part {part_code}"}), 404
+        
+    return get_bom_details(str(bom[0]))
+
+
 @manufacturing_bp.route("/boms/<bom_id>", methods=["GET"])
 def get_bom_details(bom_id):
     tenant_id = _get_tenant()
@@ -908,19 +921,6 @@ def get_bom_details(bom_id):
             "viewing_status": viewing_status
         }
     })
-
-
-@manufacturing_bp.route("/boms/by-part/<path:part_code>", methods=["GET"])
-def get_bom_details_by_part(part_code):
-    tenant_id = _get_tenant()
-    bom = db.session.execute(db.text(
-        "SELECT id FROM manufacturing_boms WHERE fg_part_number = :p AND is_deleted = false AND tenant_id = :tid LIMIT 1"
-    ), {"p": part_code, "tid": tenant_id}).fetchone()
-    
-    if not bom:
-        return jsonify({"success": False, "message": f"Manufacturing BOM not found for part {part_code}"}), 404
-        
-    return get_bom_details(str(bom[0]))
 
 
 @manufacturing_bp.route("/boms/<bom_id>/add-item", methods=["POST"])
