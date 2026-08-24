@@ -775,18 +775,25 @@ def capacity_planning():
 def get_audit_logs():
     tenant_id = _get_tenant()
     page = request.args.get("page", 1, type=int)
-    limit = request.args.get("limit", 20, type=int)
+    limit = request.args.get("limit", 50, type=int)
     try:
         rows = db.session.execute(db.text(
-            "SELECT action, entity_type, entity_id, user_name, user_email, ip_address, created_at FROM audit.logs WHERE module IN ('Manufacturing', 'MANUFACTURING') AND tenant_id = :tid ORDER BY created_at DESC LIMIT :limit OFFSET :offset"
-        ), {"tid": tenant_id, "limit": limit, "offset": (page-1)*limit}).fetchall()
+            "SELECT h.action, h.detail, h.performed_by, h.performed_at, b.fg_part_number, b.bom_no "
+            "FROM manufacturing_bom_history h "
+            "JOIN manufacturing_boms b ON b.id = h.bom_id "
+            "WHERE h.tenant_id = :tid "
+            "ORDER BY h.performed_at DESC LIMIT :limit OFFSET :offset"
+        ), {"tid": tenant_id, "limit": limit, "offset": (page - 1) * limit}).fetchall()
         items = [{
-            "action": r[0], "entity_type": r[1] or "ProductionOrder", "entity_id": r[2] or "-",
-            "user_name": r[3] or r[4] or "Production Engineer", "user_email": r[4] or "",
-            "ip_address": r[5] or "127.0.0.1", "created_at": str(r[6])
+            "action": r[0],
+            "detail": r[1] or "-",
+            "performed_by": r[2] or "System",
+            "performed_at": str(r[3]),
+            "fg_part_number": r[4] or "-",
+            "bom_no": r[5] or "-"
         } for r in rows]
         return jsonify({"success": True, "data": {"items": items, "total": len(items)}})
-    except Exception:
+    except Exception as e:
         db.session.rollback()
         return jsonify({"success": True, "data": {"items": [], "total": 0}})
 
