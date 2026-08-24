@@ -225,6 +225,24 @@ def _expand_mfg_bom_snapshots_sql(bom_id, version, tenant_id, base_level=1, visi
             "SELECT name FROM part.masters WHERE part_number = :p AND is_deleted = false AND tenant_id = :tid LIMIT 1"
         ), {"p": part_code, "tid": tenant_id}).scalar() or ""
 
+        if not desc:
+            # Try dynamic category tables
+            cats = db.session.execute(db.text(
+                "SELECT name, series_prefix FROM part.categories WHERE is_deleted = false"
+            )).fetchall()
+            import re as _re
+            for cat in cats:
+                tbl = f'part."{_re.sub(chr(91)+"^a-z0-9"+chr(93), "_", cat[0].lower().strip()).strip("_")}_{cat[1]}"'
+                try:
+                    row = db.session.execute(db.text(
+                        f"SELECT COALESCE(description, name, '') FROM {tbl} WHERE part_number = :p LIMIT 1"
+                    ), {"p": part_code}).scalar()
+                    if row:
+                        desc = row
+                        break
+                except Exception:
+                    db.session.rollback()
+
         item_data = {
             "id": item_id,
             "parent_item_id": parent_id,

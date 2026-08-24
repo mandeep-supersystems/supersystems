@@ -769,6 +769,19 @@ async function submitBulkBomItems() {
 
     if (items.length === 0) { errEl.textContent = 'Add at least one row.'; errEl.style.display = 'block'; return; }
 
+    // Duplicate check within the batch itself
+    const batchCodes = items.map(i => i.child_part_code);
+    const batchDup = batchCodes.find((c, idx) => batchCodes.indexOf(c) !== idx);
+    if (batchDup) { errEl.textContent = `Duplicate in list: ${batchDup}. Each part must appear once per level.`; errEl.style.display = 'block'; return; }
+
+    // Duplicate check against existing BOM items at same level
+    const parentId = document.getElementById('abiParentId').value || null;
+    const existingAtLevel = bomData.items
+        .filter(i => i.parent_item_id === parentId || (i.parent_item_id === null && parentId === null))
+        .map(i => i.child_part_code);
+    const existingDup = items.find(i => existingAtLevel.includes(i.child_part_code));
+    if (existingDup) { errEl.textContent = `${existingDup.child_part_code} already exists at this level. Add it at a different level.`; errEl.style.display = 'block'; return; }
+
     let failed = 0;
     for (const item of items) {
         try {
@@ -838,9 +851,16 @@ async function saveNewBomItem(event) {
     event.preventDefault();
     const cno = document.getElementById('abiSelectedPart').value;
     if (!cno) { showToast('Please select a part from suggestions', 'error'); return; }
-    
+
+    const parentId = document.getElementById('abiParentId').value || null;
+    const isDuplicate = bomData.items.some(i =>
+        i.child_part_code === cno &&
+        (i.parent_item_id === parentId || (i.parent_item_id === null && parentId === null))
+    );
+    if (isDuplicate) { showToast(`${cno} already exists at this level. Add it at a different level.`, 'error'); return; }
+
     const payload = {
-        parent_item_id: document.getElementById('abiParentId').value || null,
+        parent_item_id: parentId,
         child_type: document.getElementById('abiChildType').value,
         child_part_code: cno,
         quantity: parseFloat(document.getElementById('abiQty').value || 1),
@@ -850,12 +870,10 @@ async function saveNewBomItem(event) {
         operation_ref: document.getElementById('abiOpRef').value || '-01',
         procurement_type: document.getElementById('abiProcurement').value
     };
-    
+
     try {
         const res = await fetch(API + `/boms/${currentBomId}/add-item`, {
-            method: 'POST',
-            headers: HEADERS,
-            body: JSON.stringify(payload)
+            method: 'POST', headers: HEADERS, body: JSON.stringify(payload)
         });
         const json = await res.json();
         if (json.success) {
