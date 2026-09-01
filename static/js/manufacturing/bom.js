@@ -566,14 +566,19 @@ function editSelectedItem() {
 // Build ordered flat list by pre-order traversal from a root parent
 function buildFlatOrderedList(rootParentId) {
     const result = [];
-    function walk(parentId) {
+    function walk(parentId, insideSubAsm) {
         const children = bomData.items.filter(i => i.parent_item_id === parentId);
         children.forEach(child => {
+            // Skip sub-assembly components unless we are already drilled into that sub-assembly
+            if (child.isSubAssemblyComponent && !insideSubAsm) return;
             result.push(child);
-            walk(child.id);
+            // Once inside a sub-assembly node, keep showing its children
+            walk(child.id, insideSubAsm || child.isSubAssemblyComponent);
         });
     }
-    walk(rootParentId);
+    // If rootParentId is a sub-assembly item itself, allow its children to show
+    const rootItem = rootParentId ? bomData.items.find(i => i.id === rootParentId) : null;
+    walk(rootParentId, rootItem ? !!rootItem.isSubAssemblyComponent : false);
     return result;
 }
 
