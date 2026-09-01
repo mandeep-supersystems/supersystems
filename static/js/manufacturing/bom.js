@@ -1260,10 +1260,28 @@ async function submitBulkBomItems() {
     const baseLevel = currentSelectedItemId ? ((bomData.items.find(i => i.id === currentSelectedItemId)?.level || 0) + 1) : 1;
 
     const items = [];
+    const seenInBatch = new Set();
+    const skippedDupes = [];
     for (const row of rows) {
         const id = row.id.replace('bulkRow_', '');
         const partCode = document.getElementById(`bulkPart_${id}`).value.trim();
         if (!partCode) { errEl.textContent = 'All rows must have a part selected.'; errEl.style.display = 'block'; return; }
+
+        // Check against existing BOM items at this level
+        const alreadyInBom = bomData.items.some(i =>
+            !i.isSubAssemblyComponent &&
+            i.child_part_code === partCode &&
+            ((i.parent_item_id || null) === (parentId || null))
+        );
+        // Check against other rows in this same batch
+        const alreadyInBatch = seenInBatch.has(partCode);
+
+        if (alreadyInBom || alreadyInBatch) {
+            skippedDupes.push(partCode);
+            continue;
+        }
+        seenInBatch.add(partCode);
+
         items.push({
             child_type: 'component',
             child_part_code: partCode,
@@ -1279,7 +1297,12 @@ async function submitBulkBomItems() {
         });
     }
 
-    if (items.length === 0) { errEl.textContent = 'Add at least one row.'; errEl.style.display = 'block'; return; }
+    if (items.length === 0 && skippedDupes.length === 0) { errEl.textContent = 'Add at least one row.'; errEl.style.display = 'block'; return; }
+    if (items.length === 0) {
+        errEl.style.display = 'block'; errEl.style.color = '#b45309'; errEl.style.background = '#fffbeb'; errEl.style.borderColor = '#fde68a';
+        errEl.textContent = `All ${skippedDupes.length} part(s) already exist in this BOM: ${skippedDupes.join(', ')}`;
+        return;
+    }
 
     let added = 0, failed = 0;
     const failedItems = [];
@@ -1310,13 +1333,13 @@ async function submitBulkBomItems() {
         errEl.style.color = '#ef4444';
         errEl.style.background = '#fff5f5';
         errEl.style.borderColor = '#fecaca';
-        errEl.innerHTML = `Done: <strong>${added} uploaded</strong>, <strong>${failed} failed</strong><br><small>${failedItems.join('<br>')}</small>`;
+        errEl.innerHTML = `Done: <strong>${added} uploaded</strong>, <strong>${failed} failed</strong>${skippedDupes.length ? `, <strong>${skippedDupes.length} skipped (already exist)</strong>` : ''}<br><small>${failedItems.join('<br>')}</small>`;
         showToast(`${added} added, ${failed} failed.`, 'error');
     } else {
         errEl.style.color = '#16a34a';
         errEl.style.background = '#f0fdf4';
         errEl.style.borderColor = '#bbf7d0';
-        errEl.textContent = `All ${added} component(s) uploaded successfully.`;
+        errEl.textContent = `${added} component(s) uploaded successfully.${skippedDupes.length ? ` ${skippedDupes.length} skipped (already exist).` : ''}`;
         showToast(`${added} component(s) added successfully`);
         document.getElementById('abiBulkRows').innerHTML = '';
         bulkRowCounter = 0;
@@ -1377,10 +1400,11 @@ async function saveNewBomItem(event) {
 
     const parentId = document.getElementById('abiParentId').value || null;
     const isDuplicate = bomData.items.some(i =>
+        !i.isSubAssemblyComponent &&
         i.child_part_code === cno &&
-        (i.parent_item_id === parentId || (i.parent_item_id === null && parentId === null))
+        ((i.parent_item_id || null) === (parentId || null))
     );
-    if (isDuplicate) { showToast(`${cno} already exists at this level. Add it at a different level.`, 'error'); return; }
+    if (isDuplicate) { showToast(`${cno} already exists in this BOM at this level`, 'error'); return; }
 
     const payload = {
         parent_item_id: parentId,

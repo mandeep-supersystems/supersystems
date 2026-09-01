@@ -978,6 +978,15 @@ def add_bom_item(bom_id):
     if not ctype or not cno:
         return jsonify({"success": False, "message": "Part code and type are required"}), 400
 
+    # Duplicate check: same part code at same parent level in this BOM
+    dup = db.session.execute(db.text(
+        "SELECT id FROM manufacturing_bom_items WHERE bom_id = :bid AND tenant_id = :tid "
+        "AND child_part_code = :cno "
+        "AND (parent_item_id = :pid OR (parent_item_id IS NULL AND :pid IS NULL))"
+    ), {"bid": bom_id, "tid": tenant_id, "cno": cno, "pid": parent_id}).fetchone()
+    if dup:
+        return jsonify({"success": False, "message": f"{cno} already exists at this level in the BOM"}), 409
+
     try:
         item_id = str(uuid.uuid4())
         db.session.execute(db.text(
