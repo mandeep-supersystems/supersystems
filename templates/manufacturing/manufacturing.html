@@ -166,7 +166,7 @@
 
                 <!-- Search box -->
                 <div style="position:relative; margin-bottom:12px; max-width:400px;">
-                    <input type="text" id="bomListSearch" placeholder="Search by assembly part number or description..." oninput="filterBomListTable(this.value)" style="width:100%; padding:8px 12px 8px 32px; border:1px solid var(--border-color); border-radius:6px; outline:none; background:var(--bg-primary); font-size:13px;">
+                    <input type="text" id="bomListSearch" placeholder="Search by assembly part number or description..." oninput="searchBomList(this.value)" style="width:100%; padding:8px 12px 8px 32px; border:1px solid var(--border-color); border-radius:6px; outline:none; background:var(--bg-primary); font-size:13px;">
                     <span class="material-icons-outlined" style="position:absolute; left:8px; top:50%; transform:translateY(-50%); color:var(--text-secondary); font-size:16px;">search</span>
                 </div>
 
@@ -180,7 +180,7 @@
                                     <th>Description</th>
                                     <th>Version</th>
                                     <th>Status</th>
-                                    <th style="text-align:center;">Components</th>
+                                    <th style="text-align:center;">Sub-Assemblies / Components</th>
                                     <th>Action</th>
                                 </tr>
                             </thead>
@@ -1053,7 +1053,7 @@
 <script>requireAuth();</script>
 <script src="/static/js/manufacturing/common.js?v=2"></script>
 <script src="/static/js/manufacturing/overview.js?v=2"></script>
-<script src="/static/js/manufacturing/bom.js?v=8"></script>
+<script src="/static/js/manufacturing/bom.js?v=12"></script>
 <script src="/static/js/manufacturing/productionorders.js?v=2"></script>
 <script src="/static/js/manufacturing/workcenters.js?v=2"></script>
 <script src="/static/js/manufacturing/routing.js?v=2"></script>

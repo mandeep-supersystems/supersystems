@@ -11,10 +11,18 @@ let expandedNodeIds = new Set();
 
 // ─── SINGLE CLEAN LIST LOADER ───
 
-async function loadAssemblyBomList() {
+let bomListSearchTimer = null;
+function searchBomList(q) {
+    clearTimeout(bomListSearchTimer);
+    bomListSearchTimer = setTimeout(() => loadAssemblyBomList(q), 300);
+}
+
+async function loadAssemblyBomList(q = '') {
     const tbody = document.getElementById('bomAssemblyListBody');
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">Loading...</td></tr>';
     try {
-        const res = await fetch(API + '/assembly-boms-list', { headers: HEADERS });
+        const url = API + '/assembly-boms-list' + (q ? `?q=${encodeURIComponent(q)}` : '');
+        const res = await fetch(url, { headers: HEADERS });
         const json = await res.json();
         
         if (json && json.length > 0) {
@@ -36,6 +44,16 @@ async function loadAssemblyBomList() {
                 const desc = a.description || '—';
                 const descShort = desc.length > 60 ? desc.substring(0, 60) + '…' : desc;
                 
+                const countHtml = a.has_bom
+                    ? `<span style="font-size:11px;color:var(--text-secondary);">
+                        <span style="display:inline-flex;align-items:center;gap:3px;background:#eef2ff;color:#4f46e5;padding:1px 6px;border-radius:10px;font-weight:700;font-size:10px;">
+                            <span class="material-icons-outlined" style="font-size:10px;">account_tree</span>${a.assembly_count}
+                        </span>
+                        <span style="display:inline-flex;align-items:center;gap:3px;background:#f0fdf4;color:#16a34a;padding:1px 6px;border-radius:10px;font-weight:700;font-size:10px;margin-left:3px;">
+                            <span class="material-icons-outlined" style="font-size:10px;">settings_input_component</span>${a.component_count}
+                        </span>
+                       </span>`
+                    : `<span style="font-size:11px;color:var(--text-muted);">—</span>`;
                 return `
                     <tr style="cursor:pointer;" onclick="${a.has_bom ? `navigateToBomDetailByPart('${a.part_code}')` : `openNewBomModal('${a.part_code}', '${(a.description || '').replace(/'/g, "\\'")}')`}">
                         <td style="color:var(--text-secondary);font-size:12px;">${idx + 1}</td>
@@ -43,13 +61,13 @@ async function loadAssemblyBomList() {
                         <td style="max-width:320px;" title="${desc}">${descShort}</td>
                         <td>${verHtml}</td>
                         <td>${statusHtml}</td>
-                        <td style="text-align:center;"><span class="badge" style="background:#e0e7ff; color:#4f46e5; font-weight:700;">${a.has_bom ? a.item_count : '—'}</span></td>
+                        <td style="text-align:center;">${countHtml}</td>
                         <td>${actionHtml}</td>
                     </tr>
                 `;
             }).join('');
         } else {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--text-secondary);">No assemblies found in Part Master.</td></tr>';
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-secondary);">No assemblies found${q ? ' matching "' + q + '"' : ' in Part Master'}.</td></tr>`;
         }
     } catch (e) {
         tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:red;">Error loading assemblies list.</td></tr>';
@@ -1233,6 +1251,9 @@ async function submitBulkBomItems() {
     const errEl = document.getElementById('abiBulkError');
     errEl.style.display = 'none';
 
+    const parentId = document.getElementById('abiParentId').value || null;
+    const baseLevel = currentSelectedItemId ? ((bomData.items.find(i => i.id === currentSelectedItemId)?.level || 0) + 1) : 1;
+
     const items = [];
     for (const row of rows) {
         const id = row.id.replace('bulkRow_', '');
@@ -1247,41 +1268,51 @@ async function submitBulkBomItems() {
             operation_ref: document.getElementById(`bulkOpRef_${id}`).value || '-01',
             reference: document.getElementById(`bulkRef_${id}`).value || '',
             procurement_type: 'bought_out',
-            parent_item_id: document.getElementById('abiParentId').value || null,
-            level: currentSelectedItemId ? (bomData.items.find(i => i.id === currentSelectedItemId)?.level + 1 || 1) : 1
+            parent_item_id: parentId,
+            level: baseLevel,
+            _bulk: true
         });
     }
 
     if (items.length === 0) { errEl.textContent = 'Add at least one row.'; errEl.style.display = 'block'; return; }
 
-    // Duplicate check within the batch itself
-    const batchCodes = items.map(i => i.child_part_code);
-    const batchDup = batchCodes.find((c, idx) => batchCodes.indexOf(c) !== idx);
-    if (batchDup) { errEl.textContent = `Duplicate in list: ${batchDup}. Each part must appear once per level.`; errEl.style.display = 'block'; return; }
+    let added = 0, failed = 0;
+    const failedItems = [];
+    const total = items.length;
 
-    // Duplicate check against existing BOM items at same level
-    const parentId = document.getElementById('abiParentId').value || null;
-    const existingAtLevel = bomData.items
-        .filter(i => i.parent_item_id === parentId || (i.parent_item_id === null && parentId === null))
-        .map(i => i.child_part_code);
-    const existingDup = items.find(i => existingAtLevel.includes(i.child_part_code));
-    if (existingDup) { errEl.textContent = `${existingDup.child_part_code} already exists at this level. Add it at a different level.`; errEl.style.display = 'block'; return; }
+    errEl.style.display = 'block';
+    errEl.style.color = 'var(--text-secondary)';
+    errEl.style.background = 'var(--bg-secondary)';
+    errEl.style.borderColor = 'var(--border-color)';
+    errEl.textContent = `Uploading 0 / ${total}...`;
 
-    let failed = 0;
     for (const item of items) {
         try {
             const res = await fetch(API + `/boms/${currentBomId}/add-item`, {
                 method: 'POST', headers: HEADERS, body: JSON.stringify(item)
             });
             const json = await res.json();
-            if (!json.success) failed++;
-        } catch(e) { failed++; }
+            if (json.success) { added++; }
+            else { failed++; failedItems.push(`${item.child_part_code} (${json.message || 'error'})`); }
+        } catch(e) { failed++; failedItems.push(`${item.child_part_code} (network error)`); }
+        errEl.textContent = `Uploading ${added + failed} / ${total}... (${added} ok, ${failed} failed)`;
     }
 
+    // Trigger sync + history log once after all items inserted
+    await fetch(API + `/boms/${currentBomId}/bulk-finalize`, { method: 'POST', headers: HEADERS, body: JSON.stringify({added}) });
+
     if (failed > 0) {
-        showToast(`${items.length - failed} added, ${failed} failed.`, 'error');
+        errEl.style.color = '#ef4444';
+        errEl.style.background = '#fff5f5';
+        errEl.style.borderColor = '#fecaca';
+        errEl.innerHTML = `Done: <strong>${added} uploaded</strong>, <strong>${failed} failed</strong><br><small>${failedItems.join('<br>')}</small>`;
+        showToast(`${added} added, ${failed} failed.`, 'error');
     } else {
-        showToast(`${items.length} component(s) added successfully`);
+        errEl.style.color = '#16a34a';
+        errEl.style.background = '#f0fdf4';
+        errEl.style.borderColor = '#bbf7d0';
+        errEl.textContent = `All ${added} component(s) uploaded successfully.`;
+        showToast(`${added} component(s) added successfully`);
         document.getElementById('abiBulkRows').innerHTML = '';
         bulkRowCounter = 0;
         addBulkRow();

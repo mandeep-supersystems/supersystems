@@ -972,23 +972,30 @@ def add_bom_item(bom_id):
     scrap = float(data.get("scrap_factor") or 0)
     op = data.get("operation_ref") or "-01"
     proc_type = data.get("procurement_type") or ('manufacturing' if ctype == 'assembly' else 'bought_out')
-    parent_id = data.get("parent_item_id")
+    parent_id = data.get("parent_item_id") or None
+    is_bulk = data.get("_bulk", False)
 
     if not ctype or not cno:
         return jsonify({"success": False, "message": "Part code and type are required"}), 400
 
-    item_id = str(uuid.uuid4())
-    db.session.execute(db.text(
-        "INSERT INTO manufacturing_bom_items (id, bom_id, parent_item_id, child_type, child_part_code, quantity, unit, level, reference, notes, material, unit_cost, status, revision, scrap_factor, operation_ref, procurement_type, tenant_id, created_at) "
-        "VALUES (:id, :bid, :parent_id, :ctype, :cno, :qty, :unit, :lvl, :ref, :notes, :mat, :cost, 'Active', :rev, :scrap, :op, :proc_type, :tid, NOW())"
-    ), {
-        "id": item_id, "bid": bom_id, "parent_id": parent_id, "ctype": ctype, "cno": cno, "qty": qty, "unit": unit,
-        "lvl": lvl, "ref": ref, "notes": notes, "mat": mat, "cost": cost, "rev": rev, "scrap": scrap, "op": op, "proc_type": proc_type, "tid": tenant_id
-    })
-    db.session.commit()
+    try:
+        item_id = str(uuid.uuid4())
+        db.session.execute(db.text(
+            "INSERT INTO manufacturing_bom_items (id, bom_id, parent_item_id, child_type, child_part_code, quantity, unit, level, reference, notes, material, unit_cost, status, revision, scrap_factor, operation_ref, procurement_type, tenant_id, created_at) "
+            "VALUES (:id, :bid, :parent_id, :ctype, :cno, :qty, :unit, :lvl, :ref, :notes, :mat, :cost, 'Active', :rev, :scrap, :op, :proc_type, :tid, NOW())"
+        ), {
+            "id": item_id, "bid": bom_id, "parent_id": parent_id, "ctype": ctype, "cno": cno, "qty": qty, "unit": unit,
+            "lvl": lvl, "ref": ref, "notes": notes, "mat": mat, "cost": cost, "rev": rev, "scrap": scrap, "op": op, "proc_type": proc_type, "tid": tenant_id
+        })
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": f"DB error: {str(e)}"}), 500
 
-    _sync_bom_lines(bom_id, tenant_id)
-    _log_mfg_bom_history(bom_id, "Add Item", f"Added item {cno} ({ctype}) to tree level {lvl}", "User", tenant_id)
+    # Skip expensive sync/log during bulk uploads — caller does it once at the end
+    if not is_bulk:
+        _sync_bom_lines(bom_id, tenant_id)
+        _log_mfg_bom_history(bom_id, "Add Item", f"Added {ctype} '{cno}' | Qty: {qty} {unit} | Ref: {ref or '—'} | Op: {op} | Scrap: {scrap}%", "User", tenant_id)
 
     return jsonify({"success": True, "message": "Item added successfully", "id": item_id})
 
@@ -1021,31 +1028,56 @@ def update_bom_item(bom_id, item_id):
     db.session.commit()
 
     _sync_bom_lines(bom_id, tenant_id)
-    _log_mfg_bom_history(bom_id, "Update Item", f"Updated item {item_id} fields: {', '.join(data.keys())}", "User", tenant_id)
+    _log_mfg_bom_history(bom_id, "Update Item", f"Updated item {item_id}: " + ', '.join(f"{k}={v}" for k,v in data.items() if k in fields), "User", tenant_id)
 
     return jsonify({"success": True, "message": "Item updated successfully"})
+
+
+@manufacturing_bp.route("/boms/<bom_id>/bulk-finalize", methods=["POST"])
+def bulk_finalize(bom_id):
+    tenant_id = _get_tenant()
+    data = request.get_json() or {}
+    added = data.get("added", 0)
+    _sync_bom_lines(bom_id, tenant_id)
+    _log_mfg_bom_history(bom_id, "Bulk Add", f"Bulk uploaded {added} component(s)", "User", tenant_id)
+    return jsonify({"success": True})
 
 
 @manufacturing_bp.route("/boms/<bom_id>/remove-item/<item_id>", methods=["POST"])
 def remove_bom_item(bom_id, item_id):
     tenant_id = _get_tenant()
-    
-    # Recursively delete item children
-    def delete_child_nodes(parent_id):
-        rows = db.session.execute(db.text(
+
+    # Fetch part info before deleting for history log
+    item_row = db.session.execute(db.text(
+        "SELECT child_part_code, child_type, quantity, unit FROM manufacturing_bom_items WHERE id = :id AND tenant_id = :tid"
+    ), {"id": item_id, "tid": tenant_id}).fetchone()
+    part_label = f"{item_row[0]} ({item_row[1]}) x{item_row[2]} {item_row[3]}" if item_row else item_id
+
+    # Collect all descendant IDs first, then delete in one shot
+    def collect_ids(parent_id, acc):
+        acc.append(parent_id)
+        children = db.session.execute(db.text(
             "SELECT id FROM manufacturing_bom_items WHERE parent_item_id = :pid AND bom_id = :bid AND tenant_id = :tid"
         ), {"pid": parent_id, "bid": bom_id, "tid": tenant_id}).fetchall()
-        for r in rows:
-            delete_child_nodes(str(r[0]))
-        db.session.execute(db.text(
-            "DELETE FROM manufacturing_bom_items WHERE id = :id AND bom_id = :bid AND tenant_id = :tid"
-        ), {"id": parent_id, "bid": bom_id, "tid": tenant_id})
+        for r in children:
+            collect_ids(str(r[0]), acc)
 
-    delete_child_nodes(item_id)
+    ids_to_delete = []
+    collect_ids(item_id, ids_to_delete)
+
+    # Delete all at once using IN clause
+    if ids_to_delete:
+        placeholders = ','.join([f':id{i}' for i in range(len(ids_to_delete))])
+        params = {f'id{i}': v for i, v in enumerate(ids_to_delete)}
+        params['bid'] = bom_id
+        params['tid'] = tenant_id
+        db.session.execute(db.text(
+            f"DELETE FROM manufacturing_bom_items WHERE id IN ({placeholders}) AND bom_id = :bid AND tenant_id = :tid"
+        ), params)
     db.session.commit()
 
     _sync_bom_lines(bom_id, tenant_id)
-    _log_mfg_bom_history(bom_id, "Remove Item", f"Deleted item {item_id} and its tree descendants", "User", tenant_id)
+    _log_mfg_bom_history(bom_id, "Remove Item", f"Deleted {part_label} (and {len(ids_to_delete)-1} children)", "User", tenant_id)
 
     return jsonify({"success": True, "message": "Item removed successfully"})
 
@@ -1717,6 +1749,16 @@ def api_mfg_assembly_boms_list():
         version = bom[1] if has_bom else ""
         status = bom[2] if has_bom else ""
         item_count = _count_mfg_bom_items_sql(bom_id, tenant_id) if has_bom else 0
+        # Count direct assemblies and components
+        if has_bom:
+            type_counts = db.session.execute(db.text(
+                "SELECT child_type, COUNT(*) FROM manufacturing_bom_items WHERE bom_id = :bid AND tenant_id = :tid AND status = 'Active' GROUP BY child_type"
+            ), {"bid": bom_id, "tid": tenant_id}).fetchall()
+            type_map = {r[0]: r[1] for r in type_counts}
+            assembly_count = type_map.get('assembly', 0)
+            component_count = type_map.get('component', 0)
+        else:
+            assembly_count = component_count = 0
 
         res.append({
             "part_code": part_no,
@@ -1725,7 +1767,9 @@ def api_mfg_assembly_boms_list():
             "bom_id": bom_id,
             "version": version,
             "status": status,
-            "item_count": item_count
+            "item_count": item_count,
+            "assembly_count": assembly_count,
+            "component_count": component_count
         })
     return jsonify(res)
 
