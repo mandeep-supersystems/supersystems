@@ -1761,7 +1761,7 @@ def api_mfg_assembly_boms_list():
         # Count direct assemblies and components
         if has_bom:
             type_counts = db.session.execute(db.text(
-                "SELECT child_type, COUNT(*) FROM manufacturing_bom_items WHERE bom_id = :bid AND tenant_id = :tid AND status = 'Active' GROUP BY child_type"
+                f"SELECT child_type, COUNT(*) FROM manufacturing_bom_items WHERE bom_id = :bid AND {tid_cond} AND status = 'Active' GROUP BY child_type"
             ), {"bid": bom_id, "tid": tenant_id}).fetchall()
             type_map = {r[0]: r[1] for r in type_counts}
             assembly_count = type_map.get('assembly', 0)
