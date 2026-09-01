@@ -605,6 +605,15 @@ function renderStructureGrid() {
     }
     renderBomBreadcrumb();
 
+    // Update count badge and clear search
+    const countBadge = document.getElementById('bomItemCountBadge');
+    const gridSearch = document.getElementById('bomGridSearch');
+    if (gridSearch) gridSearch.value = '';
+    if (countBadge) {
+        countBadge.style.display = items.length > 0 ? 'inline-block' : 'none';
+        countBadge.textContent = `${items.length} item${items.length !== 1 ? 's' : ''}`;
+    }
+
     if (items.length === 0) {
         tbody.innerHTML = `
             <tr>
@@ -688,6 +697,34 @@ function renderStructureGrid() {
                 ${actionsTd}
             </tr>`;
     }).join('');
+}
+
+
+// ─── INLINE GRID SEARCH ───
+
+function filterBomGrid(q) {
+    const rows = document.querySelectorAll('#bomItemsTableBody tr');
+    const term = q.trim().toLowerCase();
+    let visible = 0;
+    rows.forEach(row => {
+        if (row.cells.length < 3) return;
+        const match = !term || row.innerText.toLowerCase().includes(term);
+        row.style.display = match ? '' : 'none';
+        if (match) visible++;
+    });
+    const badge = document.getElementById('bomItemCountBadge');
+    if (badge && term) {
+        badge.textContent = `${visible} match${visible !== 1 ? 'es' : ''}`;
+        badge.style.background = '#eef2ff';
+        badge.style.color = '#4f46e5';
+        badge.style.borderColor = '#c7d2fe';
+    } else if (badge) {
+        const total = rows.length;
+        badge.textContent = `${total} item${total !== 1 ? 's' : ''}`;
+        badge.style.background = 'var(--bg-secondary)';
+        badge.style.color = 'var(--text-secondary)';
+        badge.style.borderColor = 'var(--border-color)';
+    }
 }
 
 

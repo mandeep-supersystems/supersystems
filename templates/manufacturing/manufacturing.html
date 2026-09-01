@@ -246,6 +246,11 @@
                                 <div style="display:flex; align-items:center; gap:8px;">
                                     <button class="btn-icon" onclick="toggleTreeSidebarCollapse()" title="Toggle Sidebar" style="background:var(--bg-secondary); border:1px solid var(--border-color);"><span class="material-icons-outlined" id="sidebarCollapseIcon">menu_open</span></button>
                                     <span style="font-size:13px; font-weight:600;" id="currentSelectedNodeLabel">Active Items List</span>
+                                    <span id="bomItemCountBadge" style="display:none; font-size:11px; font-weight:700; background:var(--bg-secondary); color:var(--text-secondary); border:1px solid var(--border-color); border-radius:10px; padding:1px 8px;"></span>
+                                    <div style="position:relative; margin-left:4px;">
+                                        <input type="text" id="bomGridSearch" placeholder="Search items..." oninput="filterBomGrid(this.value)" style="padding:4px 8px 4px 26px; font-size:12px; border:1px solid var(--border-color); border-radius:5px; outline:none; background:var(--bg-primary); width:170px;">
+                                        <span class="material-icons-outlined" style="position:absolute; left:6px; top:50%; transform:translateY(-50%); font-size:14px; color:var(--text-secondary); pointer-events:none;">search</span>
+                                    </div>
                                 </div>
                                 
                                 <div style="display:flex; gap:6px;">
@@ -1053,7 +1058,7 @@
 <script>requireAuth();</script>
 <script src="/static/js/manufacturing/common.js?v=2"></script>
 <script src="/static/js/manufacturing/overview.js?v=2"></script>
-<script src="/static/js/manufacturing/bom.js?v=14"></script>
+<script src="/static/js/manufacturing/bom.js?v=15"></script>
 <script src="/static/js/manufacturing/productionorders.js?v=2"></script>
 <script src="/static/js/manufacturing/workcenters.js?v=2"></script>
 <script src="/static/js/manufacturing/routing.js?v=2"></script>
