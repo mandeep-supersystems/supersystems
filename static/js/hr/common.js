@@ -21,9 +21,9 @@ function showSection(sec) {
     const link = document.querySelector(`.sidebar-link[data-section="${sec}"]`);
     if (link) link.classList.add('active');
     if (location.hash !== '#' + sec) location.hash = sec;
-    if (sec === 'overview') loadHROverview();
-    if (sec === 'codecriteria') loadCriteria();
-    if (sec === 'employees') loadEmployees();
+    if (sec === 'overview' && typeof loadHROverview === 'function') loadHROverview();
+    if (sec === 'codecriteria' && typeof loadCriteria === 'function') loadCriteria();
+    if (sec === 'employees' && typeof loadEmployees === 'function') loadEmployees();
 }
 
 function openModal(id) { document.getElementById(id).classList.add('active'); }
@@ -37,12 +37,15 @@ function buildPreview(prefix, psep, num, ssep, suffix) {
 }
 
 // ─── INIT ───
+// Only activate hash-based section routing on pages that have .content-section elements
 const _HR_VALID = ['overview', 'codecriteria', 'employees'];
 window.addEventListener('hashchange', () => {
+    if (!document.querySelector('.content-section')) return;
     const hash = location.hash.replace('#', '') || 'overview';
     showSection(_HR_VALID.includes(hash) ? hash : 'overview');
 });
 document.addEventListener('DOMContentLoaded', () => {
+    if (!document.querySelector('.content-section')) return;
     const hash = location.hash.replace('#', '') || 'overview';
     showSection(_HR_VALID.includes(hash) ? hash : 'overview');
 });

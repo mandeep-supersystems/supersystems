@@ -1277,7 +1277,7 @@ def version_increment(bom_id):
                 "ctype": item[2], "cno": item[3], "desc": part_desc, "qty": float(item[4] or 1), "unit": item[5], "lvl": int(item[6] or 1),
                 "ref": item[7], "notes": item[8], "mat": item[9], "cost": float(item[10] or 0), "status": item[11], "rev": item[12],
                 "scrap": float(item[13] or 0), "op": item[14], "proc_type": item[15], "tid": tenant_id
-            }
+            })
 
     # 2. Increment version label
     new_ver = current_ver

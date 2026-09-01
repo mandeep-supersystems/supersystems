@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8"><link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recruitment - SUPERSYSTEMS</title>
+    <link rel="stylesheet" href="/static/css/header.css">
+    <link rel="stylesheet" href="/static/css/hr/hr.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+</head>
+<body>
+<header class="header">
+    <div class="header-left"><div class="logo"><img class="logo-light" src="/static/img/light_mode_logo.png" alt="SUPERSYSTEMS" height="36"><img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SUPERSYSTEMS" height="36"><span class="logo-text">SUPERSYSTEMS</span></div><div class="nav-item services-trigger" onclick="toggleServices()"><span class="material-icons-outlined">apps</span><span>Services</span><span class="material-icons-outlined arrow">expand_more</span></div></div>
+    <div class="header-center"><div class="search-box"><span class="material-icons-outlined">search</span><input type="text" placeholder="Search..." id="globalSearch" oninput="handleSearch(this.value)"><div class="search-results" id="searchResults"></div></div></div>
+    <div class="header-right"><button class="header-icon-btn theme-toggle" onclick="toggleTheme()"><span class="material-icons-outlined icon-light">dark_mode</span><span class="material-icons-outlined icon-dark">light_mode</span></button><div class="user-menu" id="userMenu"><div class="user-avatar" onclick="toggleUserMenu()"><span class="material-icons-outlined">person</span></div><div class="user-dropdown" id="userDropdown"><a href="#" onclick="logout()"><span class="material-icons-outlined">logout</span>Logout</a></div></div></div>
+</header>
+<div class="services-panel" id="servicesPanel"><div class="services-panel-header"><h3>All Services</h3><button class="close-btn" onclick="toggleServices()"><span class="material-icons-outlined">close</span></button></div><div class="services-grid" id="servicesGrid"></div></div>
+<div class="overlay" id="overlay" onclick="toggleServices()"></div>
+
+<div class="hr-layout">
+    <aside class="hr-sidebar">
+        <div class="sidebar-header"><span class="material-icons-outlined">people</span><h3>Human Resources</h3></div>
+        <nav class="sidebar-nav">
+            <a href="/hr" class="sidebar-link"><span class="material-icons-outlined">arrow_back</span>Back to HR</a>
+            <div class="sidebar-divider"></div>
+            <a class="sidebar-link" href="/hr/attendance"><span class="material-icons-outlined">schedule</span>Attendance & Shifts</a>
+            <a class="sidebar-link" href="/hr/leave"><span class="material-icons-outlined">event_busy</span>Leave Management</a>
+            <a class="sidebar-link" href="/hr/payroll"><span class="material-icons-outlined">payments</span>Payroll</a>
+            <a class="sidebar-link active" href="/hr/recruitment"><span class="material-icons-outlined">work</span>Recruitment</a>
+            <a class="sidebar-link" href="/hr/onboarding"><span class="material-icons-outlined">checklist</span>Onboarding / Exit</a>
+            <a class="sidebar-link" href="/hr/performance"><span class="material-icons-outlined">trending_up</span>Performance</a>
+            <a class="sidebar-link" href="/hr/training"><span class="material-icons-outlined">school</span>Training</a>
+            <a class="sidebar-link" href="/hr/analytics"><span class="material-icons-outlined">bar_chart</span>Analytics</a>
+            <a class="sidebar-link" href="/hr/users"><span class="material-icons-outlined">manage_accounts</span>User Management</a>
+        </nav>
+    </aside>
+    <main class="hr-content">
+        <div class="section-header">
+            <h2>Recruitment / ATS</h2>
+            <div class="section-actions">
+                <button class="btn-outline" onclick="showTab('requisitions')">Job Requisitions</button>
+                <button class="btn-outline" onclick="showTab('candidates')">Candidates</button>
+                <button class="btn-outline" onclick="showTab('interviews')">Interviews</button>
+            </div>
+        </div>
+
+        <div class="tab-panel active" id="tab-requisitions">
+            <div class="section-header" style="margin-top:0"><span></span><button class="btn-primary" onclick="openReqModal()"><span class="material-icons-outlined">add</span> New Requisition</button></div>
+            <div class="table-container"><table class="data-table">
+                <thead><tr><th>Title</th><th>Department</th><th>Vacancies</th><th>Type</th><th>Location</th><th>Status</th><th>Target Date</th><th>Actions</th></tr></thead>
+                <tbody id="reqBody"><tr><td colspan="8" class="empty">Loading...</td></tr></tbody>
+            </table></div>
+        </div>
+
+        <div class="tab-panel" id="tab-candidates">
+            <div class="section-header" style="margin-top:0">
+                <select id="candStageFilter" onchange="loadCandidates()"><option value="">All Stages</option><option value="applied">Applied</option><option value="screening">Screening</option><option value="interview">Interview</option><option value="offer">Offer</option><option value="hired">Hired</option><option value="rejected">Rejected</option></select>
+                <button class="btn-primary" onclick="openCandModal()"><span class="material-icons-outlined">add</span> Add Candidate</button>
+            </div>
+            <div class="table-container"><table class="data-table">
+                <thead><tr><th>Name</th><th>Email</th><th>Current Company</th><th>Experience</th><th>Source</th><th>Stage</th><th>Actions</th></tr></thead>
+                <tbody id="candBody"><tr><td colspan="7" class="empty">Loading...</td></tr></tbody>
+            </table></div>
+        </div>
+
+        <div class="tab-panel" id="tab-interviews">
+            <div class="section-header" style="margin-top:0"><span></span><button class="btn-primary" onclick="openIntModal()"><span class="material-icons-outlined">add</span> Schedule Interview</button></div>
+            <div class="table-container"><table class="data-table">
+                <thead><tr><th>Candidate</th><th>Type</th><th>Scheduled</th><th>Interviewer</th><th>Mode</th><th>Status</th><th>Result</th><th>Actions</th></tr></thead>
+                <tbody id="intBody"><tr><td colspan="8" class="empty">Loading...</td></tr></tbody>
+            </table></div>
+        </div>
+    </main>
+</div>
+
+<!-- REQUISITION MODAL -->
+<div class="modal-overlay" id="reqModal"><div class="modal modal-xl"><div class="modal-header"><h3 id="reqModalTitle">New Job Requisition</h3><button class="close-btn" onclick="closeModal('reqModal')"><span class="material-icons-outlined">close</span></button></div>
+<div class="modal-body"><input type="hidden" id="reqId">
+    <div class="form-row"><div class="form-group"><label>Title *</label><input type="text" id="reqTitle"></div><div class="form-group"><label>Department</label><input type="text" id="reqDept"></div></div>
+    <div class="form-row"><div class="form-group"><label>Vacancies</label><input type="number" id="reqVac" value="1"></div><div class="form-group"><label>Employment Type</label><select id="reqType"><option value="full_time">Full Time</option><option value="part_time">Part Time</option><option value="contract">Contract</option><option value="intern">Intern</option></select></div></div>
+    <div class="form-row"><div class="form-group"><label>Location</label><input type="text" id="reqLoc"></div><div class="form-group"><label>Target Date</label><input type="date" id="reqTarget"></div></div>
+    <div class="form-group"><label>Description</label><textarea id="reqDesc" rows="3"></textarea></div>
+    <div class="form-group"><label>Status</label><select id="reqStatus"><option value="open">Open</option><option value="on_hold">On Hold</option><option value="closed">Closed</option><option value="filled">Filled</option></select></div>
+    <div class="form-actions"><button class="btn-secondary" onclick="closeModal('reqModal')">Cancel</button><button class="btn-primary" onclick="saveReq()">Save</button></div>
+</div></div></div>
+
+<!-- CANDIDATE MODAL -->
+<div class="modal-overlay" id="candModal"><div class="modal modal-xl"><div class="modal-header"><h3 id="candModalTitle">Add Candidate</h3><button class="close-btn" onclick="closeModal('candModal')"><span class="material-icons-outlined">close</span></button></div>
+<div class="modal-body"><input type="hidden" id="candId">
+    <div class="form-row"><div class="form-group"><label>First Name *</label><input type="text" id="candFN"></div><div class="form-group"><label>Last Name</label><input type="text" id="candLN"></div></div>
+    <div class="form-row"><div class="form-group"><label>Email</label><input type="email" id="candEmail"></div><div class="form-group"><label>Phone</label><input type="tel" id="candPhone"></div></div>
+    <div class="form-row"><div class="form-group"><label>Current Company</label><input type="text" id="candCompany"></div><div class="form-group"><label>Current Designation</label><input type="text" id="candDesig"></div></div>
+    <div class="form-row"><div class="form-group"><label>Experience (years)</label><input type="number" id="candExp" step="0.5"></div><div class="form-group"><label>Source</label><select id="candSource"><option value="">Select</option><option value="linkedin">LinkedIn</option><option value="referral">Referral</option><option value="portal">Job Portal</option><option value="walk-in">Walk-in</option></select></div></div>
+    <div class="form-row"><div class="form-group"><label>Stage</label><select id="candStage"><option value="applied">Applied</option><option value="screening">Screening</option><option value="interview">Interview</option><option value="offer">Offer</option><option value="hired">Hired</option><option value="rejected">Rejected</option></select></div><div class="form-group"><label>Rating (1-5)</label><input type="number" id="candRating" min="1" max="5"></div></div>
+    <div class="form-group"><label>Notes</label><textarea id="candNotes" rows="2"></textarea></div>
+    <div class="form-actions"><button class="btn-secondary" onclick="closeModal('candModal')">Cancel</button><button class="btn-primary" onclick="saveCand()">Save</button></div>
+</div></div></div>
+
+<!-- INTERVIEW MODAL -->
+<div class="modal-overlay" id="intModal"><div class="modal"><div class="modal-header"><h3>Schedule Interview</h3><button class="close-btn" onclick="closeModal('intModal')"><span class="material-icons-outlined">close</span></button></div>
+<div class="modal-body"><input type="hidden" id="intId">
+    <div class="form-group"><label>Candidate *</label><select id="intCand"></select></div>
+    <div class="form-row"><div class="form-group"><label>Type</label><select id="intType"><option value="hr">HR</option><option value="technical">Technical</option><option value="final">Final</option></select></div><div class="form-group"><label>Mode</label><select id="intMode"><option value="in_person">In Person</option><option value="video">Video</option><option value="phone">Phone</option></select></div></div>
+    <div class="form-row"><div class="form-group"><label>Scheduled At</label><input type="datetime-local" id="intSched"></div><div class="form-group"><label>Interviewer</label><input type="text" id="intInterviewer"></div></div>
+    <div class="form-row"><div class="form-group"><label>Status</label><select id="intStatus"><option value="scheduled">Scheduled</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option><option value="no_show">No Show</option></select></div><div class="form-group"><label>Result</label><select id="intResult"><option value="">—</option><option value="pass">Pass</option><option value="fail">Fail</option><option value="hold">Hold</option></select></div></div>
+    <div class="form-group"><label>Feedback</label><textarea id="intFeedback" rows="2"></textarea></div>
+    <div class="form-actions"><button class="btn-secondary" onclick="closeModal('intModal')">Cancel</button><button class="btn-primary" onclick="saveInt()">Save</button></div>
+</div></div></div>
+
+<script src="/static/js/header.js"></script>
+<script>requireAuth();</script>
+<script src="/static/js/hr/common.js"></script>
+<script src="/static/js/hr/recruitment.js"></script>
+</body></html>

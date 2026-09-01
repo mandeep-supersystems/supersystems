@@ -2,12 +2,15 @@
 <html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manufacturing Management - SUPERSYSTEMS</title>
-    <link rel="stylesheet" href="/static/css/header.css">
-    <link rel="stylesheet" href="/static/css/inventory/inventory.css">
-    <link rel="stylesheet" href="/static/css/manufacturing/manufacturing.css">
+    <link rel="stylesheet" href="/static/css/header.css?v=2">
+    <link rel="stylesheet" href="/static/css/inventory/inventory.css?v=2">
+    <link rel="stylesheet" href="/static/css/manufacturing/manufacturing.css?v=2">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
 </head>
 <body>
@@ -255,6 +258,8 @@
                                     <div id="toolbar-edit" style="display:none; gap:6px;">
                                         <button class="btn-primary" onclick="openAddBomItemModal('component')"><span class="material-icons-outlined" style="font-size:16px;">add</span> Add Component</button>
                                         <button class="btn-primary" onclick="openAddBomItemModal('assembly')" style="background:#4f46e5; border-color:#4f46e5;"><span class="material-icons-outlined" style="font-size:16px;">add</span> Add Assembly</button>
+                                        <button class="btn-outline" id="btnEditSelectedItem" onclick="editSelectedItem()" style="font-size:12px;padding:5px 10px;display:none;"><span class="material-icons-outlined" style="font-size:15px;">edit</span> Edit Selected</button>
+                                        <button class="btn-outline" id="btnDeleteSelectedItems" onclick="deleteSelectedItems()" style="font-size:12px;padding:5px 10px;color:#ef4444;border-color:#ef4444;display:none;"><span class="material-icons-outlined" style="font-size:15px;">delete</span> Delete Selected</button>
                                         <div style="width:1px; background:var(--border-color); margin:0 4px;"></div>
                                         <button class="btn-primary" onclick="saveEditingBom()" style="background:#10b981; border-color:#10b981;"><span class="material-icons-outlined" style="font-size:16px;">save</span> Save Changes</button>
                                         <button class="btn-outline" onclick="cancelEditingBom()" style="color:#ef4444; border-color:#fecaca;"><span class="material-icons-outlined" style="font-size:16px;">cancel</span> Cancel</button>
@@ -262,27 +267,41 @@
                                 </div>
                             </div>
 
-                            <div class="table-responsive">
-                                <table class="data-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Part Code</th>
-                                            <th>Description</th>
-                                            <th>Procurement</th>
-                                            <th>Quantity</th>
-                                            <th>Unit</th>
-                                            <th>Unit Cost</th>
-                                            <th>Total Cost</th>
-                                            <th>Scrap</th>
-                                            <th>Op Ref</th>
-                                            <th class="actions-header" style="width:100px;">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="bomItemsTableBody">
-                                        <tr><td colspan="10" style="text-align:center; color:var(--text-secondary);">Loading items...</td></tr>
-                                    </tbody>
-                                </table>
-                            </div>
+                             <div class="table-responsive">
+                                 <table class="data-table" style="table-layout:fixed;width:100%;">
+                                     <colgroup>
+                                         <col style="width:36px;">    <!-- Checkbox -->
+                                         <col style="width:36px;">    <!-- # -->
+                                         <col style="width:140px;">   <!-- Part Code -->
+                                         <col style="width:115px;">   <!-- Type -->
+                                         <col>                        <!-- Description (flex) -->
+                                         <col style="width:55px;">    <!-- Qty -->
+                                         <col style="width:55px;">    <!-- Unit -->
+                                         <col style="width:190px;">   <!-- Reference -->
+                                         <col style="width:95px;">    <!-- Unit Cost -->
+                                         <col style="width:105px;">   <!-- Total Cost -->
+                                         <col style="width:80px;">    <!-- Actions -->
+                                     </colgroup>
+                                     <thead>
+                                         <tr>
+                                             <th style="text-align:center;"><input type="checkbox" id="selectAllItems" onchange="toggleSelectAllItems(this.checked)"></th>
+                                             <th style="text-align:center;color:var(--text-muted);">#</th>
+                                             <th>Part Code</th>
+                                             <th>Type</th>
+                                             <th>Description</th>
+                                             <th style="text-align:right;">Qty</th>
+                                             <th>Unit</th>
+                                             <th>Reference</th>
+                                             <th style="text-align:right;">Unit Cost</th>
+                                             <th style="text-align:right;">Total Cost</th>
+                                             <th style="text-align:center;" id="thActions"></th>
+                                         </tr>
+                                     </thead>
+                                     <tbody id="bomItemsTableBody">
+                                         <tr><td colspan="11" style="text-align:center; color:var(--text-secondary);">Loading items...</td></tr>
+                                     </tbody>
+                                 </table>
+                             </div>
                         </div>
 
                         <!-- 2. COSTING VIEW -->
@@ -1021,19 +1040,19 @@
     </div>
 </div>
 
-<script src="/static/js/header.js"></script>
+<script src="/static/js/header.js?v=2"></script>
 <script>requireAuth();</script>
-<script src="/static/js/manufacturing/common.js"></script>
-<script src="/static/js/manufacturing/overview.js"></script>
-<script src="/static/js/manufacturing/bom.js"></script>
-<script src="/static/js/manufacturing/productionorders.js"></script>
-<script src="/static/js/manufacturing/workcenters.js"></script>
-<script src="/static/js/manufacturing/routing.js"></script>
-<script src="/static/js/manufacturing/shopfloor.js"></script>
-<script src="/static/js/manufacturing/planning.js"></script>
-<script src="/static/js/manufacturing/capacity.js"></script>
-<script src="/static/js/manufacturing/auditlogs.js"></script>
-<script src="/static/js/manufacturing/moduleusers.js"></script>
+<script src="/static/js/manufacturing/common.js?v=2"></script>
+<script src="/static/js/manufacturing/overview.js?v=2"></script>
+<script src="/static/js/manufacturing/bom.js?v=2"></script>
+<script src="/static/js/manufacturing/productionorders.js?v=2"></script>
+<script src="/static/js/manufacturing/workcenters.js?v=2"></script>
+<script src="/static/js/manufacturing/routing.js?v=2"></script>
+<script src="/static/js/manufacturing/shopfloor.js?v=2"></script>
+<script src="/static/js/manufacturing/planning.js?v=2"></script>
+<script src="/static/js/manufacturing/capacity.js?v=2"></script>
+<script src="/static/js/manufacturing/auditlogs.js?v=2"></script>
+<script src="/static/js/manufacturing/moduleusers.js?v=2"></script>
 
 </body>
 </html>

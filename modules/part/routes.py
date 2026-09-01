@@ -118,6 +118,7 @@ def part_audit_logs():
     page = request.args.get('page', 1, type=int)
     limit = request.args.get('limit', 50, type=int)
     entity_id = request.args.get('entity_id', '')
+    search_q = request.args.get('q', '').strip()
     offset = (page - 1) * limit
     
     where = "module = 'Part Management' AND tenant_id = :tid"
@@ -125,6 +126,9 @@ def part_audit_logs():
     if entity_id:
         where += " AND entity_id = :entity_id"
         params["entity_id"] = entity_id
+    if search_q:
+        where += " AND (LOWER(action) LIKE LOWER(:q) OR LOWER(entity_type) LIKE LOWER(:q) OR LOWER(entity_id) LIKE LOWER(:q) OR LOWER(user_email) LIKE LOWER(:q) OR LOWER(user_name) LIKE LOWER(:q) OR LOWER(CAST(extra_data AS TEXT)) LIKE LOWER(:q))"
+        params["q"] = f"%{search_q}%"
 
     rows = db.session.execute(db.text(
         "SELECT id, action, entity_type, entity_id, ip_address, created_at, user_email, user_name, "
@@ -150,6 +154,9 @@ def part_audit_logs():
     if entity_id:
         count_where += " AND entity_id = :entity_id"
         count_params["entity_id"] = entity_id
+    if search_q:
+        count_where += " AND (LOWER(action) LIKE LOWER(:q) OR LOWER(entity_type) LIKE LOWER(:q) OR LOWER(entity_id) LIKE LOWER(:q) OR LOWER(user_email) LIKE LOWER(:q) OR LOWER(user_name) LIKE LOWER(:q) OR LOWER(CAST(extra_data AS TEXT)) LIKE LOWER(:q))"
+        count_params["q"] = f"%{search_q}%"
 
     total = db.session.execute(db.text(
         f"SELECT COUNT(*) FROM audit.logs WHERE {count_where}"
@@ -826,8 +833,17 @@ def list_all_parts():
     subcategory_ids = request.args.get("subcategory_ids", "")
     search_q = request.args.get("q", "").strip()
 
+    exclude_assembly = request.args.get("exclude_assembly", "false").lower() == "true"
+    only_assembly = request.args.get("only_assembly", "false").lower() == "true"
+
     where = "s.tenant_id = :tid AND s.is_deleted = false"
     params = {"tid": tenant_id}
+    
+    if exclude_assembly:
+        where += " AND c.name != 'Assembly'"
+    elif only_assembly:
+        where += " AND c.name = 'Assembly'"
+
     if subcategory_ids:
         sids = [s.strip() for s in subcategory_ids.split(",") if s.strip()]
         if sids:
@@ -1603,7 +1619,7 @@ def update_part_attributes():
         params = {"pn": part_number}
         for field, value in fields.items():
             safe_field = re.sub(r'[^a-z0-9_]', '_', field.lower().strip())
-            if safe_field in ('id', 'part_number', 'created_at', 'status'):
+            if safe_field in ('id', 'part_number', 'created_at', 'status', 'description'):
                 continue
             set_clauses.append(f'"{safe_field}" = :{safe_field}')
             params[safe_field] = value if value != "" else None
@@ -1715,6 +1731,104 @@ def get_part_detail(part_number):
 
     if not part_data:
         return {"success": False, "message": "Part not found"}, 404
+
+    # Check if category is 'Assembly'
+    if part_data.get('category') == 'Assembly':
+        # 1. Where Used in BOMs
+        where_used_rows = db.session.execute(db.text(
+            "SELECT DISTINCT b.id AS bom_id, b.bom_no, b.name AS bom_name, b.fg_part_number, b.status, b.current_version, bi.quantity, bi.unit "
+            "FROM manufacturing_bom_items bi "
+            "JOIN manufacturing_boms b ON bi.bom_id = b.id "
+            "WHERE bi.child_part_code = :pn AND b.is_deleted = false AND bi.tenant_id = :tid"
+        ), {"pn": part_number, "tid": tenant_id}).fetchall()
+        
+        part_data['where_used'] = [{
+            "bom_id": row[0],
+            "bom_no": row[1],
+            "bom_name": row[2],
+            "fg_part_number": row[3],
+            "status": row[4],
+            "current_version": row[5],
+            "quantity": float(row[6]) if row[6] else 0.0,
+            "unit": row[7] or 'pcs'
+        } for row in where_used_rows]
+
+        # 2. BOM versions and details for this assembly itself
+        assembly_bom = db.session.execute(db.text(
+            "SELECT id, bom_no, name, current_version, status FROM manufacturing_boms "
+            "WHERE fg_part_number = :pn AND is_deleted = false AND tenant_id = :tid LIMIT 1"
+        ), {"pn": part_number, "tid": tenant_id}).fetchone()
+
+        if assembly_bom:
+            bom_id = assembly_bom[0]
+            part_data['assembly_bom'] = {
+                "bom_id": bom_id,
+                "bom_no": assembly_bom[1],
+                "bom_name": assembly_bom[2],
+                "current_version": assembly_bom[3],
+                "status": assembly_bom[4]
+            }
+
+            # Query all versions
+            version_rows = db.session.execute(db.text(
+                "SELECT id, version, version_type, status, change_description, released_at, created_at "
+                "FROM manufacturing_bom_versions WHERE bom_id = :bid AND tenant_id = :tid ORDER BY created_at DESC"
+            ), {"bid": bom_id, "tid": tenant_id}).fetchall()
+            
+            part_data['bom_versions'] = [{
+                "id": v[0],
+                "version": v[1],
+                "version_type": v[2],
+                "status": v[3],
+                "change_description": v[4] or '',
+                "released_at": str(v[5]) if v[5] else None,
+                "created_at": str(v[6]) if v[6] else None
+            } for v in version_rows]
+
+            # Query BOM active components and calculate cost
+            component_rows = db.session.execute(db.text(
+                "SELECT id, child_part_code, child_type, quantity, unit, level, unit_cost, parent_item_id "
+                "FROM manufacturing_bom_items "
+                "WHERE bom_id = :bid AND tenant_id = :tid AND status = 'Active'"
+            ), {"bid": bom_id, "tid": tenant_id}).fetchall()
+
+            components_list = []
+            calculated_cost = 0.0
+            for comp in component_rows:
+                child_desc = ""
+                masters_row = db.session.execute(db.text(
+                    "SELECT name, description FROM part.masters WHERE part_number = :p AND is_deleted = false AND tenant_id = :tid LIMIT 1"
+                ), {"p": comp[1], "tid": tenant_id}).fetchone()
+                if masters_row:
+                    child_desc = masters_row[1] or masters_row[0] or ""
+
+                qty = float(comp[3]) if comp[3] else 0.0
+                cost = float(comp[6]) if comp[6] else 0.0
+                subtotal = qty * cost
+                
+                if comp[7] is None:
+                    calculated_cost += subtotal
+
+                components_list.append({
+                    "id": comp[0],
+                    "part_code": comp[1],
+                    "child_type": comp[2],
+                    "quantity": qty,
+                    "unit": comp[4] or 'pcs',
+                    "level": comp[5] or 1,
+                    "unit_cost": cost,
+                    "subtotal": subtotal,
+                    "description": child_desc,
+                    "parent_item_id": comp[7]
+                })
+
+            part_data['bom_components'] = components_list
+            part_data['bom_calculated_cost'] = calculated_cost
+        else:
+            part_data['assembly_bom'] = None
+            part_data['bom_versions'] = []
+            part_data['bom_components'] = []
+            part_data['bom_calculated_cost'] = 0.0
 
     # Get RM-Part mappings for this part
     rm_mappings = db.session.execute(db.text(

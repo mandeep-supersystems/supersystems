@@ -8,7 +8,7 @@ class BaseConfig:
     SECRET_KEY = os.getenv("SECRET_KEY", "supersystems-secret-key-change-in-production")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "jwt-secret-change-in-production")
-    JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=24)
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
     CACHE_TYPE = "redis"
     CACHE_REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
@@ -40,7 +40,7 @@ class UATConfig(BaseConfig):
 class ProductionConfig(BaseConfig):
     DEBUG = False
     SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL")
-    JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=30)
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=24)
 
 
 config_by_name = {

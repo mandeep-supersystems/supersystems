@@ -174,6 +174,7 @@ async function loadAllParts() {
     tbody.innerHTML = '<tr><td colspan="6" class="empty">Loading...</td></tr>';
 
     let url = API + '/all-parts?';
+    // Load all parts together without filtering assembly vs regular parts
     if (subIds) url += 'subcategory_ids=' + subIds + '&';
     else if (catIds) url += 'category_ids=' + catIds + '&';
     if (q) url += 'q=' + encodeURIComponent(q);

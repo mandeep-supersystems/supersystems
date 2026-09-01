@@ -787,6 +787,41 @@ function _syncTokenCookie() {
     }
 }
 
+// ─── SILENT TOKEN REFRESH ───
+async function silentRefreshToken() {
+    const refreshToken = localStorage.getItem('refresh_token');
+    const accessToken = localStorage.getItem('access_token');
+    if (!refreshToken || !accessToken) return;
+
+    try {
+        // Decode access token to check how much time is left
+        const payload = JSON.parse(atob(accessToken.split('.')[1]));
+        const nowSec = Date.now() / 1000;
+        const expiresIn = (payload.exp || 0) - nowSec;
+
+        // Only refresh if it expires within the next 30 minutes (1800 seconds)
+        if (expiresIn > 1800) return;
+
+        const res = await fetch('/api/v1/auth/refresh', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + refreshToken
+            }
+        });
+
+        if (res.ok) {
+            const json = await res.json();
+            if (json.success && json.data && json.data.access_token) {
+                localStorage.setItem('access_token', json.data.access_token);
+                _syncTokenCookie();
+            }
+        }
+    } catch (e) {
+        // Fail silently — don't logout just because refresh failed
+    }
+}
+
 // Init
 (function () {
     const saved = localStorage.getItem('theme') || 'light';
@@ -797,4 +832,8 @@ function _syncTokenCookie() {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const nameEl = document.getElementById('headerUserName');
     if (nameEl) nameEl.textContent = (user.first_name || user.email || 'User');
+
+    // Start silent token refresh — checks every 5 minutes
+    silentRefreshToken();
+    setInterval(silentRefreshToken, 5 * 60 * 1000);
 })();

@@ -169,7 +169,9 @@ function loadGenColumns() {
     const padLen = _selSub.sequence_padding || 4;
     const placeholderStr = 'X'.repeat(padLen);
     document.getElementById('partPreviewText').textContent = `${_selCat.series_prefix}${sep}${_selSub.series_prefix}${sep}${placeholderStr}`;
-    document.getElementById('genColumnsForm').innerHTML =
+    
+    const isAssembly = (_selCat && _selCat.name === 'Assembly');
+    const usageHtml = isAssembly ? '' : 
         `<div class="form-group">
             <label>Part Usage *</label>
             <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">
@@ -181,7 +183,9 @@ function loadGenColumns() {
                 </label>
             </div>
             <div style="font-size:11px;color:var(--text-muted);margin-top:5px" id="ptHint">Select one or both — same part code, different usage contexts.</div>
-        </div>` +
+        </div>`;
+        
+    document.getElementById('genColumnsForm').innerHTML = usageHtml +
         (cols.length > 0 ? '<p class="gen-cols-title">Part Details</p>' + cols.map(c => `<div class="form-group"><label>${esc(c.label || c.name)}</label><input type="text" id="gen_col_${c.name}" placeholder="Enter ${esc(c.label || c.name)}"></div>`).join('') : '');
     document.getElementById('btnGenerate').disabled = false;
     document.getElementById('genResult').innerHTML = '';
@@ -189,9 +193,12 @@ function loadGenColumns() {
 }
 
 function updatePartTypeSel() {
-    const bo = document.getElementById('ptBought')?.checked;
-    const mfg = document.getElementById('ptMfg')?.checked;
-    if (!bo && !mfg) { document.getElementById('ptBought').checked = true; return updatePartTypeSel(); }
+    const boEl = document.getElementById('ptBought');
+    const mfgEl = document.getElementById('ptMfg');
+    if (!boEl || !mfgEl) return;
+    const bo = boEl.checked;
+    const mfg = mfgEl.checked;
+    if (!bo && !mfg) { boEl.checked = true; return updatePartTypeSel(); }
     document.getElementById('ptBoughtLabel').style.borderColor = bo ? 'var(--accent)' : 'var(--border-color)';
     document.getElementById('ptBoughtLabel').style.color = bo ? 'var(--accent)' : 'var(--text-secondary)';
     document.getElementById('ptMfgLabel').style.borderColor = mfg ? '#2e7d32' : 'var(--border-color)';
@@ -208,8 +215,10 @@ async function generatePart() {
     const cols = (_selCat && _selCat.columns && _selCat.columns.length > 0) ? _selCat.columns : parseCols(_selSub.columns_config);
     const values = {};
     cols.forEach(c => { const input = document.getElementById('gen_col_' + c.name); if (input && input.value.trim()) values[c.name] = input.value.trim(); });
-    const is_bought_out = document.getElementById('ptBought')?.checked ?? true;
-    const is_manufactured = document.getElementById('ptMfg')?.checked ?? false;
+    
+    const isAssembly = (_selCat && _selCat.name === 'Assembly');
+    const is_bought_out = isAssembly ? false : (document.getElementById('ptBought')?.checked ?? true);
+    const is_manufactured = isAssembly ? true : (document.getElementById('ptMfg')?.checked ?? false);
     document.getElementById('btnGenerate').disabled = true;
 
     const manufacturers = [];

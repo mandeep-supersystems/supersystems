@@ -1,10 +1,25 @@
 // ─── PART MODULE: AUDIT LOGS ───
 let auditPage = 1;
+let auditSearchQuery = '';
+let auditSearchTimeout = null;
+
+function handleAuditSearch(q) {
+    clearTimeout(auditSearchTimeout);
+    auditSearchTimeout = setTimeout(() => {
+        auditSearchQuery = q.trim();
+        loadAuditLogs(1);
+    }, 250);
+}
+
 async function loadAuditLogs(page = 1) {
     auditPage = page;
     const tbody = document.getElementById('auditLogsBody');
     try {
-        const res = await fetch(API + '/audit-logs?page=' + page + '&limit=20', { headers: HEADERS });
+        let url = API + '/audit-logs?page=' + page + '&limit=20';
+        if (auditSearchQuery) {
+            url += '&q=' + encodeURIComponent(auditSearchQuery);
+        }
+        const res = await fetch(url, { headers: HEADERS });
         const data = await res.json();
         if (!data.success || !data.data.items || data.data.items.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="empty">No audit logs</td></tr>'; document.getElementById('auditPagination').innerHTML = ''; return; }
         

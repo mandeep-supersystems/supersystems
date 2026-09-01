@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8"><link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Onboarding & Exit - SUPERSYSTEMS</title>
+    <link rel="stylesheet" href="/static/css/header.css">
+    <link rel="stylesheet" href="/static/css/hr/hr.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+</head>
+<body>
+<header class="header">
+    <div class="header-left"><div class="logo"><img class="logo-light" src="/static/img/light_mode_logo.png" alt="SUPERSYSTEMS" height="36"><img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SUPERSYSTEMS" height="36"><span class="logo-text">SUPERSYSTEMS</span></div><div class="nav-item services-trigger" onclick="toggleServices()"><span class="material-icons-outlined">apps</span><span>Services</span><span class="material-icons-outlined arrow">expand_more</span></div></div>
+    <div class="header-center"><div class="search-box"><span class="material-icons-outlined">search</span><input type="text" placeholder="Search..." id="globalSearch" oninput="handleSearch(this.value)"><div class="search-results" id="searchResults"></div></div></div>
+    <div class="header-right"><button class="header-icon-btn theme-toggle" onclick="toggleTheme()"><span class="material-icons-outlined icon-light">dark_mode</span><span class="material-icons-outlined icon-dark">light_mode</span></button><div class="user-menu" id="userMenu"><div class="user-avatar" onclick="toggleUserMenu()"><span class="material-icons-outlined">person</span></div><div class="user-dropdown" id="userDropdown"><a href="#" onclick="logout()"><span class="material-icons-outlined">logout</span>Logout</a></div></div></div>
+</header>
+<div class="services-panel" id="servicesPanel"><div class="services-panel-header"><h3>All Services</h3><button class="close-btn" onclick="toggleServices()"><span class="material-icons-outlined">close</span></button></div><div class="services-grid" id="servicesGrid"></div></div>
+<div class="overlay" id="overlay" onclick="toggleServices()"></div>
+
+<div class="hr-layout">
+    <aside class="hr-sidebar">
+        <div class="sidebar-header"><span class="material-icons-outlined">people</span><h3>Human Resources</h3></div>
+        <nav class="sidebar-nav">
+            <a href="/hr" class="sidebar-link"><span class="material-icons-outlined">arrow_back</span>Back to HR</a>
+            <div class="sidebar-divider"></div>
+            <a class="sidebar-link" href="/hr/attendance"><span class="material-icons-outlined">schedule</span>Attendance & Shifts</a>
+            <a class="sidebar-link" href="/hr/leave"><span class="material-icons-outlined">event_busy</span>Leave Management</a>
+            <a class="sidebar-link" href="/hr/payroll"><span class="material-icons-outlined">payments</span>Payroll</a>
+            <a class="sidebar-link" href="/hr/recruitment"><span class="material-icons-outlined">work</span>Recruitment</a>
+            <a class="sidebar-link active" href="/hr/onboarding"><span class="material-icons-outlined">checklist</span>Onboarding / Exit</a>
+            <a class="sidebar-link" href="/hr/performance"><span class="material-icons-outlined">trending_up</span>Performance</a>
+            <a class="sidebar-link" href="/hr/training"><span class="material-icons-outlined">school</span>Training</a>
+            <a class="sidebar-link" href="/hr/analytics"><span class="material-icons-outlined">bar_chart</span>Analytics</a>
+            <a class="sidebar-link" href="/hr/users"><span class="material-icons-outlined">manage_accounts</span>User Management</a>
+        </nav>
+    </aside>
+    <main class="hr-content">
+        <div class="section-header">
+            <h2>Onboarding & Exit</h2>
+            <div class="section-actions">
+                <button class="btn-outline" onclick="showTab('tasks')">Onboarding Tasks</button>
+                <button class="btn-outline" onclick="showTab('exit')">Exit Requests</button>
+            </div>
+        </div>
+
+        <div class="tab-panel active" id="tab-tasks">
+            <div class="section-header" style="margin-top:0">
+                <select id="taskPhaseFilter" onchange="loadTasks()"><option value="">All Phases</option><option value="pre_boarding">Pre-Boarding</option><option value="day1">Day 1</option><option value="week1">Week 1</option><option value="month1">Month 1</option></select>
+                <button class="btn-primary" onclick="openTaskModal()"><span class="material-icons-outlined">add</span> Add Task</button>
+            </div>
+            <div class="table-container"><table class="data-table">
+                <thead><tr><th>Employee</th><th>Task</th><th>Category</th><th>Phase</th><th>Due Date</th><th>Assigned To</th><th>Status</th><th>Actions</th></tr></thead>
+                <tbody id="tasksBody"><tr><td colspan="8" class="empty">Loading...</td></tr></tbody>
+            </table></div>
+        </div>
+
+        <div class="tab-panel" id="tab-exit">
+            <div class="section-header" style="margin-top:0"><span></span><button class="btn-primary" onclick="openExitModal()"><span class="material-icons-outlined">add</span> Initiate Exit</button></div>
+            <div class="table-container"><table class="data-table">
+                <thead><tr><th>Employee</th><th>Resignation Date</th><th>Last Working Day</th><th>Reason</th><th>Status</th><th>Exit Interview</th><th>Actions</th></tr></thead>
+                <tbody id="exitBody"><tr><td colspan="7" class="empty">Loading...</td></tr></tbody>
+            </table></div>
+        </div>
+    </main>
+</div>
+
+<!-- TASK MODAL -->
+<div class="modal-overlay" id="taskModal"><div class="modal"><div class="modal-header"><h3 id="taskModalTitle">Add Onboarding Task</h3><button class="close-btn" onclick="closeModal('taskModal')"><span class="material-icons-outlined">close</span></button></div>
+<div class="modal-body"><input type="hidden" id="taskId">
+    <div class="form-group"><label>Employee *</label><select id="taskEmp"></select></div>
+    <div class="form-group"><label>Task Name *</label><input type="text" id="taskName"></div>
+    <div class="form-row"><div class="form-group"><label>Category</label><select id="taskCat"><option value="documents">Documents</option><option value="it_setup">IT Setup</option><option value="training">Training</option><option value="admin">Admin</option></select></div><div class="form-group"><label>Phase</label><select id="taskPhase"><option value="pre_boarding">Pre-Boarding</option><option value="day1">Day 1</option><option value="week1">Week 1</option><option value="month1">Month 1</option></select></div></div>
+    <div class="form-row"><div class="form-group"><label>Due Date</label><input type="date" id="taskDue"></div><div class="form-group"><label>Assigned To</label><input type="text" id="taskAssigned"></div></div>
+    <div class="form-group"><label>Status</label><select id="taskStatus"><option value="pending">Pending</option><option value="in_progress">In Progress</option><option value="completed">Completed</option><option value="skipped">Skipped</option></select></div>
+    <div class="form-group"><label>Notes</label><textarea id="taskNotes" rows="2"></textarea></div>
+    <div class="form-actions"><button class="btn-secondary" onclick="closeModal('taskModal')">Cancel</button><button class="btn-primary" onclick="saveTask()">Save</button></div>
+</div></div></div>
+
+<!-- EXIT MODAL -->
+<div class="modal-overlay" id="exitModal"><div class="modal"><div class="modal-header"><h3 id="exitModalTitle">Initiate Exit</h3><button class="close-btn" onclick="closeModal('exitModal')"><span class="material-icons-outlined">close</span></button></div>
+<div class="modal-body"><input type="hidden" id="exitId">
+    <div class="form-group"><label>Employee *</label><select id="exitEmp"></select></div>
+    <div class="form-row"><div class="form-group"><label>Resignation Date</label><input type="date" id="exitRes"></div><div class="form-group"><label>Last Working Date</label><input type="date" id="exitLWD"></div></div>
+    <div class="form-group"><label>Reason</label><select id="exitReason"><option value="resignation">Resignation</option><option value="termination">Termination</option><option value="retirement">Retirement</option><option value="contract_end">Contract End</option></select></div>
+    <div class="form-group"><label>Status</label><select id="exitStatus"><option value="initiated">Initiated</option><option value="in_progress">In Progress</option><option value="completed">Completed</option></select></div>
+    <div class="form-group"><label>Exit Interview Done</label><select id="exitIntDone"><option value="false">No</option><option value="true">Yes</option></select></div>
+    <div class="form-group"><label>Exit Interview Notes</label><textarea id="exitNotes" rows="2"></textarea></div>
+    <div class="form-actions"><button class="btn-secondary" onclick="closeModal('exitModal')">Cancel</button><button class="btn-primary" onclick="saveExit()">Save</button></div>
+</div></div></div>
+
+<script src="/static/js/header.js"></script>
+<script>requireAuth();</script>
+<script src="/static/js/hr/common.js"></script>
+<script src="/static/js/hr/onboarding.js"></script>
+</body></html>

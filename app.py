@@ -72,6 +72,15 @@ def create_app(config_name="development"):
     from modules.inventory.routes import inventory_bp
     from modules.finance.routes import finance_bp
     from modules.hr.routes import hr_bp
+    from modules.hr.routes_attendance import hr_attendance_bp
+    from modules.hr.routes_leave import hr_leave_bp
+    from modules.hr.routes_payroll import hr_payroll_bp
+    from modules.hr.routes_recruitment import hr_recruitment_bp
+    from modules.hr.routes_onboarding import hr_onboarding_bp
+    from modules.hr.routes_performance import hr_performance_bp
+    from modules.hr.routes_training import hr_training_bp
+    from modules.hr.routes_analytics import hr_analytics_bp
+    from modules.hr.routes_users import hr_users_bp
     from modules.manufacturing.routes import manufacturing_bp, bom_api_bp
     from modules.quality.routes import quality_bp
     from modules.warehouse.routes import warehouse_bp
@@ -98,6 +107,15 @@ def create_app(config_name="development"):
     app.register_blueprint(planning_bp, url_prefix="/api/v1/planning")
     app.register_blueprint(finance_bp, url_prefix="/api/v1/finance")
     app.register_blueprint(hr_bp, url_prefix="/api/v1/hr")
+    app.register_blueprint(hr_attendance_bp, url_prefix="/api/v1/hr")
+    app.register_blueprint(hr_leave_bp, url_prefix="/api/v1/hr")
+    app.register_blueprint(hr_payroll_bp, url_prefix="/api/v1/hr")
+    app.register_blueprint(hr_recruitment_bp, url_prefix="/api/v1/hr")
+    app.register_blueprint(hr_onboarding_bp, url_prefix="/api/v1/hr")
+    app.register_blueprint(hr_performance_bp, url_prefix="/api/v1/hr")
+    app.register_blueprint(hr_training_bp, url_prefix="/api/v1/hr")
+    app.register_blueprint(hr_analytics_bp, url_prefix="/api/v1/hr")
+    app.register_blueprint(hr_users_bp, url_prefix="/api/v1/hr")
     app.register_blueprint(manufacturing_bp, url_prefix="/api/v1/manufacturing")
     app.register_blueprint(bom_api_bp, url_prefix="/api/bom")
     app.register_blueprint(quality_bp, url_prefix="/api/v1/quality")
@@ -170,6 +188,7 @@ def create_app(config_name="development"):
             return redirect('/?access=denied&module=Part+Management')
         return render_template("part/part.html")
 
+
     @app.route("/part/detail/<part_number>")
     def part_detail_page(part_number):
         if not _check_module_access('Part Management'):
@@ -195,6 +214,60 @@ def create_app(config_name="development"):
         if not _check_module_access('Human Resources'):
             return redirect('/?access=denied&module=Human+Resources')
         return render_template("hr/employee_detail.html", emp_id=emp_id)
+
+    @app.route("/hr/attendance")
+    def hr_attendance_page():
+        if not _check_module_access('Human Resources'):
+            return redirect('/?access=denied&module=Human+Resources')
+        return render_template("hr/attendance.html")
+
+    @app.route("/hr/leave")
+    def hr_leave_page():
+        if not _check_module_access('Human Resources'):
+            return redirect('/?access=denied&module=Human+Resources')
+        return render_template("hr/leave.html")
+
+    @app.route("/hr/payroll")
+    def hr_payroll_page():
+        if not _check_module_access('Human Resources'):
+            return redirect('/?access=denied&module=Human+Resources')
+        return render_template("hr/payroll.html")
+
+    @app.route("/hr/recruitment")
+    def hr_recruitment_page():
+        if not _check_module_access('Human Resources'):
+            return redirect('/?access=denied&module=Human+Resources')
+        return render_template("hr/recruitment.html")
+
+    @app.route("/hr/onboarding")
+    def hr_onboarding_page():
+        if not _check_module_access('Human Resources'):
+            return redirect('/?access=denied&module=Human+Resources')
+        return render_template("hr/onboarding.html")
+
+    @app.route("/hr/performance")
+    def hr_performance_page():
+        if not _check_module_access('Human Resources'):
+            return redirect('/?access=denied&module=Human+Resources')
+        return render_template("hr/performance.html")
+
+    @app.route("/hr/training")
+    def hr_training_page():
+        if not _check_module_access('Human Resources'):
+            return redirect('/?access=denied&module=Human+Resources')
+        return render_template("hr/training.html")
+
+    @app.route("/hr/analytics")
+    def hr_analytics_page():
+        if not _check_module_access('Human Resources'):
+            return redirect('/?access=denied&module=Human+Resources')
+        return render_template("hr/analytics.html")
+
+    @app.route("/hr/users")
+    def hr_users_page():
+        if not _check_module_access('Human Resources'):
+            return redirect('/?access=denied&module=Human+Resources')
+        return render_template("hr/user_management.html")
 
     @app.route("/project")
     @app.route("/project/<section>")

@@ -81,7 +81,7 @@
                 <h3>Part Management</h3>
             </div>
             <nav class="sidebar-nav">
-                <a href="/part" class="sidebar-link"><span class="material-icons-outlined">arrow_back</span>All
+                <a href="/part" class="sidebar-link" id="sbBackLink"><span class="material-icons-outlined">arrow_back</span>All
                     Parts</a>
                 <div class="sidebar-divider"></div>
                 <div class="sidebar-link active"
@@ -98,6 +98,12 @@
                 <div class="sidebar-group-label">Sections</div>
                 <button class="sidebar-link" onclick="switchTab('details')" id="sb-details">
                     <span class="material-icons-outlined">info</span>Part Details
+                </button>
+                <button class="sidebar-link" onclick="switchTab('assembly-bom')" id="sb-assembly-bom" style="display:none">
+                    <span class="material-icons-outlined">account_tree</span>BOM & Costing
+                </button>
+                <button class="sidebar-link" onclick="switchTab('assembly-where-used')" id="sb-assembly-where-used" style="display:none">
+                    <span class="material-icons-outlined">lan</span>Where Used
                 </button>
                 <button class="sidebar-link" onclick="switchTab('pos')" id="sb-pos">
                     <span class="material-icons-outlined">receipt_long</span>Purchase Orders
@@ -143,7 +149,7 @@
                             <span class="material-icons-outlined">arrow_back</span> Back
                         </button>
                         <div class="pd-breadcrumb" id="pdBreadcrumb">
-                            <a href="/part">Part Management</a>
+                            <a href="/part" id="breadcrumbBackLink">Part Management</a>
                             <span class="material-icons-outlined">chevron_right</span>
                             <span id="pdBreadcrumbPart">Loading...</span>
                         </div>
@@ -221,6 +227,13 @@
                         <button class="pd-tab active" data-tab="details" onclick="switchTab('details')">
                             <span class="material-icons-outlined">info</span> Part Details
                         </button>
+                        <button class="pd-tab" data-tab="assembly-bom" onclick="switchTab('assembly-bom')" id="tab-btn-assembly-bom" style="display:none">
+                            <span class="material-icons-outlined">account_tree</span> BOM & Costing
+                        </button>
+                        <button class="pd-tab" data-tab="assembly-where-used" onclick="switchTab('assembly-where-used')" id="tab-btn-assembly-where-used" style="display:none">
+                            <span class="material-icons-outlined">lan</span> Where Used
+                            <span class="pd-tab-count" id="tabWhereUsedCount" style="background:#673ab7">0</span>
+                        </button>
                         <button class="pd-tab" data-tab="pos" onclick="switchTab('pos')">
                             <span class="material-icons-outlined">receipt_long</span> Purchase Orders
                             <span class="pd-tab-count" id="tabPoCount">0</span>
@@ -260,7 +273,7 @@
                                 </div>
                             </div>
                             <div style="display: flex; flex-direction: column; gap: 24px;">
-                            <div class="pd-card">
+                            <div class="pd-card" id="pdUsageCard">
                                 <div class="pd-card-header">
                                     <span class="material-icons-outlined">tune</span>
                                     Part Usage
@@ -427,6 +440,117 @@
                         </div>
                     </div>
 
+                    <!-- TAB: ASSEMBLY BOM -->
+                    <div class="pd-tab-content" id="tab-assembly-bom">
+                        <div class="pd-section-header" style="margin-top:0">
+                            <h3>BOM Details & Costing</h3>
+                        </div>
+                        
+                        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:16px; margin-bottom:20px;">
+                            <div class="pd-hero-stat-card" style="background:var(--card-bg); padding:16px 20px; border-radius:12px; border:1px solid var(--border-color); display:flex; flex-direction:column; gap:4px">
+                                <span style="font-size:12px; color:var(--text-muted)">Calculated Unit Cost</span>
+                                <span style="font-size:24px; font-weight:700; color:#2e7d32" id="bomCalcCost">₹0.00</span>
+                            </div>
+                            <div class="pd-hero-stat-card" style="background:var(--card-bg); padding:16px 20px; border-radius:12px; border:1px solid var(--border-color); display:flex; flex-direction:column; gap:4px">
+                                <span style="font-size:12px; color:var(--text-muted)">BOM Number</span>
+                                <span style="font-size:16px; font-weight:700" id="bomNumber">No BOM</span>
+                            </div>
+                            <div class="pd-hero-stat-card" style="background:var(--card-bg); padding:16px 20px; border-radius:12px; border:1px solid var(--border-color); display:flex; flex-direction:column; gap:4px">
+                                <span style="font-size:12px; color:var(--text-muted)">Current Version</span>
+                                <span style="font-size:16px; font-weight:700" id="bomCurrentVersion">-</span>
+                            </div>
+                            <div class="pd-hero-stat-card" style="background:var(--card-bg); padding:16px 20px; border-radius:12px; border:1px solid var(--border-color); display:flex; flex-direction:column; gap:4px">
+                                <span style="font-size:12px; color:var(--text-muted)">BOM Status</span>
+                                <span style="font-size:14px; font-weight:700; padding:2px 8px; border-radius:12px; width:fit-content" id="bomStatusBadge">-</span>
+                            </div>
+                        </div>
+
+                        <div class="pd-card" style="margin-bottom:24px">
+                            <div class="pd-card-header">
+                                <span class="material-icons-outlined">view_list</span>
+                                Parts Breakdown (BOM Structure)
+                            </div>
+                            <div class="pd-card-body" style="padding:0">
+                                <table class="pd-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Part Code</th>
+                                            <th>Description</th>
+                                            <th>Type</th>
+                                            <th class="pd-num">Qty</th>
+                                            <th>Unit</th>
+                                            <th class="pd-num">Unit Cost</th>
+                                            <th class="pd-num">Total Cost</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="bomComponentsList">
+                                        <tr>
+                                            <td colspan="7" class="empty" style="text-align:center; padding:24px">No BOM components.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="pd-card">
+                            <div class="pd-card-header">
+                                <span class="material-icons-outlined">history</span>
+                                BOM Versions
+                            </div>
+                            <div class="pd-card-body" style="padding:0">
+                                <table class="pd-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Version</th>
+                                            <th>Type</th>
+                                            <th>Status</th>
+                                            <th>Released At</th>
+                                            <th>Change Description</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="bomVersionsList">
+                                        <tr>
+                                            <td colspan="5" class="empty" style="text-align:center; padding:24px">No BOM versions.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB: ASSEMBLY WHERE USED -->
+                    <div class="pd-tab-content" id="tab-assembly-where-used">
+                        <div class="pd-section-header" style="margin-top:0">
+                            <h3>BOM Usage (Where Used)</h3>
+                        </div>
+                        <div class="pd-card">
+                            <div class="pd-card-header">
+                                <span class="material-icons-outlined">lan</span>
+                                Parent Assemblies / BOMs Using This Part
+                            </div>
+                            <div class="pd-card-body" style="padding:0">
+                                <table class="pd-table">
+                                    <thead>
+                                        <tr>
+                                            <th>BOM Number</th>
+                                            <th>BOM Name</th>
+                                            <th>Assembly Part Code</th>
+                                            <th>Version</th>
+                                            <th>Status</th>
+                                            <th class="pd-num">Qty per Assembly</th>
+                                            <th>Unit</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="bomWhereUsedList">
+                                        <tr>
+                                            <td colspan="7" class="empty" style="text-align:center; padding:24px">This assembly is not used in other BOMs.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
                 </div><!-- /pdContent -->
             </div><!-- /pd-wrapper -->
         </main>
@@ -471,7 +595,7 @@
         function switchTab(tab) {
             document.querySelectorAll('.pd-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
             document.querySelectorAll('.pd-tab-content').forEach(c => c.classList.toggle('active', c.id === 'tab-' + tab));
-            ['details', 'pos', 'custpos', 'mappings', 'inventory', 'rmmappings'].forEach(t => {
+            ['details', 'pos', 'custpos', 'mappings', 'inventory', 'rmmappings', 'assembly-bom', 'assembly-where-used'].forEach(t => {
                 const el = document.getElementById('sb-' + t);
                 if (el) el.classList.toggle('active', t === tab);
             });
@@ -653,6 +777,143 @@
             _partData = data;
             const part = data.part;
             const SKIP = ['id', 'part_number', 'description', 'created_at', 'status', 'obsoleted_at', 'obsolete_reason', 'created_by', 'category', 'category_id', 'subcategory', 'subcategory_id', 'columns_config', 'is_bought_out', 'is_manufactured'];
+
+            const isAssembly = (part.category === 'Assembly');
+
+            if (isAssembly) {
+                const backLnk = document.getElementById('sbBackLink');
+                if (backLnk) {
+                    backLnk.href = '/part';
+                    backLnk.innerHTML = '<span class="material-icons-outlined">arrow_back</span>All Parts';
+                }
+                const bcLnk = document.getElementById('breadcrumbBackLink');
+                if (bcLnk) {
+                    bcLnk.href = '/part';
+                    bcLnk.textContent = 'Part Management';
+                }
+            }
+
+            // Hide/show sidebar & tab buttons
+            document.getElementById('sb-assembly-bom').style.display = isAssembly ? 'flex' : 'none';
+            document.getElementById('sb-assembly-where-used').style.display = isAssembly ? 'flex' : 'none';
+            document.getElementById('tab-btn-assembly-bom').style.display = isAssembly ? 'flex' : 'none';
+            document.getElementById('tab-btn-assembly-where-used').style.display = isAssembly ? 'flex' : 'none';
+
+            const usageCard = document.getElementById('pdUsageCard');
+            if (usageCard) {
+                usageCard.style.display = isAssembly ? 'none' : 'block';
+            }
+
+            const nonAssemblyTabs = ['pos', 'custpos', 'rmmappings', 'mappings'];
+            nonAssemblyTabs.forEach(t => {
+                const sbEl = document.getElementById('sb-' + t);
+                const tabEl = document.getElementById('tab-btn-' + t) || document.querySelector(`.pd-tab[data-tab="${t}"]`);
+                if (sbEl) sbEl.style.display = isAssembly ? 'none' : 'flex';
+                if (tabEl) tabEl.style.display = isAssembly ? 'none' : 'flex';
+            });
+
+            if (isAssembly) {
+                // Populate where used
+                const whereUsed = part.where_used || [];
+                document.getElementById('tabWhereUsedCount').textContent = whereUsed.length;
+                const wuBody = document.getElementById('bomWhereUsedList');
+                if (whereUsed.length === 0) {
+                    wuBody.innerHTML = `<tr><td colspan="7" class="empty" style="text-align:center; padding:24px">This assembly is not used in other BOMs.</td></tr>`;
+                } else {
+                    wuBody.innerHTML = whereUsed.map(wu => `
+                        <tr>
+                            <td><a href="/manufacturing/bom#${wu.bom_id}" class="part-link">${esc(wu.bom_no)}</a></td>
+                            <td>${esc(wu.bom_name)}</td>
+                            <td><a href="/part/detail/${encodeURIComponent(wu.fg_part_number)}" class="part-link">${esc(wu.fg_part_number)}</a></td>
+                            <td>${esc(wu.current_version)}</td>
+                            <td>
+                                <span class="pd-status-badge ${wu.status === 'Released' ? 'pd-status-active' : 'pd-status-obsolete'}">
+                                    ${esc(wu.status)}
+                                </span>
+                            </td>
+                            <td class="pd-num">${wu.quantity}</td>
+                            <td>${esc(wu.unit)}</td>
+                        </tr>
+                    `).join('');
+                }
+
+                // Populate BOM & Costing
+                const bom = part.assembly_bom;
+                const bomCalcCost = part.bom_calculated_cost || 0.0;
+                document.getElementById('bomCalcCost').textContent = `₹${bomCalcCost.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                
+                if (bom) {
+                    document.getElementById('bomNumber').textContent = bom.bom_no || '-';
+                    document.getElementById('bomCurrentVersion').textContent = bom.current_version || '-';
+                    const badge = document.getElementById('bomStatusBadge');
+                    badge.textContent = bom.status || '-';
+                    if (bom.status === 'Released') {
+                        badge.style.background = '#e8f5e9';
+                        badge.style.color = '#2e7d32';
+                    } else {
+                        badge.style.background = '#fff8e1';
+                        badge.style.color = '#f9a825';
+                    }
+
+                    // Populate Components (Breakdown)
+                    const comps = part.bom_components || [];
+                    const compBody = document.getElementById('bomComponentsList');
+                    if (comps.length === 0) {
+                        compBody.innerHTML = `<tr><td colspan="7" class="empty" style="text-align:center; padding:24px">No BOM components.</td></tr>`;
+                    } else {
+                        compBody.innerHTML = comps.map(c => `
+                            <tr>
+                                <td>
+                                    <a href="/part/detail/${encodeURIComponent(c.part_code)}" class="part-link" style="padding-left: ${c.parent_item_id ? (c.level * 16) : 0}px">
+                                        ${esc(c.part_code)}
+                                    </a>
+                                </td>
+                                <td>${esc(c.description || '-')}</td>
+                                <td>
+                                    <span style="font-size:11px; font-weight:700; padding:2px 6px; border-radius:4px; background:${c.child_type === 'assembly' ? '#ede7f6' : '#e3f2fd'}; color:${c.child_type === 'assembly' ? '#673ab7' : '#1565c0'}">
+                                        ${esc(c.child_type.toUpperCase())}
+                                    </span>
+                                </td>
+                                <td class="pd-num">${c.quantity}</td>
+                                <td>${esc(c.unit)}</td>
+                                <td class="pd-num">₹${c.unit_cost.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                <td class="pd-num"><strong>₹${c.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></td>
+                            </tr>
+                        `).join('');
+                    }
+
+                    // Populate Versions
+                    const vers = part.bom_versions || [];
+                    const verBody = document.getElementById('bomVersionsList');
+                    if (vers.length === 0) {
+                        verBody.innerHTML = `<tr><td colspan="5" class="empty" style="text-align:center; padding:24px">No BOM versions.</td></tr>`;
+                    } else {
+                        verBody.innerHTML = vers.map(v => `
+                            <tr>
+                                <td><strong>${esc(v.version)}</strong></td>
+                                <td>${esc(v.version_type ? v.version_type.toUpperCase() : '-')}</td>
+                                <td>
+                                    <span class="pd-status-badge ${v.status === 'Released' ? 'pd-status-active' : 'pd-status-obsolete'}">
+                                        ${esc(v.status)}
+                                    </span>
+                                </td>
+                                <td>${formatDate(v.released_at)}</td>
+                                <td>${esc(v.change_description || '-')}</td>
+                            </tr>
+                        `).join('');
+                    }
+                } else {
+                    document.getElementById('bomNumber').textContent = 'No BOM';
+                    document.getElementById('bomCurrentVersion').textContent = '-';
+                    const badge = document.getElementById('bomStatusBadge');
+                    badge.textContent = 'Unconfigured';
+                    badge.style.background = '#ffebee';
+                    badge.style.color = '#c62828';
+                    
+                    document.getElementById('bomComponentsList').innerHTML = `<tr><td colspan="7" class="empty" style="text-align:center; padding:24px">No BOM components.</td></tr>`;
+                    document.getElementById('bomVersionsList').innerHTML = `<tr><td colspan="5" class="empty" style="text-align:center; padding:24px">No BOM versions.</td></tr>`;
+                }
+            }
 
             // Hero
             document.getElementById('pdPartNumber').textContent = part.part_number || PART_NUMBER;

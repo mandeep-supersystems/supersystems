@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payroll - SUPERSYSTEMS</title>
+    <link rel="stylesheet" href="/static/css/header.css">
+    <link rel="stylesheet" href="/static/css/hr/hr.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+</head>
+<body>
+<header class="header">
+    <div class="header-left">
+        <div class="logo">
+            <img class="logo-light" src="/static/img/light_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SUPERSYSTEMS" height="36">
+            <span class="logo-text">SUPERSYSTEMS</span>
+        </div>
+        <div class="nav-item services-trigger" onclick="toggleServices()"><span class="material-icons-outlined">apps</span><span>Services</span><span class="material-icons-outlined arrow">expand_more</span></div>
+    </div>
+    <div class="header-center"><div class="search-box"><span class="material-icons-outlined">search</span><input type="text" placeholder="Search..." id="globalSearch" oninput="handleSearch(this.value)"><div class="search-results" id="searchResults"></div></div></div>
+    <div class="header-right">
+        <button class="header-icon-btn theme-toggle" onclick="toggleTheme()"><span class="material-icons-outlined icon-light">dark_mode</span><span class="material-icons-outlined icon-dark">light_mode</span></button>
+        <div class="user-menu" id="userMenu"><div class="user-avatar" onclick="toggleUserMenu()"><span class="material-icons-outlined">person</span></div><div class="user-dropdown" id="userDropdown"><a href="#" onclick="logout()"><span class="material-icons-outlined">logout</span>Logout</a></div></div>
+    </div>
+</header>
+<div class="services-panel" id="servicesPanel"><div class="services-panel-header"><h3>All Services</h3><button class="close-btn" onclick="toggleServices()"><span class="material-icons-outlined">close</span></button></div><div class="services-grid" id="servicesGrid"></div></div>
+<div class="overlay" id="overlay" onclick="toggleServices()"></div>
+
+<div class="hr-layout">
+    <aside class="hr-sidebar">
+        <div class="sidebar-header"><span class="material-icons-outlined">people</span><h3>Human Resources</h3></div>
+        <nav class="sidebar-nav">
+            <a href="/hr" class="sidebar-link"><span class="material-icons-outlined">arrow_back</span>Back to HR</a>
+            <div class="sidebar-divider"></div>
+            <a class="sidebar-link" href="/hr/attendance"><span class="material-icons-outlined">schedule</span>Attendance & Shifts</a>
+            <a class="sidebar-link" href="/hr/leave"><span class="material-icons-outlined">event_busy</span>Leave Management</a>
+            <a class="sidebar-link active" href="/hr/payroll"><span class="material-icons-outlined">payments</span>Payroll</a>
+            <a class="sidebar-link" href="/hr/recruitment"><span class="material-icons-outlined">work</span>Recruitment</a>
+            <a class="sidebar-link" href="/hr/onboarding"><span class="material-icons-outlined">checklist</span>Onboarding / Exit</a>
+            <a class="sidebar-link" href="/hr/performance"><span class="material-icons-outlined">trending_up</span>Performance</a>
+            <a class="sidebar-link" href="/hr/training"><span class="material-icons-outlined">school</span>Training</a>
+            <a class="sidebar-link" href="/hr/analytics"><span class="material-icons-outlined">bar_chart</span>Analytics</a>
+            <a class="sidebar-link" href="/hr/users"><span class="material-icons-outlined">manage_accounts</span>User Management</a>
+        </nav>
+    </aside>
+
+    <main class="hr-content">
+        <div class="section-header">
+            <h2>Payroll & Compliance</h2>
+            <div class="section-actions">
+                <button class="btn-outline" onclick="showTab('runs')">Payroll Runs</button>
+                <button class="btn-outline" onclick="showTab('payslips')">Payslips</button>
+                <button class="btn-outline" onclick="showTab('salaries')">Salary Structures</button>
+                <button class="btn-outline" onclick="showTab('pf')">PF Contributions</button>
+                <button class="btn-outline" onclick="showTab('tax')">Tax Declarations</button>
+            </div>
+        </div>
+
+        <!-- PAYROLL RUNS -->
+        <div class="tab-panel active" id="tab-runs">
+            <div class="section-header" style="margin-top:0">
+                <span></span>
+                <button class="btn-primary" onclick="openRunModal()"><span class="material-icons-outlined">add</span> New Payroll Run</button>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead><tr><th>Period</th><th>Status</th><th>Employees</th><th>Gross</th><th>Deductions</th><th>Net</th><th>Finalized By</th><th>Actions</th></tr></thead>
+                    <tbody id="runsBody"><tr><td colspan="8" class="empty">Loading...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- PAYSLIPS -->
+        <div class="tab-panel" id="tab-payslips">
+            <div class="section-header" style="margin-top:0">
+                <div style="display:flex;gap:8px">
+                    <input type="text" id="psEmpFilter" placeholder="Filter employee..." oninput="loadPayslips()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary)">
+                </div>
+                <button class="btn-primary" onclick="openPayslipModal()"><span class="material-icons-outlined">add</span> Generate Payslip</button>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead><tr><th>Employee</th><th>Period</th><th>Gross</th><th>Deductions</th><th>Net</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody id="payslipsBody"><tr><td colspan="7" class="empty">Loading...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- SALARY STRUCTURES -->
+        <div class="tab-panel" id="tab-salaries">
+            <div class="section-header" style="margin-top:0">
+                <span></span>
+                <button class="btn-primary" onclick="openSalaryModal()"><span class="material-icons-outlined">add</span> New Structure</button>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead><tr><th>Name</th><th>Description</th><th>Components</th><th>Actions</th></tr></thead>
+                    <tbody id="salariesBody"><tr><td colspan="4" class="empty">Loading...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- PF CONTRIBUTIONS -->
+        <div class="tab-panel" id="tab-pf">
+            <div class="section-header" style="margin-top:0">
+                <div style="display:flex;gap:8px">
+                    <select id="pfMonth" onchange="loadPF()"></select>
+                    <select id="pfYear" onchange="loadPF()"></select>
+                </div>
+                <button class="btn-outline" onclick="loadPF()"><span class="material-icons-outlined">refresh</span></button>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead><tr><th>Employee</th><th>UAN</th><th>Period</th><th>PF Wage</th><th>Emp Contribution</th><th>Employer EPF</th><th>EPS</th><th>Total</th></tr></thead>
+                    <tbody id="pfBody"><tr><td colspan="8" class="empty">Loading...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAX DECLARATIONS -->
+        <div class="tab-panel" id="tab-tax">
+            <div class="section-header" style="margin-top:0">
+                <select id="taxFY" onchange="loadTax()"></select>
+                <button class="btn-primary" onclick="openTaxModal()"><span class="material-icons-outlined">add</span> New Declaration</button>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead><tr><th>Employee</th><th>FY</th><th>Regime</th><th>80C</th><th>80D</th><th>HRA</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody id="taxBody"><tr><td colspan="9" class="empty">Loading...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- PAYROLL RUN MODAL -->
+<div class="modal-overlay" id="runModal">
+    <div class="modal">
+        <div class="modal-header"><h3>New Payroll Run</h3><button class="close-btn" onclick="closeModal('runModal')"><span class="material-icons-outlined">close</span></button></div>
+        <div class="modal-body">
+            <div class="form-row">
+                <div class="form-group"><label>Month *</label><select id="runMonth"></select></div>
+                <div class="form-group"><label>Year *</label><select id="runYear"></select></div>
+            </div>
+            <div class="form-actions">
+                <button class="btn-secondary" onclick="closeModal('runModal')">Cancel</button>
+                <button class="btn-primary" onclick="saveRun()">Create</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- PAYSLIP MODAL -->
+<div class="modal-overlay" id="payslipModal">
+    <div class="modal modal-xl">
+        <div class="modal-header"><h3>Generate Payslip</h3><button class="close-btn" onclick="closeModal('payslipModal')"><span class="material-icons-outlined">close</span></button></div>
+        <div class="modal-body">
+            <div class="form-row">
+                <div class="form-group"><label>Employee *</label><select id="psEmp"></select></div>
+                <div class="form-group"><label>Month *</label><select id="psMonth"></select></div>
+                <div class="form-group"><label>Year *</label><select id="psYear"></select></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>Basic</label><input type="number" id="psBasic" oninput="calcPayslip()"></div>
+                <div class="form-group"><label>HRA</label><input type="number" id="psHRA" oninput="calcPayslip()"></div>
+                <div class="form-group"><label>Special Allowance</label><input type="number" id="psSA" oninput="calcPayslip()"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>TDS</label><input type="number" id="psTDS" value="0" oninput="calcPayslip()"></div>
+                <div class="form-group"><label>Professional Tax</label><input type="number" id="psPT" value="0" oninput="calcPayslip()"></div>
+                <div class="form-group"><label>LOP Days</label><input type="number" id="psLOP" value="0" oninput="calcPayslip()"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>Working Days</label><input type="number" id="psWD" value="26"></div>
+                <div class="form-group"><label>Present Days</label><input type="number" id="psPD" value="26"></div>
+            </div>
+            <div style="background:var(--bg-secondary);padding:12px;border-radius:8px;margin:12px 0">
+                <strong>Calculated: </strong>
+                Gross: <span id="calcGross">0</span> | PF(Emp): <span id="calcPF">0</span> | ESI(Emp): <span id="calcESI">0</span> | Net: <span id="calcNet">0</span>
+            </div>
+            <div class="form-actions">
+                <button class="btn-secondary" onclick="closeModal('payslipModal')">Cancel</button>
+                <button class="btn-primary" onclick="savePayslip()">Generate</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SALARY STRUCTURE MODAL -->
+<div class="modal-overlay" id="salaryModal">
+    <div class="modal">
+        <div class="modal-header"><h3 id="salModalTitle">New Salary Structure</h3><button class="close-btn" onclick="closeModal('salaryModal')"><span class="material-icons-outlined">close</span></button></div>
+        <div class="modal-body">
+            <input type="hidden" id="salId">
+            <div class="form-group"><label>Name *</label><input type="text" id="salName"></div>
+            <div class="form-group"><label>Description</label><input type="text" id="salDesc"></div>
+            <div class="form-actions">
+                <button class="btn-secondary" onclick="closeModal('salaryModal')">Cancel</button>
+                <button class="btn-primary" onclick="saveSalary()">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- TAX DECLARATION MODAL -->
+<div class="modal-overlay" id="taxModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Tax Declaration</h3><button class="close-btn" onclick="closeModal('taxModal')"><span class="material-icons-outlined">close</span></button></div>
+        <div class="modal-body">
+            <div class="form-group"><label>Employee *</label><select id="taxEmp"></select></div>
+            <div class="form-row">
+                <div class="form-group"><label>Financial Year *</label><input type="text" id="taxFYInput" placeholder="e.g. 2024-25"></div>
+                <div class="form-group"><label>Tax Regime</label><select id="taxRegime"><option value="new">New</option><option value="old">Old</option></select></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>Section 80C</label><input type="number" id="tax80C" value="0"></div>
+                <div class="form-group"><label>Section 80D</label><input type="number" id="tax80D" value="0"></div>
+            </div>
+            <div class="form-group"><label>HRA Exemption</label><input type="number" id="taxHRA" value="0"></div>
+            <div class="form-actions">
+                <button class="btn-secondary" onclick="closeModal('taxModal')">Cancel</button>
+                <button class="btn-primary" onclick="saveTax()">Submit</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- PAYSLIP VIEW MODAL -->
+<div class="modal-overlay" id="payslipViewModal">
+    <div class="modal modal-xl">
+        <div class="modal-header"><h3>Payslip Details</h3><button class="close-btn" onclick="closeModal('payslipViewModal')"><span class="material-icons-outlined">close</span></button></div>
+        <div class="modal-body" id="payslipViewBody"></div>
+    </div>
+</div>
+
+<script src="/static/js/header.js"></script>
+<script>requireAuth();</script>
+<script src="/static/js/hr/common.js"></script>
+<script src="/static/js/hr/payroll.js"></script>
+</body>
+</html>

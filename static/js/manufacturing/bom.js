@@ -197,40 +197,43 @@ function navigateToBomDetailByPart(partCode) {
     }
 }
 
+function setupBomDetail(data) {
+    bomData = data;
+    currentBomId = bomData.id;
+    currentSelectedItemId = null;
+    treeBreadcrumb = [];
+
+    document.getElementById('bomListPanel').style.display = 'none';
+    document.getElementById('bomDetailPanel').style.display = 'block';
+
+    document.getElementById('detBomTitle').innerText = bomData.name || bomData.bom_no;
+    document.getElementById('detBomNo').innerText = bomData.fg_part_number;
+    document.getElementById('detBomVersion').innerText = bomData.current_version;
+    document.getElementById('detBomStatus').innerText = bomData.status;
+
+    const statusBadge = document.getElementById('detBomStatus');
+    if (bomData.status === 'Released' || bomData.status === 'active') {
+        statusBadge.className = 'badge badge-status-released';
+    } else {
+        statusBadge.className = 'badge badge-status-draft';
+    }
+
+    // Render immediately — no recursive pre-fetch needed
+    renderStructureTree();
+    refreshActiveTab();
+}
+
 async function loadBomDetailByPart(partCode, version = '') {
     try {
         let url = API + `/boms/by-part/${partCode}`;
         if (version) url += `?version=${version}`;
-        
         const res = await fetch(url, { headers: HEADERS });
         const json = await res.json();
         if (!json.success) { showToast(json.message, 'error'); return; }
-        
-        bomData = json.data;
-        currentBomId = bomData.id;
-        currentSelectedItemId = null;
         editMode = false;
-        
-        document.getElementById('bomListPanel').style.display = 'none';
-        document.getElementById('bomDetailPanel').style.display = 'block';
-        
-        document.getElementById('detBomTitle').innerText = bomData.name || bomData.bom_no;
-        document.getElementById('detBomNo').innerText = bomData.fg_part_number;
-        document.getElementById('detBomVersion').innerText = bomData.current_version;
-        document.getElementById('detBomStatus').innerText = bomData.status;
-        
-        const statusBadge = document.getElementById('detBomStatus');
-        if (bomData.status === 'Released' || bomData.status === 'active') {
-            statusBadge.className = 'badge badge-status-released';
-        } else {
-            statusBadge.className = 'badge badge-status-draft';
-        }
-        
-        renderStructureTree();
-        refreshActiveTab();
+        setupBomDetail(json.data);
     } catch (e) {
-        console.error("Error loading BOM details by part:", e);
-        showToast('Error loading BOM details: ' + e.message, 'error');
+        showToast('Error loading BOM: ' + e.message, 'error');
     }
 }
 
@@ -238,7 +241,6 @@ function closeBomDetail() {
     currentBomId = null;
     currentSelectedItemId = null;
     editMode = false;
-    
     location.hash = '#bom';
 }
 
@@ -246,30 +248,13 @@ async function loadBomDetail(bomId, version = '') {
     try {
         let url = API + `/boms/${bomId}`;
         if (version) url += `?version=${version}`;
-        
         const res = await fetch(url, { headers: HEADERS });
         const json = await res.json();
         if (!json.success) { showToast(json.message, 'error'); return; }
-        
-        bomData = json.data;
-        
-        document.getElementById('detBomTitle').innerText = bomData.name || bomData.bom_no;
-        document.getElementById('detBomNo').innerText = bomData.fg_part_number;
-        document.getElementById('detBomVersion').innerText = bomData.current_version;
-        document.getElementById('detBomStatus').innerText = bomData.status;
-        
-        const statusBadge = document.getElementById('detBomStatus');
-        if (bomData.status === 'Released' || bomData.status === 'active') {
-            statusBadge.className = 'badge badge-status-released';
-        } else {
-            statusBadge.className = 'badge badge-status-draft';
-        }
-        
-        renderStructureTree();
-        refreshActiveTab();
+        editMode = false;
+        setupBomDetail(json.data);
     } catch (e) {
-        console.error("Error loading BOM details:", e);
-        showToast('Error loading BOM details: ' + e.message, 'error');
+        showToast('Error loading BOM: ' + e.message, 'error');
     }
 }
 
@@ -337,72 +322,99 @@ function renderToolbars() {
 
 function renderStructureTree() {
     const treeContainer = document.getElementById('bomTreeContainer');
-    
-    let html = `
+    const assemblies = bomData.items.filter(i => i.child_type === 'assembly' && !i.isSubAssemblyComponent);
+
+    const buildNodes = (parentId, depth) => {
+        const children = assemblies.filter(a => a.parent_item_id === parentId);
+        if (!children.length) return '';
+        let html = '';
+        children.forEach(child => {
+            const isActive = currentSelectedItemId === child.id;
+            const isExpanded = expandedNodeIds.has(child.id);
+            const hasKids = assemblies.some(a => a.parent_item_id === child.id);
+            const indent = depth * 14;
+            html += `
+            <div class="tree-node-item">
+                <div class="tree-node-row${isActive ? ' active' : ''}" style="padding-left:${indent + 8}px;" onclick="selectTreeNode('${child.id}', '${child.child_part_code}')">
+                    <span class="tree-node-toggle" onclick="toggleTreeNode(event,'${child.id}')" style="opacity:${hasKids ? 1 : 0.25};pointer-events:${hasKids ? 'auto' : 'none'}">
+                        <span class="material-icons-outlined" style="font-size:15px;">${hasKids ? (isExpanded ? 'expand_more' : 'chevron_right') : 'remove'}</span>
+                    </span>
+                    <span class="material-icons-outlined" style="font-size:14px;color:#4f46e5;margin-right:4px;">account_tree</span>
+                    <span class="tree-node-label" title="${child.child_part_code}">${child.child_part_code}</span>
+                    <span class="material-icons-outlined" style="font-size:13px;color:var(--text-muted);margin-left:auto;opacity:0.6;" title="Open sub-assembly BOM">open_in_new</span>
+                </div>
+                ${hasKids && isExpanded ? buildNodes(child.id, depth + 1) : ''}
+            </div>`;
+        });
+        return html;
+    };
+
+    const isRoot = currentSelectedItemId === null;
+    treeContainer.innerHTML = `
         <div class="tree-node-item">
-            <div class="tree-node-row ${currentSelectedItemId === null ? 'active' : ''}" onclick="selectTreeNode(null)">
-                <span class="material-icons-outlined tree-node-icon" style="color:var(--accent);">precision_manufacturing</span>
-                <span class="tree-node-label" title="${bomData.fg_part_number}"><strong>${bomData.fg_part_number}</strong> (Root)</span>
+            <div class="tree-node-row${isRoot ? ' active' : ''}" onclick="selectTreeNode(null, null)" style="padding-left:8px;">
+                <span class="material-icons-outlined" style="font-size:16px;color:var(--accent);margin-right:6px;">precision_manufacturing</span>
+                <span class="tree-node-label"><strong>${bomData.fg_part_number}</strong></span>
+                <span style="font-size:10px;color:var(--text-muted);margin-left:6px;">Root</span>
             </div>
         </div>
+        ${buildNodes(null, 1)}
     `;
-    
-    const assemblies = bomData.items.filter(i => i.child_type === 'assembly');
-    
-    const buildTreeNodes = (parentId, indent) => {
-        let nodeHtml = '';
-        const children = assemblies.filter(a => a.parent_item_id === parentId);
-        
-        children.forEach(child => {
-            const hasKids = assemblies.some(a => a.parent_item_id === child.id);
-            const isExpanded = expandedNodeIds.has(child.id);
-            
-            nodeHtml += `
-                <div class="tree-node-item" id="node-item-${child.id}">
-                    <div class="tree-node-row ${currentSelectedItemId === child.id ? 'active' : ''}" onclick="selectTreeNode('${child.id}')" style="margin-left: ${indent * 12}px;">
-                        <span class="tree-node-toggle" onclick="toggleTreeNode(event, '${child.id}')">
-                            <span class="material-icons-outlined" style="font-size:16px;">
-                                ${hasKids ? (isExpanded ? 'expand_more' : 'chevron_right') : 'remove'}
-                            </span>
-                        </span>
-                        <span class="material-icons-outlined tree-node-icon" style="color:#4f46e5;">account_tree</span>
-                        <span class="tree-node-label" title="${child.child_part_code}">${child.child_part_code}</span>
-                    </div>
-                </div>
-            `;
-            
-            if (hasKids && isExpanded) {
-                nodeHtml += buildTreeNodes(child.id, indent + 1);
-            }
-        });
-        return nodeHtml;
-    };
-    
-    html += buildTreeNodes(null, 1);
-    treeContainer.innerHTML = html;
 }
 
-function selectTreeNode(nodeId) {
-    currentSelectedItemId = nodeId;
+// Breadcrumb stack: [{id, label}] — root is always index 0
+let treeBreadcrumb = [];
+
+function selectTreeNode(nodeId, partCode) {
+    if (nodeId === null) {
+        // Root clicked — reset breadcrumb
+        treeBreadcrumb = [];
+        currentSelectedItemId = null;
+    } else {
+        // Push to breadcrumb if not already the current node
+        if (currentSelectedItemId !== nodeId) {
+            // If going back up, trim the stack
+            const existingIdx = treeBreadcrumb.findIndex(b => b.id === nodeId);
+            if (existingIdx >= 0) {
+                treeBreadcrumb = treeBreadcrumb.slice(0, existingIdx + 1);
+            } else {
+                treeBreadcrumb.push({ id: nodeId, label: partCode });
+            }
+            currentSelectedItemId = nodeId;
+        }
+    }
     renderStructureTree();
     renderStructureGrid();
-    
-    const label = document.getElementById('currentSelectedNodeLabel');
-    if (nodeId === null) {
-        label.innerText = `Active Items List (Root: ${bomData.fg_part_number})`;
-    } else {
-        const item = bomData.items.find(i => i.id === nodeId);
-        label.innerText = `Active Items List (Assembly: ${item ? item.child_part_code : nodeId})`;
+    renderBomBreadcrumb();
+}
+
+function renderBomBreadcrumb() {
+    const el = document.getElementById('bomBreadcrumb');
+    if (!el) return;
+    if (treeBreadcrumb.length === 0) {
+        el.innerHTML = '';
+        el.style.display = 'none';
+        return;
     }
+    el.style.display = 'flex';
+    const crumbs = [
+        `<span class="bom-crumb" onclick="selectTreeNode(null,null)" style="cursor:pointer;color:var(--accent);font-weight:600;">${bomData.fg_part_number}</span>`
+    ];
+    treeBreadcrumb.forEach((b, i) => {
+        crumbs.push(`<span style="color:var(--text-muted);margin:0 4px;">›</span>`);
+        if (i < treeBreadcrumb.length - 1) {
+            crumbs.push(`<span class="bom-crumb" onclick="selectTreeNode('${b.id}','${b.label}')" style="cursor:pointer;color:var(--accent);">${b.label}</span>`);
+        } else {
+            crumbs.push(`<span style="font-weight:700;color:var(--text-primary);">${b.label}</span>`);
+        }
+    });
+    el.innerHTML = crumbs.join('');
 }
 
 function toggleTreeNode(event, nodeId) {
     event.stopPropagation();
-    if (expandedNodeIds.has(nodeId)) {
-        expandedNodeIds.delete(nodeId);
-    } else {
-        expandedNodeIds.add(nodeId);
-    }
+    if (expandedNodeIds.has(nodeId)) expandedNodeIds.delete(nodeId);
+    else expandedNodeIds.add(nodeId);
     renderStructureTree();
 }
 
@@ -430,58 +442,181 @@ function toggleTreeSidebarCollapse() {
     }
 }
 
+// Helper to recursively get item level
+function getItemLevel(item) {
+    if (!item.parent_item_id) return 1;
+    const parent = bomData.items.find(i => i.id === item.parent_item_id);
+    if (!parent) return 1;
+    return getItemLevel(parent) + 1;
+}
+
+// Helper to pre-order traverse descendants under a parent
+function getDescendantsRecursively(parentId) {
+    let result = [];
+    const children = bomData.items.filter(i => i.parent_item_id === parentId);
+    children.forEach(child => {
+        result.push(child);
+        if (child.child_type === 'assembly') {
+            const descendants = getDescendantsRecursively(child.id);
+            result.push(...descendants);
+        }
+    });
+    return result;
+}
+
+// Toggle select all checkbox in grid
+function toggleSelectAllItems(checked) {
+    const checkboxes = document.querySelectorAll('.item-selector-cb');
+    checkboxes.forEach(cb => {
+        if (!cb.disabled) {
+            cb.checked = checked;
+        }
+    });
+    handleCheckboxSelectionChange();
+}
+
+// Selection changes to update edit/delete actions toolbar state
+function handleCheckboxSelectionChange() {
+    const deleteBtn = document.getElementById('btnDeleteSelectedItems');
+    const editBtn = document.getElementById('btnEditSelectedItem');
+
+    if (!editMode) {
+        if (deleteBtn) deleteBtn.style.display = 'none';
+        if (editBtn) editBtn.style.display = 'none';
+        return;
+    }
+    const selected = Array.from(document.querySelectorAll('.item-selector-cb:checked'));
+    
+    if (deleteBtn) {
+        deleteBtn.style.display = selected.length > 0 ? 'inline-block' : 'none';
+    }
+    if (editBtn) {
+        editBtn.style.display = selected.length === 1 ? 'inline-block' : 'none';
+    }
+}
+
+// Delete all checked components
+async function deleteSelectedItems() {
+    const selected = Array.from(document.querySelectorAll('.item-selector-cb:checked'))
+        .map(cb => cb.getAttribute('data-item-id'));
+    if (selected.length === 0) return;
+    
+    if (!confirm(`Are you sure you want to delete the ${selected.length} selected item(s) from the BOM?`)) return;
+    
+    showToast('Deleting selected items...');
+    try {
+        for (let itemId of selected) {
+            await fetch(API + `/boms/${currentBomId}/remove-item/${itemId}`, { method: 'POST', headers: HEADERS });
+        }
+        showToast('Items removed successfully');
+        loadBomDetail(currentBomId);
+    } catch (e) {
+        showToast('Error deleting selected items', 'error');
+    }
+}
+
+// Edit the selected component
+function editSelectedItem() {
+    const selected = document.querySelector('.item-selector-cb:checked');
+    if (!selected) return;
+    const itemId = selected.getAttribute('data-item-id');
+    openEditBomItemModal(itemId);
+}
+
 // ─── GRID / TABLE ITEMS RENDER ───
 
 function renderStructureGrid() {
     const tbody = document.getElementById('bomItemsTableBody');
     const items = bomData.items.filter(i => i.parent_item_id === currentSelectedItemId);
-    
-    if (items.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; color:var(--text-secondary);">No component items added under this assembly. Click "Add Component" or "Add Assembly" to populate.</td></tr>';
-        return;
+
+    const selectAllCb = document.getElementById('selectAllItems');
+    if (selectAllCb) selectAllCb.checked = false;
+    handleCheckboxSelectionChange();
+
+    // Update Actions column header
+    const thActions = document.getElementById('thActions');
+    if (thActions) thActions.innerText = editMode ? 'Actions' : '';
+
+    const label = document.getElementById('currentSelectedNodeLabel');
+    if (label) {
+        const node = currentSelectedItemId
+            ? bomData.items.find(i => i.id === currentSelectedItemId)
+            : null;
+        label.innerText = `Components — ${node ? node.child_part_code : bomData.fg_part_number}`;
     }
-    
-    tbody.innerHTML = items.map(item => {
-        const totalCost = (item.unit_cost || 0) * (item.quantity || 1);
-        
-        let procBadge = '';
-        if (item.child_type === 'assembly') {
-            const isMfg = item.procurement_type === 'manufacturing';
-            procBadge = `<span class="${isMfg ? 'badge-procurement-manufacturing' : 'badge-procurement-bought_out'}" onclick="toggleItemProcurement('${item.id}', '${item.procurement_type}')">${isMfg ? 'Manufactured' : 'Bought Out'}</span>`;
-        } else {
-            procBadge = `<span style="font-size:11px; font-weight:700; color:var(--text-secondary);">Bought Out</span>`;
-        }
-        
-        let actions = '';
-        if (editMode) {
-            actions = `
-                <button class="btn-action" title="Edit Item" onclick="openEditBomItemModal('${item.id}')"><span class="material-icons-outlined">edit</span></button>
-                <button class="btn-action" title="Remove" onclick="deleteBomItem('${item.id}')" style="color:#ef4444;"><span class="material-icons-outlined">delete</span></button>
-            `;
-        } else {
-            actions = `<span style="font-size:11px; color:var(--text-secondary);">Locked</span>`;
-        }
-        
-        return `
+    renderBomBreadcrumb();
+
+    if (items.length === 0) {
+        tbody.innerHTML = `
             <tr>
-                <td><strong>${item.child_part_code}</strong></td>
-                <td><span style="font-size:12px; color:var(--text-secondary);">${item.description || '-'}</span></td>
-                <td>${procBadge}</td>
-                <td><strong>${item.quantity}</strong></td>
-                <td>${item.unit}</td>
-                <td>Rs. ${(item.unit_cost || 0).toFixed(2)}</td>
-                <td><strong style="color:#10b981;">Rs. ${totalCost.toFixed(2)}</strong></td>
-                <td>${item.scrap_factor}%</td>
-                <td><span class="badge" style="background:var(--bg-secondary); color:var(--text-secondary);">${item.operation_ref || '-'}</span></td>
-                <td>
-                    <div style="display:flex; gap:4px;">
-                        ${actions}
+                <td colspan="11" style="text-align:center;padding:36px 20px;">
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:8px;opacity:0.55;">
+                        <span class="material-icons-outlined" style="font-size:36px;color:var(--text-muted);">inventory_2</span>
+                        <span style="font-size:13px;color:var(--text-secondary);">${editMode ? 'Use "Add Component" or "Add Assembly" to begin.' : 'No items. Switch to Edit Mode to add components.'}</span>
                     </div>
                 </td>
-            </tr>
-        `;
+            </tr>`;
+        return;
+    }
+
+    tbody.innerHTML = items.map((item, idx) => {
+        const totalCost = (item.unit_cost || 0) * (item.quantity || 1);
+        const isAssembly = item.child_type === 'assembly';
+
+        const typeBadge = isAssembly
+            ? `<span style="display:inline-flex;align-items:center;gap:3px;background:#eef2ff;color:#4f46e5;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap;">
+                   <span class="material-icons-outlined" style="font-size:11px;">account_tree</span>Assembly
+               </span>`
+            : `<span style="display:inline-flex;align-items:center;gap:3px;background:#f0fdf4;color:#16a34a;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap;">
+                   <span class="material-icons-outlined" style="font-size:11px;">settings_input_component</span>Component
+               </span>`;
+
+        const partCodeCell = isAssembly
+            ? `<a onclick="loadBomDetailByPart('${item.child_part_code}')" href="javascript:void(0)"
+                  style="font-weight:700;color:#4f46e5;text-decoration:none;font-size:13px;"
+                  title="Open sub-assembly BOM">${item.child_part_code}
+                  <span class="material-icons-outlined" style="font-size:11px;vertical-align:middle;opacity:0.7;">open_in_new</span>
+               </a>`
+            : `<span style="font-weight:600;font-size:13px;">${item.child_part_code}</span>`;
+
+        // Actions cell — always present for consistent column count
+        const actionsTd = editMode
+            ? `<td style="text-align:center;white-space:nowrap;">
+                   <button class="btn-action" title="Edit" onclick="openEditBomItemModal('${item.id}')" style="padding:3px 5px;">
+                       <span class="material-icons-outlined" style="font-size:15px;">edit</span>
+                   </button>
+                   <button class="btn-action" title="Delete" onclick="deleteBomItem('${item.id}')" style="padding:3px 5px;color:#ef4444;">
+                       <span class="material-icons-outlined" style="font-size:15px;">delete</span>
+                   </button>
+               </td>`
+            : `<td></td>`;
+
+        return `
+            <tr style="transition:background 0.12s;" onmouseover="this.style.background='var(--bg-secondary)'" onmouseout="this.style.background=''">
+                <td style="text-align:center;overflow:hidden;">
+                    ${currentSelectedItemId
+                        ? `<span title="Sub-assembly parts — edit in sub-assembly BOM" style="color:var(--text-muted);cursor:default;">
+                               <span class="material-icons-outlined" style="font-size:15px;vertical-align:middle;opacity:0.35;">block</span>
+                           </span>`
+                        : `<input type="checkbox" class="item-selector-cb" data-item-id="${item.id}" onchange="handleCheckboxSelectionChange()">`
+                    }
+                </td>
+                <td style="text-align:center;color:var(--text-muted);font-size:11px;font-weight:600;overflow:hidden;">${idx + 1}</td>
+                <td style="overflow:hidden;">${partCodeCell}</td>
+                <td style="overflow:hidden;">${typeBadge}</td>
+                <td style="font-size:12px;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${item.description || ''}">${item.description || '—'}</td>
+                <td style="text-align:right;font-weight:700;overflow:hidden;">${item.quantity}</td>
+                <td style="font-size:12px;color:var(--text-muted);overflow:hidden;">${item.unit}</td>
+                <td style="overflow:hidden;">
+                    <div style="font-size:11px;line-height:1.5;color:var(--text-secondary);word-break:break-word;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;white-space:normal;" title="${item.reference || ''}">${item.reference || '—'}</div>
+                </td>
+                <td style="text-align:right;font-size:12px;color:var(--text-muted);overflow:hidden;">Rs. ${(item.unit_cost || 0).toFixed(2)}</td>
+                <td style="text-align:right;font-weight:700;color:#10b981;overflow:hidden;">Rs. ${totalCost.toFixed(2)}</td>
+                ${actionsTd}
+            </tr>`;
     }).join('');
 }
+
 
 // ─── PROC SOURCE TOGGLING ───
 
@@ -920,6 +1055,14 @@ document.addEventListener('click', function(e) {
 // ─── ADDING & EDITING BOM ITEMS MODALS ───
 
 function openAddBomItemModal(type) {
+    if (currentSelectedItemId) {
+        const item = bomData.items.find(i => i.id === currentSelectedItemId);
+        if (item && item.isSubAssemblyComponent) {
+            showToast('You cannot add items to a sub-assembly from this screen. Please open the sub-assembly BOM directly to edit it.', 'error');
+            return;
+        }
+    }
+
     document.getElementById('addBomItemModalTitle').innerText = type === 'assembly' ? 'Add Assembly to BOM' : 'Add Component to BOM';
     document.getElementById('abiParentId').value = currentSelectedItemId || '';
     document.getElementById('abiChildType').value = type;
@@ -934,6 +1077,7 @@ function openAddBomItemModal(type) {
     document.getElementById('abiSelectedPart').value = '';
     document.getElementById('abiQty').value = '1';
     document.getElementById('abiUnit').value = 'Nos';
+    if (document.getElementById('abiReference')) document.getElementById('abiReference').value = '';
     document.getElementById('abiScrap').value = '0';
     document.getElementById('abiOpRef').value = '-01';
 
@@ -1167,6 +1311,7 @@ async function saveNewBomItem(event) {
         quantity: parseFloat(document.getElementById('abiQty').value || 1),
         unit: document.getElementById('abiUnit').value || 'Nos',
         level: currentSelectedItemId ? (bomData.items.find(i => i.id === currentSelectedItemId).level + 1) : 1,
+        reference: document.getElementById('abiReference').value || '',
         scrap_factor: parseFloat(document.getElementById('abiScrap').value || 0),
         operation_ref: document.getElementById('abiOpRef').value || '-01',
         procurement_type: document.getElementById('abiProcurement').value
@@ -1189,10 +1334,16 @@ async function openEditBomItemModal(itemId) {
     const item = bomData.items.find(i => i.id === itemId);
     if (!item) return;
     
+    if (item.isSubAssemblyComponent) {
+        showToast('You cannot perform any task in a sub-assembly from this screen. Please open the sub-assembly BOM directly to edit it.', 'error');
+        return;
+    }
+    
     document.getElementById('ebiItemId').value = itemId;
     document.getElementById('ebiPartNo').innerText = item.child_part_code;
     document.getElementById('ebiQty').value = item.quantity;
     document.getElementById('ebiUnit').value = item.unit;
+    if (document.getElementById('ebiReference')) document.getElementById('ebiReference').value = item.reference || '';
     document.getElementById('ebiScrap').value = item.scrap_factor;
     document.getElementById('ebiOpRef').value = item.operation_ref;
     
@@ -1215,6 +1366,7 @@ async function saveEditBomItem(event) {
     const payload = {
         quantity: parseFloat(document.getElementById('ebiQty').value || 1),
         unit: document.getElementById('ebiUnit').value || 'Nos',
+        reference: document.getElementById('ebiReference').value || '',
         scrap_factor: parseFloat(document.getElementById('ebiScrap').value || 0),
         operation_ref: document.getElementById('ebiOpRef').value || '-01',
         procurement_type: document.getElementById('ebiProcurement').value
@@ -1236,6 +1388,11 @@ async function saveEditBomItem(event) {
 }
 
 async function deleteBomItem(itemId) {
+    const item = bomData.items.find(i => i.id === itemId);
+    if (item && item.isSubAssemblyComponent) {
+        showToast('You cannot delete items from a sub-assembly from this screen. Please open the sub-assembly BOM directly to edit it.', 'error');
+        return;
+    }
     if (!confirm('Are you sure you want to delete this item? All nested children will also be deleted recursively.')) return;
     try {
         const res = await fetch(API + `/boms/${currentBomId}/remove-item/${itemId}`, { method: 'POST', headers: HEADERS });

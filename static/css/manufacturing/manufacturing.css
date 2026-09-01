@@ -228,3 +228,32 @@
     font-size: 12px;
     margin-top: 4px;
 }
+
+/* Sub-assembly tree rows */
+.row-sub-bom {
+    background: rgba(79, 70, 229, 0.03);
+    border-left: 2px solid #c7d2fe;
+}
+
+.row-sub-bom td {
+    opacity: 0.85;
+}
+
+/* Select all checkbox in header */
+#selectAllItems {
+    cursor: pointer;
+    width: 15px;
+    height: 15px;
+}
+
+/* Item selector checkboxes */
+.item-selector-cb {
+    cursor: pointer;
+    width: 15px;
+    height: 15px;
+}
+
+.item-selector-cb:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+}
