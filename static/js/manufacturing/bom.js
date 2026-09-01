@@ -634,18 +634,13 @@ function renderStructureGrid() {
         return;
     }
 
-    // Find base level of current node so children show as L1 relative to current view
-    const baseLevel = currentSelectedItemId
-        ? (bomData.items.find(i => String(i.id) === String(currentSelectedItemId))?.level || 0)
-        : 0;
-
-    console.log('[BOM DEBUG] currentSelectedItemId:', currentSelectedItemId, 'baseLevel:', baseLevel);
-    console.log('[BOM DEBUG] items levels:', items.map(i => ({ id: i.id, code: i.child_part_code, level: i.level, parent_item_id: i.parent_item_id, isSub: i.isSubAssemblyComponent })));
+    // Compute base depth from parent_item_id chain (level DB column is unreliable)
+    const baseDepth = currentSelectedItemId ? computeItemDepth(String(currentSelectedItemId)) : 0;
 
     tbody.innerHTML = items.map((item) => {
         const totalCost = (item.unit_cost || 0) * (item.quantity || 1);
         const isAssembly = item.child_type === 'assembly';
-        const level = (item.level || 1) - baseLevel;  // relative level: 1 = direct child of current node
+        const level = (item.level || 1) - baseDepth;
         const lvlColor = getLevelColor(level);
         const levelBadge = `<span style="display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;color:#fff;background:${lvlColor};min-width:24px;text-align:center;">L${level}</span>`;
         const indent = (level - 1) * 20;
@@ -1305,7 +1300,7 @@ async function submitBulkBomItems() {
     errEl.style.display = 'none';
 
     const parentId = document.getElementById('abiParentId').value || null;
-    const baseLevel = currentSelectedItemId ? ((bomData.items.find(i => i.id === currentSelectedItemId)?.level || 0) + 1) : 1;
+    const baseLevel = currentSelectedItemId ? ((bomData.items.find(i => String(i.id) === String(currentSelectedItemId))?.level || 0) + 1) : 1;
 
     const items = [];
     const seenInBatch = new Set();
@@ -1460,7 +1455,7 @@ async function saveNewBomItem(event) {
         child_part_code: cno,
         quantity: parseFloat(document.getElementById('abiQty').value || 1),
         unit: document.getElementById('abiUnit').value || 'Nos',
-        level: currentSelectedItemId ? (bomData.items.find(i => i.id === currentSelectedItemId).level + 1) : 1,
+        level: currentSelectedItemId ? (computeItemDepth(String(currentSelectedItemId)) + 1) : 1,
         reference: document.getElementById('abiReference').value || '',
         scrap_factor: parseFloat(document.getElementById('abiScrap').value || 0),
         operation_ref: document.getElementById('abiOpRef').value || '-01',

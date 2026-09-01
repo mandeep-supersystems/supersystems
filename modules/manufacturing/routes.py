@@ -123,6 +123,18 @@ def _expand_mfg_bom_items_sql(bom_id, tenant_id, base_level=1, visited=None):
     ), {"bid": bom_id, "tid": tenant_id}).fetchall()
     selections = {r[0]: float(r[1] or 0) for r in rows_sel}
 
+    # Build a map of id -> row for depth computation
+    row_map = {str(r[0]): r for r in rows}
+
+    def compute_depth(item_id, _guard=0):
+        """Walk parent_item_id chain to get true depth (1-based)."""
+        if _guard > 20:
+            return base_level
+        r = row_map.get(str(item_id))
+        if not r or not r[1]:
+            return base_level
+        return compute_depth(str(r[1]), _guard + 1) + 1
+
     expanded_items = []
     for r in rows:
         item_id = str(r[0])
@@ -142,6 +154,9 @@ def _expand_mfg_bom_items_sql(bom_id, tenant_id, base_level=1, visited=None):
         op_ref = r[14] or ""
         proc_type = r[15] or ('manufacturing' if child_type == 'assembly' else 'bought_out')
         pinned = r[16] or ""
+
+        # Compute true depth from parent chain; fall back to base_level if no parent chain
+        true_depth = compute_depth(item_id)
 
         desc = _lookup_part_description(part_code, tenant_id)
 
@@ -185,7 +200,7 @@ def _expand_mfg_bom_items_sql(bom_id, tenant_id, base_level=1, visited=None):
             "child_part_code": part_code,
             "quantity": qty,
             "unit": unit,
-            "level": base_level + lvl - 1,
+            "level": true_depth,
             "reference": ref,
             "notes": notes,
             "description": desc,
