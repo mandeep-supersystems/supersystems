@@ -250,7 +250,7 @@
                         <thead>
                             <tr>
                                 <th style="text-align:center;"><input type="checkbox" id="selectAllItems" onchange="toggleSelectAllItems(this.checked)"></th>
-                                <th style="text-align:center;color:var(--text-muted);">#</th>
+                                <th style="text-align:center;color:var(--text-muted);">Level</th>
                                 <th>Part Code</th>
                                 <th>Type</th>
                                 <th>Description</th>
@@ -381,59 +381,108 @@
 
 <!-- Add BOM Item Modal -->
 <div class="modal-overlay" id="addMfgBomItemModal">
-    <div class="modal">
+    <div class="modal" style="max-width:680px;width:96%;">
         <div class="modal-header">
             <h3 id="addBomItemModalTitle">Add Component</h3>
             <span class="material-icons-outlined modal-close" onclick="closeModal('addMfgBomItemModal')">close</span>
         </div>
         <div class="modal-body">
-            <form onsubmit="saveNewBomItem(event)">
-                <input type="hidden" id="abiParentId">
-                <input type="hidden" id="abiChildType">
-                <input type="hidden" id="abiSelectedPart">
-                <div class="form-group">
-                    <label id="abiSearchLabel">Search Part *</label>
-                    <input type="text" id="abiPartSearch" placeholder="Type part code or name..." oninput="searchPartsForBom(this.value)" autocomplete="off">
-                    <div id="abiPartSearchResults" class="emp-search-results"></div>
-                    <div id="abiPartSelected" style="display:none;padding:6px 10px;background:var(--bg-secondary);border-radius:4px;font-size:13px;align-items:center;justify-content:space-between;">
-                        <span id="abiPartSelLabel"></span>
-                        <button type="button" class="btn-icon" onclick="clearSelectedBomPart()"><span class="material-icons-outlined" style="font-size:14px;">close</span></button>
+            <input type="hidden" id="abiParentId">
+            <input type="hidden" id="abiChildType">
+
+            <!-- Tab bar (hidden for assembly type) -->
+            <div id="abiTabBar" style="display:flex;gap:4px;margin-bottom:12px;border-bottom:1px solid var(--border-color);">
+                <button type="button" id="abiTabManual" class="tab-btn active" onclick="switchAbiTab('manual')">Manual</button>
+                <button type="button" id="abiTabBulk" class="tab-btn" onclick="switchAbiTab('bulk')">Bulk Upload (CSV / Excel)</button>
+            </div>
+
+            <!-- MANUAL PANE -->
+            <div id="abiPaneManual">
+                <form onsubmit="saveNewBomItem(event)">
+                    <input type="hidden" id="abiSelectedPart">
+                    <div class="form-group">
+                        <label id="abiSearchLabel">Search Part *</label>
+                        <input type="text" id="abiPartSearch" placeholder="Type part code or name..." oninput="searchPartsForBom(this.value)" autocomplete="off">
+                        <div id="abiPartSearchResults" class="emp-search-results"></div>
+                        <div id="abiPartSelected" style="display:none;padding:6px 10px;background:var(--bg-secondary);border-radius:4px;font-size:13px;align-items:center;justify-content:space-between;">
+                            <span id="abiPartSelLabel"></span>
+                            <button type="button" class="btn-icon" onclick="clearSelectedBomPart()"><span class="material-icons-outlined" style="font-size:14px;">close</span></button>
+                        </div>
                     </div>
-                </div>
-                <div style="display:flex;gap:10px;">
-                    <div class="form-group" style="flex:1;">
-                        <label>Qty *</label>
-                        <input type="number" id="abiQty" value="1" min="0.001" step="any">
+                    <div style="display:flex;gap:10px;">
+                        <div class="form-group" style="flex:1;">
+                            <label>Qty *</label>
+                            <input type="number" id="abiQty" value="1" min="0.001" step="any">
+                        </div>
+                        <div class="form-group" style="flex:1;">
+                            <label>Unit</label>
+                            <input type="text" id="abiUnit" value="Nos">
+                        </div>
+                        <div class="form-group" style="flex:1;">
+                            <label>Scrap %</label>
+                            <input type="number" id="abiScrap" value="0" min="0" step="0.1">
+                        </div>
                     </div>
-                    <div class="form-group" style="flex:1;">
-                        <label>Unit</label>
-                        <input type="text" id="abiUnit" value="Nos">
+                    <div style="display:flex;gap:10px;">
+                        <div class="form-group" style="flex:1;">
+                            <label>Reference</label>
+                            <input type="text" id="abiReference" placeholder="e.g. C1, C2, R1...">
+                        </div>
+                        <div class="form-group" style="flex:1;">
+                            <label>Operation Ref</label>
+                            <input type="text" id="abiOpRef" value="-01" placeholder="-01">
+                        </div>
                     </div>
-                    <div class="form-group" style="flex:1;">
-                        <label>Scrap %</label>
-                        <input type="number" id="abiScrap" value="0" min="0" step="0.1">
+                    <div class="form-group" id="abiProcurementGroup" style="display:none;">
+                        <label>Procurement Type</label>
+                        <select id="abiProcurement">
+                            <option value="manufacturing">Manufactured</option>
+                            <option value="bought_out">Bought Out</option>
+                        </select>
                     </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-outline" onclick="closeModal('addMfgBomItemModal')">Cancel</button>
+                        <button type="submit" class="btn-primary">Add Item</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- BULK PANE -->
+            <div id="abiPaneBulk" style="display:none;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+                    <button type="button" class="btn-outline" onclick="addBulkRow()" style="font-size:12px;padding:4px 10px;">
+                        <span class="material-icons-outlined" style="font-size:14px;vertical-align:middle;">add</span> Add Row
+                    </button>
+                    <label class="btn-outline" style="font-size:12px;padding:4px 10px;cursor:pointer;margin:0;">
+                        <span class="material-icons-outlined" style="font-size:14px;vertical-align:middle;">upload_file</span> Import CSV/Excel
+                        <input type="file" accept=".csv,.xlsx,.xls" style="display:none;" onchange="parseBulkCsv(this)">
+                    </label>
+                    <button type="button" class="btn-outline" onclick="downloadBulkCsvTemplate()" style="font-size:12px;padding:4px 10px;">
+                        <span class="material-icons-outlined" style="font-size:14px;vertical-align:middle;">download</span> Download Template
+                    </button>
                 </div>
-                <div class="form-group">
-                    <label>Reference</label>
-                    <input type="text" id="abiReference" placeholder="e.g. C1, C2, R1...">
+                <div id="abiBulkError" style="display:none;color:#ef4444;font-size:12px;margin-bottom:8px;padding:6px 10px;background:#fff5f5;border-radius:4px;border:1px solid #fecaca;"></div>
+                <div style="overflow-x:auto;">
+                    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                        <thead>
+                            <tr style="background:var(--bg-secondary);">
+                                <th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border-color);min-width:160px;">Part Code *</th>
+                                <th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border-color);width:60px;">Qty *</th>
+                                <th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border-color);width:55px;">Unit</th>
+                                <th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border-color);width:55px;">Scrap%</th>
+                                <th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border-color);width:70px;">Op Ref</th>
+                                <th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border-color);min-width:100px;">Reference</th>
+                                <th style="padding:6px 8px;width:32px;border-bottom:1px solid var(--border-color);"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="abiBulkRows"></tbody>
+                    </table>
                 </div>
-                <div class="form-group">
-                    <label>Operation Ref</label>
-                    <input type="text" id="abiOpRef" value="-01" placeholder="-01">
-                </div>
-                <div class="form-group" id="abiProcurementGroup" style="display:none;">
-                    <label>Procurement Type</label>
-                    <select id="abiProcurement">
-                        <option value="manufacturing">Manufactured</option>
-                        <option value="bought_out">Bought Out</option>
-                    </select>
-                </div>
-                <div class="form-actions">
+                <div class="form-actions" style="margin-top:12px;">
                     <button type="button" class="btn-outline" onclick="closeModal('addMfgBomItemModal')">Cancel</button>
-                    <button type="submit" class="btn-primary">Add Item</button>
+                    <button type="button" class="btn-primary" onclick="submitBulkBomItems()">Add All Items</button>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
 </div>
@@ -657,7 +706,7 @@
 <script src="/static/js/header.js?v=2"></script>
 <script src="/static/js/manufacturing/common.js?v=2"></script>
 <script src="/static/js/manufacturing/overview.js?v=2"></script>
-<script src="/static/js/manufacturing/bom.js?v=2"></script>
+<script src="/static/js/manufacturing/bom_v4.js"></script>
 <script src="/static/js/manufacturing/productionorders.js?v=2"></script>
 <script src="/static/js/manufacturing/workcenters.js?v=2"></script>
 <script src="/static/js/manufacturing/routing.js?v=2"></script>

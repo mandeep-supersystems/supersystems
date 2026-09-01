@@ -817,6 +817,10 @@
                             <input type="text" id="abiOpRef" value="-01" style="width:100%;">
                         </div>
                     </div>
+                    <div class="form-group">
+                        <label>Reference</label>
+                        <input type="text" id="abiReference" placeholder="e.g. C1, C2, R1..." style="width:100%;">
+                    </div>
                     <div class="form-group" id="abiProcurementGroup" style="display:none;">
                         <label>Procurement Sourcing *</label>
                         <select id="abiProcurement" style="width:100%;">
@@ -847,12 +851,13 @@
                     <table style="width:100%; border-collapse:collapse; font-size:12px;" id="abiBulkTable">
                         <thead>
                             <tr style="background:var(--bg-secondary);">
-                                <th style="padding:6px 8px; text-align:left; border-bottom:1px solid var(--border-color); min-width:220px;">Part Code *</th>
-                                <th style="padding:6px 8px; text-align:left; border-bottom:1px solid var(--border-color); width:80px;">Qty *</th>
-                                <th style="padding:6px 8px; text-align:left; border-bottom:1px solid var(--border-color); width:70px;">Unit</th>
-                                <th style="padding:6px 8px; text-align:left; border-bottom:1px solid var(--border-color); width:70px;">Scrap %</th>
-                                <th style="padding:6px 8px; text-align:left; border-bottom:1px solid var(--border-color); width:70px;">Op Ref</th>
-                                <th style="padding:6px 8px; width:36px; border-bottom:1px solid var(--border-color);"></th>
+                                <th style="padding:6px 8px; text-align:left; border-bottom:1px solid var(--border-color); min-width:180px;">Part Code *</th>
+                                <th style="padding:6px 8px; text-align:left; border-bottom:1px solid var(--border-color); width:60px;">Qty *</th>
+                                <th style="padding:6px 8px; text-align:left; border-bottom:1px solid var(--border-color); width:55px;">Unit</th>
+                                <th style="padding:6px 8px; text-align:left; border-bottom:1px solid var(--border-color); width:55px;">Scrap%</th>
+                                <th style="padding:6px 8px; text-align:left; border-bottom:1px solid var(--border-color); width:60px;">Op Ref</th>
+                                <th style="padding:6px 8px; text-align:left; border-bottom:1px solid var(--border-color); min-width:100px;">Reference</th>
+                                <th style="padding:6px 8px; width:32px; border-bottom:1px solid var(--border-color);"></th>
                             </tr>
                         </thead>
                         <tbody id="abiBulkRows"></tbody>
@@ -903,6 +908,10 @@
                 <div class="form-group">
                     <label>Scrap Factor (%)</label>
                     <input type="number" step="0.1" id="ebiScrap" style="width:100%;">
+                </div>
+                <div class="form-group">
+                    <label>Reference</label>
+                    <input type="text" id="ebiReference" placeholder="e.g. C1, C2, R1..." style="width:100%;">
                 </div>
                 <div class="form-group">
                     <label>Operation Ref</label>
@@ -1044,7 +1053,7 @@
 <script>requireAuth();</script>
 <script src="/static/js/manufacturing/common.js?v=2"></script>
 <script src="/static/js/manufacturing/overview.js?v=2"></script>
-<script src="/static/js/manufacturing/bom.js?v=2"></script>
+<script src="/static/js/manufacturing/bom.js?v=8"></script>
 <script src="/static/js/manufacturing/productionorders.js?v=2"></script>
 <script src="/static/js/manufacturing/workcenters.js?v=2"></script>
 <script src="/static/js/manufacturing/routing.js?v=2"></script>

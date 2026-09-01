@@ -657,7 +657,7 @@ function renderStructureGrid() {
                                onblur="inlineUpdateReference('${item.id}', this.value)"
                                onkeydown="if(event.key==='Enter')this.blur()"
                                style="width:100%;padding:3px 6px;border:1px solid var(--border-color);border-radius:3px;font-size:11px;background:var(--bg-primary);color:var(--text-primary);outline:none;">`
-                        : `<div style="font-size:11px;color:var(--text-secondary);word-break:break-word;" title="${item.reference || ''}">${item.reference || '—'}</div>`
+                        : `<div style="font-size:11px;line-height:1.5;color:var(--text-secondary);word-break:break-word;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;white-space:normal;" title="${item.reference || ''}">${item.reference || '—'}</div>`
                     }
                 </td>
                 <td style="text-align:right;font-size:12px;color:var(--text-muted);overflow:hidden;">Rs. ${(item.unit_cost || 0).toFixed(2)}</td>
@@ -1187,31 +1187,18 @@ function pickBulkPart(rowId, partNumber, desc) {
     document.getElementById(`bulkResults_${rowId}`).innerHTML = '';
 }
 
-// Parse a CSV line respecting double-quoted fields (handles commas inside reference)
-function parseCsvLine(line) {
-    const cols = [];
-    let cur = '', inQ = false;
-    for (let i = 0; i < line.length; i++) {
-        const ch = line[i];
-        if (ch === '"') { inQ = !inQ; }
-        else if (ch === ',' && !inQ) { cols.push(cur.trim()); cur = ''; }
-        else { cur += ch; }
-    }
-    cols.push(cur.trim());
-    return cols;
-}
-
 function parseBulkCsv(input) {
     const file = input.files[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = e => {
         const lines = e.target.result.split('\n').filter(l => l.trim());
+        // Skip header row
         const dataLines = lines[0].toLowerCase().includes('part_code') ? lines.slice(1) : lines;
         document.getElementById('abiBulkRows').innerHTML = '';
         bulkRowCounter = 0;
         dataLines.forEach(line => {
-            const cols = parseCsvLine(line);
+            const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
             if (!cols[0]) return;
             addBulkRow(cols[0], cols[1] || 1, cols[2] || 'Nos', cols[3] || 0, cols[4] || '-01', cols[5] || '');
         });
@@ -1221,7 +1208,7 @@ function parseBulkCsv(input) {
 }
 
 function downloadBulkCsvTemplate() {
-    const csv = 'part_code,qty,unit,scrap_factor,op_ref,reference\n901.1.0001,2,Nos,0,-01,"C1,C2,C3"\n901.1.0002,1,Nos,0,-01,"C12,C30"';
+    const csv = 'part_code,qty,unit,scrap_factor,op_ref,reference\n901.1.0001,2,Nos,0,-01,C1\n901.1.0002,1,Nos,0,-01,C2';
     const a = document.createElement('a');
     a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
     a.download = 'bom_bulk_template.csv';
@@ -1282,10 +1269,8 @@ async function submitBulkBomItems() {
         showToast(`${items.length - failed} added, ${failed} failed.`, 'error');
     } else {
         showToast(`${items.length} component(s) added successfully`);
-        document.getElementById('abiBulkRows').innerHTML = '';
-        bulkRowCounter = 0;
-        addBulkRow();
     }
+    closeModal('addMfgBomItemModal');
     loadBomDetail(currentBomId);
 }
 

@@ -1132,7 +1132,6 @@ def enter_edit(bom_id):
         })
     db.session.commit()
 
-    _log_mfg_bom_history(bom_id, "Enter Edit", "BOM entered edit mode (checkpoint saved)", "User", tenant_id)
     return jsonify({"success": True, "message": "Edit mode entered"})
 
 
@@ -1168,7 +1167,6 @@ def cancel_edit(bom_id):
     db.session.commit()
 
     _sync_bom_lines(bom_id, tenant_id)
-    _log_mfg_bom_history(bom_id, "Cancel Edit", "Edits cancelled; rolled back to previous checkpoint", "User", tenant_id)
     return jsonify({"success": True, "message": "Edits reverted"})
 
 
@@ -1183,8 +1181,6 @@ def save_edit(bom_id):
     db.session.commit()
 
     _sync_bom_lines(bom_id, tenant_id)
-    _log_mfg_bom_history(bom_id, "Save Edit", "BOM edits saved.", "User", tenant_id)
-
     return jsonify({"success": True, "message": "Edits saved successfully"})
 
 
@@ -1546,10 +1542,11 @@ def get_bom_history(bom_id):
         "FROM manufacturing_bom_history WHERE bom_id = :bid AND tenant_id = :tid ORDER BY performed_at DESC LIMIT 100"
     ), {"bid": bom_id, "tid": tenant_id}).fetchall()
 
+    NOISE_ACTIONS = {"Enter Edit", "Cancel Edit", "Save Edit"}
     history = [{
         "id": str(r[0]), "action": r[1], "detail": r[2] or "",
         "performed_by": r[3], "performed_at": str(r[4])
-    } for r in rows]
+    } for r in rows if r[1] not in NOISE_ACTIONS]
 
     return jsonify({"success": True, "data": history})
 
