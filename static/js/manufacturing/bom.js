@@ -639,6 +639,9 @@ function renderStructureGrid() {
         ? (bomData.items.find(i => String(i.id) === String(currentSelectedItemId))?.level || 0)
         : 0;
 
+    console.log('[BOM DEBUG] currentSelectedItemId:', currentSelectedItemId, 'baseLevel:', baseLevel);
+    console.log('[BOM DEBUG] items levels:', items.map(i => ({ id: i.id, code: i.child_part_code, level: i.level, parent_item_id: i.parent_item_id, isSub: i.isSubAssemblyComponent })));
+
     tbody.innerHTML = items.map((item) => {
         const totalCost = (item.unit_cost || 0) * (item.quantity || 1);
         const isAssembly = item.child_type === 'assembly';
