@@ -344,13 +344,17 @@ function renderStructureTree() {
     const assemblies = bomData.items.filter(i => i.child_type === 'assembly');
 
     const buildNodes = (parentId, depth) => {
-        const children = assemblies.filter(a => a.parent_item_id === parentId);
+        const pid = parentId === null ? null : String(parentId);
+        const children = assemblies.filter(a => {
+            const apid = a.parent_item_id === null ? null : String(a.parent_item_id);
+            return apid === pid;
+        });
         if (!children.length) return '';
         let html = '';
         children.forEach(child => {
             const isActive = currentSelectedItemId === child.id;
             const isExpanded = expandedNodeIds.has(child.id);
-            const hasKids = assemblies.some(a => a.parent_item_id === child.id);
+            const hasKids = assemblies.some(a => String(a.parent_item_id) === String(child.id));
             const indent = depth * 14;
             html += `
             <div class="tree-node-item">
@@ -478,14 +482,15 @@ function getItemLevel(item) {
 let _depthCache = {};
 function computeItemDepth(itemId, _guard = 0) {
     if (_guard > 20) return 1;
-    if (_depthCache[itemId] !== undefined) return _depthCache[itemId];
-    const item = bomData.items.find(i => i.id === itemId);
+    const key = String(itemId);
+    if (_depthCache[key] !== undefined) return _depthCache[key];
+    const item = bomData.items.find(i => String(i.id) === key);
     if (!item || !item.parent_item_id) {
-        _depthCache[itemId] = 1;
+        _depthCache[key] = 1;
         return 1;
     }
     const depth = computeItemDepth(item.parent_item_id, _guard + 1) + 1;
-    _depthCache[itemId] = depth;
+    _depthCache[key] = depth;
     return depth;
 }
 
@@ -567,11 +572,13 @@ function editSelectedItem() {
 // Build ordered flat list by pre-order traversal from a root parent
 function buildFlatOrderedList(rootParentId) {
     const result = [];
-    // At root level, hide isSubAssemblyComponent items (they belong to sub-BOMs)
-    // When drilled into a node, show everything under it
     const isRootLevel = (rootParentId === null);
     function walk(parentId) {
-        const children = bomData.items.filter(i => i.parent_item_id === parentId);
+        const pid = parentId === null ? null : String(parentId);
+        const children = bomData.items.filter(i => {
+            const ipid = i.parent_item_id === null ? null : String(i.parent_item_id);
+            return ipid === pid;
+        });
         children.forEach(child => {
             if (isRootLevel && child.isSubAssemblyComponent) return;
             result.push(child);
@@ -628,12 +635,12 @@ function renderStructureGrid() {
     }
 
     // Compute base depth offset so root items always show L1 relative to current view
-    const baseDepth = currentSelectedItemId ? computeItemDepth(currentSelectedItemId) : 0;
+    const baseDepth = currentSelectedItemId ? computeItemDepth(String(currentSelectedItemId)) : 0;
 
     tbody.innerHTML = items.map((item) => {
         const totalCost = (item.unit_cost || 0) * (item.quantity || 1);
         const isAssembly = item.child_type === 'assembly';
-        const absDepth = computeItemDepth(item.id);
+        const absDepth = computeItemDepth(String(item.id));
         const level = absDepth - baseDepth;  // relative level: 1 = direct child of current node
         const lvlColor = getLevelColor(level);
         const levelBadge = `<span style="display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;color:#fff;background:${lvlColor};min-width:24px;text-align:center;">L${level}</span>`;
