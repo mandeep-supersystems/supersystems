@@ -47,10 +47,10 @@ async function loadAssemblyBomList(q = '') {
                 const countHtml = a.has_bom
                     ? `<span style="font-size:11px;color:var(--text-secondary);">
                         <span style="display:inline-flex;align-items:center;gap:3px;background:#eef2ff;color:#4f46e5;padding:1px 6px;border-radius:10px;font-weight:700;font-size:10px;">
-                            <span class="material-icons-outlined" style="font-size:10px;">account_tree</span>${a.assembly_count}
+                            <span class="material-icons-outlined" style="font-size:10px;">account_tree</span>${a.assembly_count ?? 0}
                         </span>
                         <span style="display:inline-flex;align-items:center;gap:3px;background:#f0fdf4;color:#16a34a;padding:1px 6px;border-radius:10px;font-weight:700;font-size:10px;margin-left:3px;">
-                            <span class="material-icons-outlined" style="font-size:10px;">settings_input_component</span>${a.component_count}
+                            <span class="material-icons-outlined" style="font-size:10px;">settings_input_component</span>${a.component_count ?? 0}
                         </span>
                        </span>`
                     : `<span style="font-size:11px;color:var(--text-muted);">—</span>`;
