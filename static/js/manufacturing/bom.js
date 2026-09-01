@@ -634,14 +634,15 @@ function renderStructureGrid() {
         return;
     }
 
-    // Compute base depth offset so root items always show L1 relative to current view
-    const baseDepth = currentSelectedItemId ? computeItemDepth(String(currentSelectedItemId)) : 0;
+    // Find base level of current node so children show as L1 relative to current view
+    const baseLevel = currentSelectedItemId
+        ? (bomData.items.find(i => String(i.id) === String(currentSelectedItemId))?.level || 0)
+        : 0;
 
     tbody.innerHTML = items.map((item) => {
         const totalCost = (item.unit_cost || 0) * (item.quantity || 1);
         const isAssembly = item.child_type === 'assembly';
-        const absDepth = computeItemDepth(String(item.id));
-        const level = absDepth - baseDepth;  // relative level: 1 = direct child of current node
+        const level = (item.level || 1) - baseLevel;  // relative level: 1 = direct child of current node
         const lvlColor = getLevelColor(level);
         const levelBadge = `<span style="display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;color:#fff;background:${lvlColor};min-width:24px;text-align:center;">L${level}</span>`;
         const indent = (level - 1) * 20;
