@@ -594,8 +594,8 @@ function renderStructureGrid() {
         return `
             <tr style="transition:background 0.12s;" onmouseover="this.style.background='var(--bg-secondary)'" onmouseout="this.style.background=''">
                 <td style="text-align:center;overflow:hidden;">
-                    ${currentSelectedItemId
-                        ? `<span title="Sub-assembly parts — edit in sub-assembly BOM" style="color:var(--text-muted);cursor:default;">
+                    ${isAssembly
+                        ? `<span title="Sub-assembly — open its BOM to edit its parts" style="color:var(--text-muted);cursor:default;">
                                <span class="material-icons-outlined" style="font-size:15px;vertical-align:middle;opacity:0.35;">block</span>
                            </span>`
                         : `<input type="checkbox" class="item-selector-cb" data-item-id="${item.id}" onchange="handleCheckboxSelectionChange()">`
