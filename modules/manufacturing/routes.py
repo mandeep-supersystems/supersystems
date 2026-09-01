@@ -206,7 +206,14 @@ def _expand_mfg_bom_items_sql(bom_id, tenant_id, base_level=1, visited=None):
         expanded_items.append(item_data)
 
         if child_type == 'assembly' and proc_type == 'manufacturing' and sub_bom_id:
-            expanded_items.extend(_expand_mfg_bom_items_sql(sub_bom_id, tenant_id, base_level + lvl, visited.copy()))
+            sub_items = _expand_mfg_bom_items_sql(sub_bom_id, tenant_id, base_level + lvl, visited.copy())
+            # Mark top-level sub items as sub-assembly components and re-parent them
+            # to the assembly entry in the parent BOM so the JS tree drill-in works
+            for si in sub_items:
+                si["isSubAssemblyComponent"] = True
+                if si["parent_item_id"] is None:
+                    si["parent_item_id"] = item_id
+            expanded_items.extend(sub_items)
 
     return expanded_items
 
