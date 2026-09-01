@@ -340,7 +340,8 @@ function renderToolbars() {
 
 function renderStructureTree() {
     const treeContainer = document.getElementById('bomTreeContainer');
-    const assemblies = bomData.items.filter(i => i.child_type === 'assembly' && !i.isSubAssemblyComponent);
+    // Include ALL assembly items in the tree — both direct and sub-assembly ones
+    const assemblies = bomData.items.filter(i => i.child_type === 'assembly');
 
     const buildNodes = (parentId, depth) => {
         const children = assemblies.filter(a => a.parent_item_id === parentId);
@@ -357,7 +358,7 @@ function renderStructureTree() {
                     <span class="tree-node-toggle" onclick="toggleTreeNode(event,'${child.id}')" style="opacity:${hasKids ? 1 : 0.25};pointer-events:${hasKids ? 'auto' : 'none'}">
                         <span class="material-icons-outlined" style="font-size:15px;">${hasKids ? (isExpanded ? 'expand_more' : 'chevron_right') : 'remove'}</span>
                     </span>
-                    <span class="material-icons-outlined" style="font-size:14px;color:#4f46e5;margin-right:4px;">account_tree</span>
+                    <span class="material-icons-outlined" style="font-size:14px;color:${child.isSubAssemblyComponent ? '#7c3aed' : '#4f46e5'};margin-right:4px;">account_tree</span>
                     <span class="tree-node-label" title="${child.child_part_code}">${child.child_part_code}</span>
                     <span class="material-icons-outlined" style="font-size:13px;color:var(--text-muted);margin-left:auto;opacity:0.6;" title="Open sub-assembly BOM">open_in_new</span>
                 </div>
@@ -566,19 +567,18 @@ function editSelectedItem() {
 // Build ordered flat list by pre-order traversal from a root parent
 function buildFlatOrderedList(rootParentId) {
     const result = [];
-    function walk(parentId, insideSubAsm) {
+    // At root level, hide isSubAssemblyComponent items (they belong to sub-BOMs)
+    // When drilled into a node, show everything under it
+    const isRootLevel = (rootParentId === null);
+    function walk(parentId) {
         const children = bomData.items.filter(i => i.parent_item_id === parentId);
         children.forEach(child => {
-            // Skip sub-assembly components unless we are already drilled into that sub-assembly
-            if (child.isSubAssemblyComponent && !insideSubAsm) return;
+            if (isRootLevel && child.isSubAssemblyComponent) return;
             result.push(child);
-            // Once inside a sub-assembly node, keep showing its children
-            walk(child.id, insideSubAsm || child.isSubAssemblyComponent);
+            walk(child.id);
         });
     }
-    // If rootParentId is a sub-assembly item itself, allow its children to show
-    const rootItem = rootParentId ? bomData.items.find(i => i.id === rootParentId) : null;
-    walk(rootParentId, rootItem ? !!rootItem.isSubAssemblyComponent : false);
+    walk(rootParentId);
     return result;
 }
 
