@@ -85,13 +85,23 @@ def _count_mfg_bom_items_sql(bom_id, tenant_id, visited=None):
     return total
 
 
+_part_desc_cache = {}
+
 def _lookup_part_description(part_code, tenant_id):
     """Look up part description from dynamic category tables (authoritative source)."""
+    if not part_code:
+        return ""
+    if part_code in _part_desc_cache:
+        return _part_desc_cache[part_code]
     import re as _re
     cats = db.session.execute(db.text(
         "SELECT name, series_prefix FROM part.categories WHERE is_deleted = false"
     )).fetchall()
-    for cat in cats:
+
+    prefix = part_code.split('.')[0].strip() if '.' in part_code else ''
+    sorted_cats = sorted(cats, key=lambda c: 0 if str(c[1]) == prefix else 1)
+
+    for cat in sorted_cats:
         tbl = 'part."{}_{}"'.format(
             _re.sub(r'[^a-z0-9]', '_', cat[0].lower().strip()).strip('_'), cat[1]
         )
@@ -100,9 +110,11 @@ def _lookup_part_description(part_code, tenant_id):
                 f"SELECT COALESCE(description, '') FROM {tbl} WHERE part_number = :p LIMIT 1"
             ), {"p": part_code}).scalar()
             if row:
+                _part_desc_cache[part_code] = row
                 return row
         except Exception:
             db.session.rollback()
+    _part_desc_cache[part_code] = ""
     return ""
 
 
@@ -1032,7 +1044,7 @@ def update_bom_item(bom_id, item_id):
     updates = []
     params = {"id": item_id, "bid": bom_id, "tid": tenant_id}
 
-    fields = ["quantity", "unit", "level", "reference", "notes", "material", "unit_cost", "status", "revision", "scrap_factor", "operation_ref", "procurement_type", "pinned_version"]
+    fields = ["quantity", "unit", "level", "parent_item_id", "reference", "notes", "material", "unit_cost", "status", "revision", "scrap_factor", "operation_ref", "procurement_type", "pinned_version"]
     for f in fields:
         if f in data:
             updates.append(f"{f}=:{f}")
@@ -1040,6 +1052,8 @@ def update_bom_item(bom_id, item_id):
                 params[f] = float(data[f] or 0)
             elif f == "level":
                 params[f] = int(data[f] or 1)
+            elif f == "parent_item_id":
+                params[f] = data[f] if data[f] else None
             else:
                 params[f] = data[f]
 

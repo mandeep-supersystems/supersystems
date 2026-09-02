@@ -8,6 +8,7 @@ let bomData = null;
 let activeBomTab = 'structure';
 let partSearchTimer = null;
 let expandedNodeIds = new Set();
+let gridCollapsedItemIds = new Set();
 
 // ─── SINGLE CLEAN LIST LOADER ───
 
@@ -220,6 +221,7 @@ function setupBomDetail(data) {
     currentBomId = bomData.id;
     currentSelectedItemId = null;
     treeBreadcrumb = [];
+    gridCollapsedItemIds.clear();
 
     document.getElementById('bomListPanel').style.display = 'none';
     document.getElementById('bomDetailPanel').style.display = 'block';
@@ -572,7 +574,6 @@ function editSelectedItem() {
 // Build ordered flat list by pre-order traversal from a root parent
 function buildFlatOrderedList(rootParentId) {
     const result = [];
-    const isRootLevel = (rootParentId === null);
     function walk(parentId) {
         const pid = parentId === null ? null : String(parentId);
         const children = bomData.items.filter(i => {
@@ -580,13 +581,40 @@ function buildFlatOrderedList(rootParentId) {
             return ipid === pid;
         });
         children.forEach(child => {
-            if (isRootLevel && child.isSubAssemblyComponent) return;
             result.push(child);
-            walk(child.id);
+            // If assembly is not collapsed in grid, include its children
+            if (!gridCollapsedItemIds.has(String(child.id))) {
+                walk(child.id);
+            }
         });
     }
     walk(rootParentId);
     return result;
+}
+
+function toggleGridItemCollapse(event, itemId) {
+    if (event) event.stopPropagation();
+    const idStr = String(itemId);
+    if (gridCollapsedItemIds.has(idStr)) {
+        gridCollapsedItemIds.delete(idStr);
+    } else {
+        gridCollapsedItemIds.add(idStr);
+    }
+    renderStructureGrid();
+}
+
+function toggleAllGridItems() {
+    const assembliesWithKids = bomData.items.filter(i => 
+        i.child_type === 'assembly' && bomData.items.some(k => String(k.parent_item_id) === String(i.id))
+    );
+    if (assembliesWithKids.length === 0) return;
+    const allExpanded = !assembliesWithKids.some(a => gridCollapsedItemIds.has(String(a.id)));
+    if (allExpanded) {
+        assembliesWithKids.forEach(a => gridCollapsedItemIds.add(String(a.id)));
+    } else {
+        gridCollapsedItemIds.clear();
+    }
+    renderStructureGrid();
 }
 
 function renderStructureGrid() {
@@ -606,7 +634,7 @@ function renderStructureGrid() {
     const label = document.getElementById('currentSelectedNodeLabel');
     if (label) {
         const node = currentSelectedItemId
-            ? bomData.items.find(i => i.id === currentSelectedItemId)
+            ? bomData.items.find(i => String(i.id) === String(currentSelectedItemId))
             : null;
         label.innerText = `Components — ${node ? node.child_part_code : bomData.fg_part_number}`;
     }
@@ -619,6 +647,24 @@ function renderStructureGrid() {
     if (countBadge) {
         countBadge.style.display = items.length > 0 ? 'inline-block' : 'none';
         countBadge.textContent = `${items.length} item${items.length !== 1 ? 's' : ''}`;
+    }
+
+    // Toggle button for Expand All / Collapse All
+    const toggleBtn = document.getElementById('btnToggleAllGrid');
+    const toggleIcon = document.getElementById('iconToggleAllGrid');
+    const toggleLabel = document.getElementById('labelToggleAllGrid');
+    const assembliesWithKids = bomData.items.filter(i => 
+        i.child_type === 'assembly' && bomData.items.some(k => String(k.parent_item_id) === String(i.id))
+    );
+    if (toggleBtn) {
+        if (assembliesWithKids.length > 0) {
+            toggleBtn.style.display = 'inline-flex';
+            const allExpanded = !assembliesWithKids.some(a => gridCollapsedItemIds.has(String(a.id)));
+            if (toggleIcon) toggleIcon.innerText = allExpanded ? 'unfold_less' : 'unfold_more';
+            if (toggleLabel) toggleLabel.innerText = allExpanded ? 'Collapse All' : 'Expand All';
+        } else {
+            toggleBtn.style.display = 'none';
+        }
     }
 
     if (items.length === 0) {
@@ -634,16 +680,26 @@ function renderStructureGrid() {
         return;
     }
 
-    // Compute base depth from parent_item_id chain (level DB column is unreliable)
-    const baseDepth = currentSelectedItemId ? computeItemDepth(String(currentSelectedItemId)) : 0;
+    const viewBaseDepth = currentSelectedItemId ? computeItemDepth(String(currentSelectedItemId)) : 1;
 
     tbody.innerHTML = items.map((item) => {
         const totalCost = (item.unit_cost || 0) * (item.quantity || 1);
         const isAssembly = item.child_type === 'assembly';
-        const level = (item.level || 1) - baseDepth;
+        const level = item.level || 1;
         const lvlColor = getLevelColor(level);
         const levelBadge = `<span style="display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;color:#fff;background:${lvlColor};min-width:24px;text-align:center;">L${level}</span>`;
-        const indent = (level - 1) * 20;
+        
+        // Relative indentation from current view
+        const relLevel = Math.max(0, level - viewBaseDepth);
+        const indent = relLevel * 20;
+
+        const hasKids = isAssembly && bomData.items.some(i => String(i.parent_item_id) === String(item.id));
+        const isCollapsed = gridCollapsedItemIds.has(String(item.id));
+        const collapseToggle = hasKids
+            ? `<button type="button" onclick="toggleGridItemCollapse(event, '${item.id}')" title="${isCollapsed ? 'Expand components' : 'Collapse components'}" style="background:none; border:none; cursor:pointer; padding:0 2px; margin-right:4px; vertical-align:middle; display:inline-flex; align-items:center; color:var(--text-secondary);">
+                   <span class="material-icons-outlined" style="font-size:16px;">${isCollapsed ? 'chevron_right' : 'expand_more'}</span>
+               </button>`
+            : (isAssembly ? `<span style="display:inline-block; width:18px;"></span>` : '');
 
         const typeBadge = isAssembly
             ? `<span style="display:inline-flex;align-items:center;gap:3px;background:#eef2ff;color:#4f46e5;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap;">
@@ -654,7 +710,7 @@ function renderStructureGrid() {
                </span>`;
 
         const partCodeCell = isAssembly
-            ? `<a onclick="loadBomDetailByPart('${item.child_part_code}')" href="javascript:void(0)"
+            ? `${collapseToggle}<a onclick="loadBomDetailByPart('${item.child_part_code}')" href="javascript:void(0)"
                   style="font-weight:700;color:#4f46e5;text-decoration:none;font-size:13px;"
                   title="Open sub-assembly BOM">${item.child_part_code}
                   <span class="material-icons-outlined" style="font-size:11px;vertical-align:middle;opacity:0.7;">open_in_new</span>
@@ -1147,7 +1203,7 @@ document.addEventListener('click', function(e) {
 
 function openAddBomItemModal(type) {
     if (currentSelectedItemId) {
-        const item = bomData.items.find(i => i.id === currentSelectedItemId);
+        const item = bomData.items.find(i => String(i.id) === String(currentSelectedItemId));
         if (item && item.isSubAssemblyComponent) {
             showToast('You cannot add items to a sub-assembly from this screen. Please open the sub-assembly BOM directly to edit it.', 'error');
             return;
@@ -1157,6 +1213,18 @@ function openAddBomItemModal(type) {
     document.getElementById('addBomItemModalTitle').innerText = type === 'assembly' ? 'Add Assembly to BOM' : 'Add Component to BOM';
     document.getElementById('abiParentId').value = currentSelectedItemId || '';
     document.getElementById('abiChildType').value = type;
+
+    // Populate Parent Assembly dropdown
+    const parentSelect = document.getElementById('abiParentSelect');
+    if (parentSelect) {
+        let opts = `<option value="">Root (Level 1) — ${bomData.fg_part_number}</option>`;
+        const directAssemblies = bomData.items.filter(i => i.child_type === 'assembly' && !i.isSubAssemblyComponent);
+        directAssemblies.forEach(a => {
+            const selected = (currentSelectedItemId && String(currentSelectedItemId) === String(a.id)) ? ' selected' : '';
+            opts += `<option value="${a.id}"${selected}>${a.child_part_code} — ${a.description || 'Assembly'} (Level ${(a.level || 1) + 1})</option>`;
+        });
+        parentSelect.innerHTML = opts;
+    }
 
     // Show/hide tabs — bulk only for components
     const tabBar = document.getElementById('abiTabBar');
@@ -1299,8 +1367,10 @@ async function submitBulkBomItems() {
     const errEl = document.getElementById('abiBulkError');
     errEl.style.display = 'none';
 
-    const parentId = document.getElementById('abiParentId').value || null;
-    const baseLevel = currentSelectedItemId ? ((bomData.items.find(i => String(i.id) === String(currentSelectedItemId))?.level || 0) + 1) : 1;
+    const parentSelect = document.getElementById('abiParentSelect');
+    const parentId = (parentSelect ? parentSelect.value : document.getElementById('abiParentId').value) || null;
+    const parentItem = parentId ? bomData.items.find(i => String(i.id) === String(parentId)) : null;
+    const baseLevel = parentItem ? ((parentItem.level || 1) + 1) : 1;
 
     const items = [];
     const seenInBatch = new Set();
@@ -1441,7 +1511,11 @@ async function saveNewBomItem(event) {
     const cno = document.getElementById('abiSelectedPart').value;
     if (!cno) { showToast('Please select a part from suggestions', 'error'); return; }
 
-    const parentId = document.getElementById('abiParentId').value || null;
+    const parentSelect = document.getElementById('abiParentSelect');
+    const parentId = (parentSelect ? parentSelect.value : document.getElementById('abiParentId').value) || null;
+    const parentItem = parentId ? bomData.items.find(i => String(i.id) === String(parentId)) : null;
+    const itemLevel = parentItem ? ((parentItem.level || 1) + 1) : 1;
+
     const isDuplicate = bomData.items.some(i =>
         !i.isSubAssemblyComponent &&
         i.child_part_code === cno &&
@@ -1455,7 +1529,7 @@ async function saveNewBomItem(event) {
         child_part_code: cno,
         quantity: parseFloat(document.getElementById('abiQty').value || 1),
         unit: document.getElementById('abiUnit').value || 'Nos',
-        level: currentSelectedItemId ? (computeItemDepth(String(currentSelectedItemId)) + 1) : 1,
+        level: itemLevel,
         reference: document.getElementById('abiReference').value || '',
         scrap_factor: parseFloat(document.getElementById('abiScrap').value || 0),
         operation_ref: document.getElementById('abiOpRef').value || '-01',
@@ -1476,7 +1550,7 @@ async function saveNewBomItem(event) {
 }
 
 async function openEditBomItemModal(itemId) {
-    const item = bomData.items.find(i => i.id === itemId);
+    const item = bomData.items.find(i => String(i.id) === String(itemId));
     if (!item) return;
     
     if (item.isSubAssemblyComponent) {
@@ -1491,6 +1565,20 @@ async function openEditBomItemModal(itemId) {
     if (document.getElementById('ebiReference')) document.getElementById('ebiReference').value = item.reference || '';
     document.getElementById('ebiScrap').value = item.scrap_factor;
     document.getElementById('ebiOpRef').value = item.operation_ref;
+
+    // Populate Parent Assembly dropdown
+    const parentSelect = document.getElementById('ebiParentSelect');
+    if (parentSelect) {
+        let opts = `<option value="">Root (Level 1) — ${bomData.fg_part_number}</option>`;
+        const directAssemblies = bomData.items.filter(i => 
+            i.child_type === 'assembly' && !i.isSubAssemblyComponent && String(i.id) !== String(itemId)
+        );
+        directAssemblies.forEach(a => {
+            const isSel = (item.parent_item_id && String(item.parent_item_id) === String(a.id)) ? ' selected' : '';
+            opts += `<option value="${a.id}"${isSel}>${a.child_part_code} — ${a.description || 'Assembly'} (Level ${(a.level || 1) + 1})</option>`;
+        });
+        parentSelect.innerHTML = opts;
+    }
     
     const procGroup = document.getElementById('ebiProcurementGroup');
     if (item.child_type === 'assembly') {
@@ -1507,8 +1595,14 @@ async function openEditBomItemModal(itemId) {
 async function saveEditBomItem(event) {
     event.preventDefault();
     const itemId = document.getElementById('ebiItemId').value;
+    const parentSelect = document.getElementById('ebiParentSelect');
+    const parentId = (parentSelect ? parentSelect.value : null) || null;
+    const parentItem = parentId ? bomData.items.find(i => String(i.id) === String(parentId)) : null;
+    const itemLevel = parentItem ? ((parentItem.level || 1) + 1) : 1;
     
     const payload = {
+        parent_item_id: parentId,
+        level: itemLevel,
         quantity: parseFloat(document.getElementById('ebiQty').value || 1),
         unit: document.getElementById('ebiUnit').value || 'Nos',
         reference: document.getElementById('ebiReference').value || '',
