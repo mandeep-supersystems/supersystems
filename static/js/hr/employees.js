@@ -22,7 +22,7 @@ function renderEmployeesTable() {
     </tr>`).join('');
 }
 
-function openAddEmployeeModal() {
+async function openAddEmployeeModal() {
     document.querySelectorAll('#addEmployeeModal input, #addEmployeeModal select').forEach(el => {
         if (el.type !== 'submit' && el.type !== 'button') {
             if (el.id === 'aeNationality') el.value = 'Indian';
@@ -32,6 +32,15 @@ function openAddEmployeeModal() {
         }
     });
     document.getElementById('experienceRows').innerHTML = '';
+    if (!criteriaList.length) {
+        try {
+            const res = await fetch(API + '/code-criteria', { headers: headers() });
+            const data = await res.json();
+            criteriaList = data.data || [];
+        } catch (err) {
+            console.warn('Could not load code criteria:', err);
+        }
+    }
     const sel = document.getElementById('aeCodeCriteria');
     sel.innerHTML = '<option value="">Select Code Criteria</option>' + criteriaList.map(c => `<option value="${c.id}">${c.name} (Next: ${buildPreview(c.prefix, c.prefix_separator, c.current_sequence+1, c.suffix_separator, c.suffix)})</option>`).join('');
     showEmpTab('personal');
@@ -98,9 +107,25 @@ async function saveEmployee(e) {
     };
     if (!body.code_criteria_id) { alert('Please select a Code Criteria'); return; }
     if (!body.first_name) { alert('First name is required'); return; }
-    const res = await fetch(API + '/employees', { method: 'POST', headers: headers(), body: JSON.stringify(body) });
-    const data = await res.json();
-    if (data.success) { closeModal('addEmployeeModal'); loadEmployees(); alert(`Employee created: ${data.data.emp_code}`); } else { alert(data.message); }
+    try {
+        const res = await fetch(API + '/employees', { method: 'POST', headers: headers(), body: JSON.stringify(body) });
+        let data;
+        try {
+            data = await res.json();
+        } catch (jsonErr) {
+            alert('Server error (' + res.status + '). Please try again.');
+            return;
+        }
+        if (data.success) {
+            closeModal('addEmployeeModal');
+            loadEmployees();
+            alert(`Employee created: ${data.data.emp_code}`);
+        } else {
+            alert(data.message || 'Failed to create employee');
+        }
+    } catch (netErr) {
+        alert('Network error: ' + netErr.message);
+    }
 }
 
 async function viewEmployee(id) {

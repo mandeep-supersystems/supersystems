@@ -36,13 +36,21 @@ def _log_audit(action, entity_type, entity_id, old_values=None, new_values=None)
         pass
 
 
+DEFAULT_TENANT_ID = 'b424df0e-f766-4e94-b3fd-05777e158958'
+
+
+def _get_tenant_id():
+    tid = (request.headers.get("X-Tenant-ID") or "").strip()
+    return tid if tid and tid not in ('TEST', '') else DEFAULT_TENANT_ID
+
+
 @hr_bp.route("/code-criteria", methods=["GET"])
 def list_code_criteria():
-    tenant_id = request.headers.get("X-Tenant-ID", "")
+    tenant_id = _get_tenant_id()
     rows = db.session.execute(db.text(
         "SELECT id, name, prefix, prefix_separator, code_start, current_sequence, "
         "suffix_separator, suffix, is_active, created_at "
-        "FROM hr.employee_code_criteria WHERE tenant_id = :tid AND is_deleted = false "
+        "FROM hr.employee_code_criteria WHERE (tenant_id = :tid OR tenant_id = 'b424df0e-f766-4e94-b3fd-05777e158958' OR tenant_id = '' OR tenant_id IS NULL) AND is_deleted = false "
         "ORDER BY created_at DESC"
     ), {"tid": tenant_id})
     items = [{"id": str(r[0]), "name": r[1], "prefix": r[2], "prefix_separator": r[3],
@@ -53,107 +61,129 @@ def list_code_criteria():
 
 @hr_bp.route("/code-criteria", methods=["POST"])
 def create_code_criteria():
-    data = request.get_json()
-    if not data.get("name") or data.get("code_start") is None:
-        return {"success": False, "message": "Name and Code Start are required"}, 400
-    tenant_id = request.headers.get("X-Tenant-ID", "")
-    # Check duplicate name
-    existing = db.session.execute(db.text(
-        "SELECT id FROM hr.employee_code_criteria WHERE LOWER(name) = LOWER(:name) AND tenant_id = :tid AND is_deleted = false"
-    ), {"name": data["name"], "tid": tenant_id}).first()
-    if existing:
-        return {"success": False, "message": "Code criteria with this name already exists"}, 409
-    cid = str(uuid.uuid4())
-    db.session.execute(db.text(
-        "INSERT INTO hr.employee_code_criteria (id, name, prefix, prefix_separator, code_start, "
-        "current_sequence, suffix_separator, suffix, tenant_id) "
-        "VALUES (:id, :name, :prefix, :psep, :start, :seq, :ssep, :suffix, :tid)"
-    ), {
-        "id": cid, "name": data["name"],
-        "prefix": data.get("prefix", ""), "psep": data.get("prefix_separator", ""),
-        "start": int(data["code_start"]),
-        "seq": int(data["code_start"]) - 1,  # so first generated = code_start
-        "ssep": data.get("suffix_separator", ""), "suffix": data.get("suffix", ""),
-        "tid": tenant_id
-    })
-    db.session.commit()
-    _log_audit('CREATE', 'Code Criteria', data['name'], new_values={
-        'name': data['name'], 'prefix': data.get('prefix', ''),
-        'code_start': data['code_start'], 'suffix': data.get('suffix', '')
-    })
-    return {"success": True, "data": {"id": cid}, "message": "Code criteria created"}, 201
+    try:
+        data = request.get_json() or {}
+        if not data.get("name") or data.get("code_start") is None:
+            return {"success": False, "message": "Name and Code Start are required"}, 400
+        tenant_id = request.headers.get("X-Tenant-ID", "")
+        # Check duplicate name
+        existing = db.session.execute(db.text(
+            "SELECT id FROM hr.employee_code_criteria WHERE LOWER(name) = LOWER(:name) AND tenant_id = :tid AND is_deleted = false"
+        ), {"name": data["name"], "tid": tenant_id}).first()
+        if existing:
+            return {"success": False, "message": "Code criteria with this name already exists"}, 409
+        cid = str(uuid.uuid4())
+        db.session.execute(db.text(
+            "INSERT INTO hr.employee_code_criteria (id, name, prefix, prefix_separator, code_start, "
+            "current_sequence, suffix_separator, suffix, tenant_id) "
+            "VALUES (:id, :name, :prefix, :psep, :start, :seq, :ssep, :suffix, :tid)"
+        ), {
+            "id": cid, "name": data["name"],
+            "prefix": data.get("prefix", ""), "psep": data.get("prefix_separator", ""),
+            "start": int(data["code_start"]),
+            "seq": int(data["code_start"]) - 1,  # so first generated = code_start
+            "ssep": data.get("suffix_separator", ""), "suffix": data.get("suffix", ""),
+            "tid": tenant_id
+        })
+        db.session.commit()
+        _log_audit('CREATE', 'Code Criteria', data['name'], new_values={
+            'name': data['name'], 'prefix': data.get('prefix', ''),
+            'code_start': data['code_start'], 'suffix': data.get('suffix', '')
+        })
+        return {"success": True, "data": {"id": cid}, "message": "Code criteria created"}, 201
+    except Exception as e:
+        db.session.rollback()
+        return {"success": False, "message": str(e)}, 500
 
 
 @hr_bp.route("/code-criteria/<cid>", methods=["PUT"])
 def update_code_criteria(cid):
-    data = request.get_json()
-    # Fetch old values before update
-    old = db.session.execute(db.text(
-        "SELECT name, prefix, prefix_separator, suffix_separator, suffix, code_start "
-        "FROM hr.employee_code_criteria WHERE id=:id"
-    ), {"id": cid}).first()
-    old_values = {"name": old[0], "prefix": old[1], "prefix_separator": old[2],
-                  "suffix_separator": old[3], "suffix": old[4], "code_start": old[5]} if old else {}
-    updates, params = [], {"id": cid}
-    for field in ["name", "prefix", "prefix_separator", "suffix_separator", "suffix"]:
-        if field in data:
-            updates.append(f"{field}=:{field}")
-            params[field] = data[field]
-    if "code_start" in data:
-        updates.append("code_start=:code_start")
-        params["code_start"] = int(data["code_start"])
-    if not updates:
-        return {"success": False, "message": "Nothing to update"}, 400
-    updates.append("updated_at=NOW()")
-    db.session.execute(db.text(
-        f"UPDATE hr.employee_code_criteria SET {', '.join(updates)} WHERE id=:id"
-    ), params)
-    db.session.commit()
-    new_values = {k: v for k, v in params.items() if k != 'id'}
-    _log_audit('UPDATE', 'Code Criteria', old_values.get('name', cid), old_values=old_values, new_values=new_values)
-    return {"success": True, "message": "Code criteria updated"}
+    try:
+        data = request.get_json() or {}
+        # Fetch old values before update
+        old = db.session.execute(db.text(
+            "SELECT name, prefix, prefix_separator, suffix_separator, suffix, code_start "
+            "FROM hr.employee_code_criteria WHERE id=:id"
+        ), {"id": cid}).first()
+        old_values = {"name": old[0], "prefix": old[1], "prefix_separator": old[2],
+                      "suffix_separator": old[3], "suffix": old[4], "code_start": old[5]} if old else {}
+        updates, params = [], {"id": cid}
+        for field in ["name", "prefix", "prefix_separator", "suffix_separator", "suffix"]:
+            if field in data:
+                updates.append(f"{field}=:{field}")
+                params[field] = data[field]
+        if "code_start" in data:
+            updates.append("code_start=:code_start")
+            params["code_start"] = int(data["code_start"])
+        if not updates:
+            return {"success": False, "message": "Nothing to update"}, 400
+        updates.append("updated_at=NOW()")
+        db.session.execute(db.text(
+            f"UPDATE hr.employee_code_criteria SET {', '.join(updates)} WHERE id=:id"
+        ), params)
+        db.session.commit()
+        new_values = {k: v for k, v in params.items() if k != 'id'}
+        _log_audit('UPDATE', 'Code Criteria', old_values.get('name', cid), old_values=old_values, new_values=new_values)
+        return {"success": True, "message": "Code criteria updated"}
+    except Exception as e:
+        db.session.rollback()
+        return {"success": False, "message": str(e)}, 500
 
 
 @hr_bp.route("/code-criteria/<cid>", methods=["DELETE"])
 def delete_code_criteria(cid):
-    row = db.session.execute(db.text(
-        "SELECT name FROM hr.employee_code_criteria WHERE id=:id"
-    ), {"id": cid}).first()
-    name = row[0] if row else cid
-    db.session.execute(db.text(
-        "UPDATE hr.employee_code_criteria SET is_deleted=true, updated_at=NOW() WHERE id=:id"
-    ), {"id": cid})
-    db.session.commit()
-    _log_audit('DELETE', 'Code Criteria', name, old_values={'name': name, 'id': cid})
-    return {"success": True, "message": "Code criteria deleted"}
+    try:
+        row = db.session.execute(db.text(
+            "SELECT name FROM hr.employee_code_criteria WHERE id=:id"
+        ), {"id": cid}).first()
+        name = row[0] if row else cid
+        db.session.execute(db.text(
+            "UPDATE hr.employee_code_criteria SET is_deleted=true, updated_at=NOW() WHERE id=:id"
+        ), {"id": cid})
+        db.session.commit()
+        _log_audit('DELETE', 'Code Criteria', name, old_values={'name': name, 'id': cid})
+        return {"success": True, "message": "Code criteria deleted"}
+    except Exception as e:
+        db.session.rollback()
+        return {"success": False, "message": str(e)}, 500
 
 
 # ─── EMPLOYEES ───
 
 def _generate_employee_code(criteria_id):
-    """Atomic increment and build employee code from criteria."""
-    row = db.session.execute(db.text(
-        "UPDATE hr.employee_code_criteria SET current_sequence = current_sequence + 1, updated_at = NOW() "
-        "WHERE id = :id RETURNING current_sequence, prefix, prefix_separator, suffix_separator, suffix"
-    ), {"id": criteria_id}).first()
-    if not row:
-        return None
-    seq, prefix, psep, ssep, suffix = row[0], row[1] or '', row[2] or '', row[3] or '', row[4] or ''
-    code = str(seq)
-    if prefix:
-        code = prefix + psep + code
-    if suffix:
-        code = code + ssep + suffix
-    return code
+    """Atomic increment and build employee code from criteria, guaranteeing uniqueness."""
+    max_attempts = 1000
+    attempts = 0
+    while attempts < max_attempts:
+        attempts += 1
+        row = db.session.execute(db.text(
+            "UPDATE hr.employee_code_criteria SET current_sequence = current_sequence + 1, updated_at = NOW() "
+            "WHERE id = :id RETURNING current_sequence, prefix, prefix_separator, suffix_separator, suffix"
+        ), {"id": criteria_id}).first()
+        if not row:
+            return None
+        seq, prefix, psep, ssep, suffix = row[0], row[1] or '', row[2] or '', row[3] or '', row[4] or ''
+        code = str(seq)
+        if prefix:
+            code = prefix + psep + code
+        if suffix:
+            code = code + ssep + suffix
+        # Verify uniqueness against active employees in database
+        exists = db.session.execute(db.text(
+            "SELECT 1 FROM hr.employees WHERE emp_code = :code"
+        ), {"code": code}).first()
+        if not exists:
+            return code
+    return None
 
 
 @hr_bp.route("/employees", methods=["GET"])
 def list_employees():
-    tenant_id = request.headers.get("X-Tenant-ID", "")
+    tenant_id = _get_tenant_id()
     rows = db.session.execute(db.text(
         "SELECT id, emp_code, first_name, last_name, email, phone, designation, "
         "department_id as department, date_of_joining, status, gender, employment_type, work_location, created_at "
-        "FROM hr.employees WHERE (tenant_id = :tid OR tenant_id = '' OR tenant_id IS NULL) AND is_deleted = false ORDER BY created_at DESC"
+        "FROM hr.employees WHERE (tenant_id = :tid OR tenant_id = 'b424df0e-f766-4e94-b3fd-05777e158958' OR tenant_id = '' OR tenant_id IS NULL) AND is_deleted = false ORDER BY created_at DESC"
     ), {"tid": tenant_id})
     items = [{"id": r[0], "emp_code": r[1], "first_name": r[2], "last_name": r[3] or '',
               "email": r[4] or '', "phone": r[5] or '', "designation": r[6] or '',
@@ -197,116 +227,124 @@ def get_employee(emp_id):
 
 @hr_bp.route("/employees", methods=["POST"])
 def create_employee():
-    data = request.get_json()
-    tenant_id = request.headers.get("X-Tenant-ID", "")
-    criteria_id = data.get("code_criteria_id")
-    if not criteria_id:
-        return {"success": False, "message": "Code criteria is required"}, 400
-    if not data.get("first_name"):
-        return {"success": False, "message": "First name is required"}, 400
+    try:
+        data = request.get_json() or {}
+        tenant_id = _get_tenant_id()
+        criteria_id = data.get("code_criteria_id")
+        if not criteria_id:
+            return {"success": False, "message": "Code criteria is required"}, 400
+        if not data.get("first_name"):
+            return {"success": False, "message": "First name is required"}, 400
 
-    # Generate employee code
-    emp_code = _generate_employee_code(criteria_id)
-    if not emp_code:
-        return {"success": False, "message": "Invalid code criteria"}, 400
+        # Generate unique employee code
+        emp_code = _generate_employee_code(criteria_id)
+        if not emp_code:
+            return {"success": False, "message": "Failed to generate unique employee code from criteria"}, 400
 
-    emp_id = str(uuid.uuid4())
-    created_by = request.headers.get('X-User-Name', '') or request.headers.get('X-User-Email', '')
+        emp_id = str(uuid.uuid4())
+        created_by = request.headers.get('X-User-Name', '') or request.headers.get('X-User-Email', '')
 
-    db.session.execute(db.text(
-        "INSERT INTO hr.employees (id, emp_code, code_criteria_id, first_name, last_name, email, phone, "
-        "date_of_birth, gender, blood_group, marital_status, nationality, "
-        "address, department_id, designation, date_of_joining, employment_type, "
-        "reporting_to, work_location, previous_experience, qualifications, "
-        "bank_details, pan_number, aadhar_number, uan_number, esi_number, "
-        "emergency_contact_name, emergency_contact_phone, emergency_contact_relation, "
-        "tenant_id, created_by, status) "
-        "VALUES (:id, :emp_code, :crit_id, :fname, :lname, :email, :phone, "
-        ":dob, :gender, :blood, :marital, :nationality, "
-        ":address, :dept, :desig, :doj, :emp_type, "
-        ":reporting, :location, :prev_exp, :quals, "
-        ":bank, :pan, :aadhar, :uan, :esi, "
-        ":ec_name, :ec_phone, :ec_relation, "
-        ":tid, :created_by, 'active')"
-    ), {
-        "id": emp_id, "emp_code": emp_code, "crit_id": criteria_id,
-        "fname": data["first_name"], "lname": data.get("last_name", ""),
-        "email": data.get("email", ""), "phone": data.get("phone", ""),
-        "dob": data.get("date_of_birth") or None, "gender": data.get("gender", ""),
-        "blood": data.get("blood_group", ""), "marital": data.get("marital_status", ""),
-        "nationality": data.get("nationality", "Indian"),
-        "address": json.dumps(data.get("address", {})),
-        "dept": data.get("department", ""), "desig": data.get("designation", ""),
-        "doj": data.get("date_of_joining") or None,
-        "emp_type": data.get("employment_type", "full_time"),
-        "reporting": data.get("reporting_to", ""), "location": data.get("work_location", ""),
-        "prev_exp": json.dumps(data.get("previous_experience", [])),
-        "quals": json.dumps(data.get("qualifications", [])),
-        "bank": json.dumps(data.get("bank_details", {})),
-        "pan": data.get("pan_number", ""), "aadhar": data.get("aadhar_number", ""),
-        "uan": data.get("uan_number", ""), "esi": data.get("esi_number", ""),
-        "ec_name": data.get("emergency_contact_name", ""),
-        "ec_phone": data.get("emergency_contact_phone", ""),
-        "ec_relation": data.get("emergency_contact_relation", ""),
-        "tid": tenant_id, "created_by": created_by
-    })
-    db.session.commit()
-    _log_audit('CREATE', 'Employee', emp_code, new_values={
-        'emp_code': emp_code, 'name': f"{data['first_name']} {data.get('last_name','')}".strip(),
-        'email': data.get('email', ''), 'designation': data.get('designation', ''),
-        'department': data.get('department', ''), 'employment_type': data.get('employment_type', '')
-    })
-    return {"success": True, "data": {"id": emp_id, "emp_code": emp_code}, "message": f"Employee created: {emp_code}"}, 201
+        db.session.execute(db.text(
+            "INSERT INTO hr.employees (id, emp_code, code_criteria_id, first_name, last_name, email, phone, "
+            "date_of_birth, gender, blood_group, marital_status, nationality, "
+            "address, department_id, designation, date_of_joining, employment_type, "
+            "reporting_to, work_location, previous_experience, qualifications, "
+            "bank_details, pan_number, aadhar_number, uan_number, esi_number, "
+            "emergency_contact_name, emergency_contact_phone, emergency_contact_relation, "
+            "tenant_id, created_by, status) "
+            "VALUES (:id, :emp_code, :crit_id, :fname, :lname, :email, :phone, "
+            ":dob, :gender, :blood, :marital, :nationality, "
+            ":address, :dept, :desig, :doj, :emp_type, "
+            ":reporting, :location, :prev_exp, :quals, "
+            ":bank, :pan, :aadhar, :uan, :esi, "
+            ":ec_name, :ec_phone, :ec_relation, "
+            ":tid, :created_by, 'active')"
+        ), {
+            "id": emp_id, "emp_code": emp_code, "crit_id": criteria_id,
+            "fname": data["first_name"], "lname": data.get("last_name", ""),
+            "email": data.get("email", ""), "phone": data.get("phone", ""),
+            "dob": data.get("date_of_birth") or None, "gender": data.get("gender", ""),
+            "blood": data.get("blood_group", ""), "marital": data.get("marital_status", ""),
+            "nationality": data.get("nationality", "Indian"),
+            "address": json.dumps(data.get("address", {})),
+            "dept": data.get("department", ""), "desig": data.get("designation", ""),
+            "doj": data.get("date_of_joining") or None,
+            "emp_type": data.get("employment_type", "full_time"),
+            "reporting": data.get("reporting_to", ""), "location": data.get("work_location", ""),
+            "prev_exp": json.dumps(data.get("previous_experience", [])),
+            "quals": json.dumps(data.get("qualifications", [])),
+            "bank": json.dumps(data.get("bank_details", {})),
+            "pan": data.get("pan_number", ""), "aadhar": data.get("aadhar_number", ""),
+            "uan": data.get("uan_number", ""), "esi": data.get("esi_number", ""),
+            "ec_name": data.get("emergency_contact_name", ""),
+            "ec_phone": data.get("emergency_contact_phone", ""),
+            "ec_relation": data.get("emergency_contact_relation", ""),
+            "tid": tenant_id, "created_by": created_by
+        })
+        db.session.commit()
+        _log_audit('CREATE', 'Employee', emp_code, new_values={
+            'emp_code': emp_code, 'name': f"{data['first_name']} {data.get('last_name','')}".strip(),
+            'email': data.get('email', ''), 'designation': data.get('designation', ''),
+            'department': data.get('department', ''), 'employment_type': data.get('employment_type', '')
+        })
+        return {"success": True, "data": {"id": emp_id, "emp_code": emp_code}, "message": f"Employee created: {emp_code}"}, 201
+    except Exception as e:
+        db.session.rollback()
+        return {"success": False, "message": str(e)}, 500
 
 
 @hr_bp.route("/employees/<emp_id>", methods=["PUT"])
 def update_employee(emp_id):
-    data = request.get_json()
-    # Fetch old values
-    old_row = db.session.execute(db.text(
-        "SELECT emp_code, first_name, last_name, email, phone, designation, "
-        "department_id, employment_type, status, work_location "
-        "FROM hr.employees WHERE id=:id"
-    ), {"id": emp_id}).first()
-    old_values = {}
-    emp_code = emp_id
-    if old_row:
-        emp_code = old_row[0] or emp_id
-        old_values = {
-            'emp_code': old_row[0], 'first_name': old_row[1], 'last_name': old_row[2],
-            'email': old_row[3], 'phone': old_row[4], 'designation': old_row[5],
-            'department': old_row[6], 'employment_type': old_row[7],
-            'status': old_row[8], 'work_location': old_row[9]
-        }
-    updates, params = [], {"id": emp_id}
-    simple_fields = ["first_name", "last_name", "email", "phone", "date_of_birth",
-                     "gender", "blood_group", "marital_status", "nationality",
-                     "designation", "date_of_joining", "employment_type",
-                     "reporting_to", "work_location", "pan_number", "aadhar_number",
-                     "uan_number", "esi_number", "emergency_contact_name",
-                     "emergency_contact_phone", "emergency_contact_relation", "status"]
-    for f in simple_fields:
-        if f in data:
-            updates.append(f"{f}=:{f}")
-            params[f] = data[f] if data[f] else None
-    if "department" in data:
-        updates.append("department_id=:department_id")
-        params["department_id"] = data["department"]
-    json_fields = ["address", "bank_details", "previous_experience", "qualifications"]
-    for f in json_fields:
-        if f in data:
-            updates.append(f"{f}=:{f}")
-            params[f] = json.dumps(data[f])
-    if not updates:
-        return {"success": False, "message": "Nothing to update"}, 400
-    updates.append("updated_at=NOW()")
-    db.session.execute(db.text(
-        f"UPDATE hr.employees SET {', '.join(updates)} WHERE id=:id"
-    ), params)
-    db.session.commit()
-    new_values = {k: v for k, v in params.items() if k != 'id' and k in old_values}
-    _log_audit('UPDATE', 'Employee', emp_code, old_values=old_values, new_values=new_values)
-    return {"success": True, "message": "Employee updated"}
+    try:
+        data = request.get_json() or {}
+        # Fetch old values
+        old_row = db.session.execute(db.text(
+            "SELECT emp_code, first_name, last_name, email, phone, designation, "
+            "department_id, employment_type, status, work_location "
+            "FROM hr.employees WHERE id=:id"
+        ), {"id": emp_id}).first()
+        old_values = {}
+        emp_code = emp_id
+        if old_row:
+            emp_code = old_row[0] or emp_id
+            old_values = {
+                'emp_code': old_row[0], 'first_name': old_row[1], 'last_name': old_row[2],
+                'email': old_row[3], 'phone': old_row[4], 'designation': old_row[5],
+                'department': old_row[6], 'employment_type': old_row[7],
+                'status': old_row[8], 'work_location': old_row[9]
+            }
+        updates, params = [], {"id": emp_id}
+        simple_fields = ["first_name", "last_name", "email", "phone", "date_of_birth",
+                         "gender", "blood_group", "marital_status", "nationality",
+                         "designation", "date_of_joining", "employment_type",
+                         "reporting_to", "work_location", "pan_number", "aadhar_number",
+                         "uan_number", "esi_number", "emergency_contact_name",
+                         "emergency_contact_phone", "emergency_contact_relation", "status"]
+        for f in simple_fields:
+            if f in data:
+                updates.append(f"{f}=:{f}")
+                params[f] = data[f] if data[f] else None
+        if "department" in data:
+            updates.append("department_id=:department_id")
+            params["department_id"] = data["department"]
+        json_fields = ["address", "bank_details", "previous_experience", "qualifications"]
+        for f in json_fields:
+            if f in data:
+                updates.append(f"{f}=:{f}")
+                params[f] = json.dumps(data[f])
+        if not updates:
+            return {"success": False, "message": "Nothing to update"}, 400
+        updates.append("updated_at=NOW()")
+        db.session.execute(db.text(
+            f"UPDATE hr.employees SET {', '.join(updates)} WHERE id=:id"
+        ), params)
+        db.session.commit()
+        new_values = {k: v for k, v in params.items() if k != 'id' and k in old_values}
+        _log_audit('UPDATE', 'Employee', emp_code, old_values=old_values, new_values=new_values)
+        return {"success": True, "message": "Employee updated"}
+    except Exception as e:
+        db.session.rollback()
+        return {"success": False, "message": str(e)}, 500
 
 
 @hr_bp.route("/employee-detail/<emp_id>", methods=["GET"])
@@ -387,15 +425,19 @@ def get_employee_detail(emp_id):
 
 @hr_bp.route("/employees/<emp_id>", methods=["DELETE"])
 def delete_employee(emp_id):
-    row = db.session.execute(db.text(
-        "SELECT emp_code, first_name, last_name, email, designation FROM hr.employees WHERE id=:id"
-    ), {"id": emp_id}).first()
-    emp_code = row[0] if row else emp_id
-    old_values = {'emp_code': row[0], 'name': f"{row[1]} {row[2]}".strip(),
-                  'email': row[3], 'designation': row[4]} if row else {}
-    db.session.execute(db.text(
-        "UPDATE hr.employees SET is_deleted=true, updated_at=NOW() WHERE id=:id"
-    ), {"id": emp_id})
-    db.session.commit()
-    _log_audit('DELETE', 'Employee', emp_code, old_values=old_values)
-    return {"success": True, "message": "Employee deleted"}
+    try:
+        row = db.session.execute(db.text(
+            "SELECT emp_code, first_name, last_name, email, designation FROM hr.employees WHERE id=:id"
+        ), {"id": emp_id}).first()
+        emp_code = row[0] if row else emp_id
+        old_values = {'emp_code': row[0], 'name': f"{row[1]} {row[2]}".strip(),
+                      'email': row[3], 'designation': row[4]} if row else {}
+        db.session.execute(db.text(
+            "UPDATE hr.employees SET is_deleted=true, updated_at=NOW() WHERE id=:id"
+        ), {"id": emp_id})
+        db.session.commit()
+        _log_audit('DELETE', 'Employee', emp_code, old_values=old_values)
+        return {"success": True, "message": "Employee deleted"}
+    except Exception as e:
+        db.session.rollback()
+        return {"success": False, "message": str(e)}, 500

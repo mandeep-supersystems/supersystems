@@ -118,13 +118,26 @@ def _lookup_part_description(part_code, tenant_id):
     return ""
 
 
+_cat_map_cache = {}
+def _get_category_map():
+    global _cat_map_cache
+    if not _cat_map_cache:
+        try:
+            cats = db.session.execute(db.text("SELECT series_prefix, name FROM part.categories WHERE is_deleted = false")).fetchall()
+            _cat_map_cache = {r[0]: r[1] for r in cats}
+        except Exception:
+            pass
+    return _cat_map_cache
+
 def _expand_mfg_bom_items_sql(bom_id, tenant_id, base_level=1, visited=None):
     if visited is None:
         visited = set()
+        _part_desc_cache.clear()
     if bom_id in visited:
         return []
     visited.add(bom_id)
 
+    cat_map = _get_category_map()
     rows = db.session.execute(db.text(
         "SELECT id, parent_item_id, child_type, child_part_code, quantity, unit, level, reference, notes, material, unit_cost, status, revision, scrap_factor, operation_ref, procurement_type, pinned_version "
         "FROM manufacturing_bom_items WHERE bom_id = :bid AND tenant_id = :tid ORDER BY level, id"
@@ -205,6 +218,9 @@ def _expand_mfg_bom_items_sql(bom_id, tenant_id, base_level=1, visited=None):
                 ), {"p": part_code, "tid": tenant_id}).scalar()
                 cost = float(stock_cost) if stock_cost is not None and float(stock_cost) > 0 else manual_cost
 
+        prefix = part_code.split('.')[0].strip() if '.' in part_code else (part_code.split('-')[0].strip() if '-' in part_code else '')
+        cat_name = cat_map.get(prefix, 'Assembly' if child_type == 'assembly' else 'Component')
+
         item_data = {
             "id": item_id,
             "parent_item_id": parent_id,
@@ -223,7 +239,9 @@ def _expand_mfg_bom_items_sql(bom_id, tenant_id, base_level=1, visited=None):
             "scrap_factor": scrap,
             "operation_ref": op_ref,
             "procurement_type": proc_type,
-            "pinned_version": pinned
+            "pinned_version": pinned,
+            "category_prefix": prefix,
+            "category_name": cat_name
         }
         if sub_bom_id:
             item_data["sub_bom_id"] = sub_bom_id
@@ -252,6 +270,7 @@ def _expand_mfg_bom_snapshots_sql(bom_id, version, tenant_id, base_level=1, visi
         return []
     visited.add(bom_id)
 
+    cat_map = _get_category_map()
     rows = db.session.execute(db.text(
         "SELECT original_item_id, parent_item_id, child_type, child_part_code, quantity, unit, level, reference, notes, material, unit_cost, status, revision, scrap_factor, operation_ref, procurement_type "
         "FROM manufacturing_bom_item_snapshots WHERE bom_id = :bid AND version = :v AND tenant_id = :tid ORDER BY level, original_item_id"
@@ -278,6 +297,9 @@ def _expand_mfg_bom_snapshots_sql(bom_id, version, tenant_id, base_level=1, visi
 
         desc = _lookup_part_description(part_code, tenant_id)
 
+        prefix = part_code.split('.')[0].strip() if '.' in part_code else (part_code.split('-')[0].strip() if '-' in part_code else '')
+        cat_name = cat_map.get(prefix, 'Assembly' if child_type == 'assembly' else 'Component')
+
         item_data = {
             "id": item_id,
             "parent_item_id": parent_id,
@@ -295,7 +317,9 @@ def _expand_mfg_bom_snapshots_sql(bom_id, version, tenant_id, base_level=1, visi
             "revision": rev,
             "scrap_factor": scrap,
             "operation_ref": op_ref,
-            "procurement_type": proc_type
+            "procurement_type": proc_type,
+            "category_prefix": prefix,
+            "category_name": cat_name
         }
 
         sub_bom_id = None
@@ -310,7 +334,12 @@ def _expand_mfg_bom_snapshots_sql(bom_id, version, tenant_id, base_level=1, visi
         expanded_items.append(item_data)
 
         if child_type == 'assembly' and proc_type == 'manufacturing' and sub_bom_id:
-            expanded_items.extend(_expand_mfg_bom_snapshots_sql(sub_bom_id, version, tenant_id, base_level + lvl, visited.copy()))
+            sub_snaps = _expand_mfg_bom_snapshots_sql(sub_bom_id, version, tenant_id, base_level + lvl, visited.copy())
+            for si in sub_snaps:
+                si["isSubAssemblyComponent"] = True
+                if si.get("parent_item_id") is None:
+                    si["parent_item_id"] = item_id
+            expanded_items.extend(sub_snaps)
 
     return expanded_items
 
@@ -1627,7 +1656,7 @@ def get_bom_costing_prices(bom_id):
     
     # Retrieve all unique parts in this BOM
     items = db.session.execute(db.text(
-        "SELECT DISTINCT child_part_code FROM manufacturing_bom_items WHERE bom_id = :bid AND tenant_id = :tid AND child_type = 'component'"
+        "SELECT DISTINCT child_part_code FROM manufacturing_bom_items WHERE bom_id = :bid AND tenant_id = :tid AND child_type = 'component' ORDER BY child_part_code"
     ), {"bid": bom_id, "tid": tenant_id}).fetchall()
 
     parts_list = [r[0] for r in items]

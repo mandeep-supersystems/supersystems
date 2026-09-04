@@ -236,14 +236,117 @@ def _generate_next_part_number(cat_series, sub_series, category_id, separator='-
 
 
 def _build_description(columns_config, col_values, desc_columns, cat_name, sub_name, cat_code=None):
-    """Build description: cat_code + selected column values (comma separated)."""
-    parts = [cat_code or cat_name]
-    if desc_columns:
-        for col_name in desc_columns:
-            val = col_values.get(col_name, '')
-            if val and str(val).strip():
-                parts.append(str(val).strip())
-    return ', '.join(parts)
+    """Build description with category code first, formatted according to category-specific rules."""
+    def get(k):
+        v = col_values.get(k)
+        if v is None:
+            return ''
+        v_str = str(v).strip()
+        return v_str if v_str.lower() not in ('none', 'null') else ''
+
+    parts = []
+    code = (cat_code or '').strip()
+    cname = (cat_name or '').strip()
+    sname = (sub_name or '').strip()
+    cat_lower = cname.lower()
+
+    if 'mosfet' in cat_lower or code == 'MOS':
+        # mosfet - category, sub category, Value, Drain source voltage, Drain current, Mounting type
+        header = [code or 'MOS', cname or 'MOSFET']
+        if sname and sname != cname:
+            header.append(sname)
+        parts.extend(header)
+        for val in [get('value'), get('drain_source_voltage'), get('drain_current'), get('mounting_type')]:
+            if val:
+                parts.append(val)
+
+    elif 'resistor' in cat_lower or code == 'Res':
+        # resistor - Value, Package, Mounting type, rated power, tolerance
+        parts.append(code or 'Res')
+        for val in [get('value'), get('package_size') or get('package'), get('mounting_type'), get('rated_power'), get('tolerance')]:
+            if val:
+                parts.append(val)
+
+    elif 'capacitor' in cat_lower or code == 'Cap':
+        # capacitor- Sub category, Value, Voltage, Package type, Mounting type
+        parts.append(code or 'Cap')
+        if sname:
+            parts.append(sname)
+        for val in [get('value'), get('voltage'), get('package_size') or get('package_height'), get('mounting_type')]:
+            if val:
+                parts.append(val)
+
+    elif 'connector' in cat_lower or code in ('Con', 'Conn'):
+        # connector- conn, sub category, Gender, No of pin, pitch, orientation, no of row(row), connector type
+        parts.append('Conn')
+        if sname:
+            parts.append(sname)
+        pin_val = get('no_of_pins')
+        if pin_val and not pin_val.lower().endswith(('pin', 'pins', 'p')):
+            pin_val = f"{pin_val} Pin"
+        row_val = get('no_of_rows')
+        if row_val and not row_val.lower().endswith(('row', 'rows', 'r')):
+            row_val = f"{row_val} Row"
+        for val in [get('gender'), pin_val, get('pitch'), get('orientation'), row_val, get('connector_type')]:
+            if val:
+                parts.append(val)
+
+    elif 'screw' in cat_lower or code == 'SCR':
+        # screw- category, sub category, size, length, material, finish/coating
+        header = [code or 'SCR', cname or 'Screw']
+        if sname and sname != cname:
+            header.append(sname)
+        parts.extend(header)
+        for val in [get('size'), get('length'), get('material'), get('finish_coating')]:
+            if val:
+                parts.append(val)
+
+    elif 'washer' in cat_lower or code == 'WAS':
+        # washer- category, sub category, size, material, finish/coating
+        header = [code or 'WAS', cname or 'Washer']
+        if sname and sname != cname:
+            header.append(sname)
+        parts.extend(header)
+        for val in [get('size'), get('material'), get('finish_coating')]:
+            if val:
+                parts.append(val)
+
+    elif 'relay' in cat_lower or code == 'Relay':
+        # relay- category, value, coil voltage, current rating, no. of pin(pin)
+        header = [code or 'Relay']
+        if sname and sname != cname:
+            header.append(sname)
+        parts.extend(header)
+        pin_val = get('no_of_pins')
+        if pin_val and not pin_val.lower().endswith(('pin', 'pins', 'p')):
+            pin_val = f"{pin_val} Pin"
+        for val in [get('value'), get('coil_voltage'), get('current_rating'), pin_val]:
+            if val:
+                parts.append(val)
+
+    else:
+        # Generic fallback
+        parts.append(code or cname)
+        if desc_columns:
+            for col_name in desc_columns:
+                val = get(col_name)
+                if val:
+                    parts.append(val)
+        else:
+            if sname and sname != cname:
+                parts.append(sname)
+            for k in ['value', 'package_size', 'voltage', 'current', 'power', 'material']:
+                val = get(k)
+                if val:
+                    parts.append(val)
+
+    cleaned = []
+    for p in parts:
+        p_clean = str(p).strip(', ')
+        if p_clean and p_clean not in cleaned:
+            cleaned.append(p_clean)
+    return ', '.join(cleaned)
+
 
 
 # ─── CATEGORIES ───
@@ -1644,8 +1747,13 @@ def update_part_attributes():
             new_description = None
 
         if set_clauses:
+            tbl_plain = re.sub(r'[^a-zA-Z0-9_]', '', table_name.replace('part.', ''))
+            has_updated_at = db.session.execute(db.text(
+                "SELECT 1 FROM information_schema.columns WHERE table_schema = 'part' AND table_name = :t AND column_name = 'updated_at'"
+            ), {"t": tbl_plain}).scalar()
+            upd_clause = ", updated_at = NOW()" if has_updated_at else ""
             db.session.execute(db.text(
-                f"UPDATE {table_name} SET {', '.join(set_clauses)}, updated_at = NOW() WHERE part_number = :pn"
+                f"UPDATE {table_name} SET {', '.join(set_clauses)}{upd_clause} WHERE part_number = :pn"
             ), params)
         _log_audit('UPDATE', 'Part', part_number, f'Attributes updated', new_values=fields)
         db.session.commit()

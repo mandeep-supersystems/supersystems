@@ -7,7 +7,17 @@ async function safeJson(res) {
 
 function showTab(name) {
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    document.getElementById('tab-' + name).classList.add('active');
+    document.querySelectorAll('.section-actions button').forEach(b => {
+        if (b.getAttribute('onclick') && b.getAttribute('onclick').includes(`'${name}'`)) {
+            b.classList.remove('btn-outline');
+            b.classList.add('btn-primary');
+        } else if (b.getAttribute('onclick') && b.getAttribute('onclick').includes('showTab')) {
+            b.classList.remove('btn-primary');
+            b.classList.add('btn-outline');
+        }
+    });
+    const panel = document.getElementById('tab-' + name);
+    if (panel) panel.classList.add('active');
     if (name === 'attendance') loadAttendance();
     if (name === 'shifts') loadShifts();
     if (name === 'roster') loadRoster();

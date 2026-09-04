@@ -9,6 +9,7 @@ let activeBomTab = 'structure';
 let partSearchTimer = null;
 let expandedNodeIds = new Set();
 let gridCollapsedItemIds = new Set();
+let activeBomCategoryFilter = 'ALL';
 
 // ─── SINGLE CLEAN LIST LOADER ───
 
@@ -222,6 +223,7 @@ function setupBomDetail(data) {
     currentSelectedItemId = null;
     treeBreadcrumb = [];
     gridCollapsedItemIds.clear();
+    activeBomCategoryFilter = 'ALL';
 
     document.getElementById('bomListPanel').style.display = 'none';
     document.getElementById('bomDetailPanel').style.display = 'block';
@@ -351,6 +353,7 @@ function renderStructureTree() {
             const apid = a.parent_item_id === null ? null : String(a.parent_item_id);
             return apid === pid;
         });
+        children.sort((a, b) => (a.child_part_code || '').localeCompare(b.child_part_code || '', undefined, { numeric: true }));
         if (!children.length) return '';
         let html = '';
         children.forEach(child => {
@@ -566,7 +569,250 @@ function editSelectedItem() {
     const selected = document.querySelector('.item-selector-cb:checked');
     if (!selected) return;
     const itemId = selected.getAttribute('data-item-id');
-    openEditBomItemModal(itemId);
+    if (itemId) openEditBomItemModal(itemId);
+}
+
+// ─── CATEGORY HELPERS & ORDERING ───
+
+const BOM_CATEGORY_NAMES = {
+    '101': 'Resistor',
+    '102': 'Capacitor',
+    '103': 'Diode',
+    '104': 'Transistor',
+    '105': 'MOSFET',
+    '106': 'IC',
+    '108': 'Power IC',
+    '109': 'Insulator',
+    '110': 'Transformer',
+    '111': 'Protection',
+    '112': 'Module',
+    '114': 'Connector',
+    '115': 'Header',
+    '117': 'Relay',
+    '118': 'Switch',
+    '119': 'LCD Module',
+    '120': 'LED',
+    '121': 'Sensor',
+    '124': 'Antenna',
+    '126': 'Heat Shrink Sleeve',
+    '141': 'Magnetics - Cores',
+    '142': 'Magnetics - Bobbin',
+    '151': 'Heatsink',
+    '152': 'Screw',
+    '153': 'Washer',
+    '154': 'Grommet',
+    '155': 'Spacer',
+    '156': 'Bolt',
+    '157': 'Din Rail Mount',
+    '158': 'Thimble',
+    '159': 'Thermal',
+    '160': 'Nut',
+    '161': 'Revit',
+    '162': 'Stickers',
+    '163': 'Motor',
+    '180': 'Mechanical',
+    '187': 'Cable',
+    '196': 'Fan',
+    '197': 'Crimping Pin',
+    '198': 'Thermistor',
+    '199': 'Inductor',
+    '901': 'Assembly',
+    '902': 'Assembly',
+    '903': 'Assembly'
+};
+
+function getBomItemCategory(item) {
+    if (item.child_type === 'assembly') {
+        const m = (item.child_part_code || '').match(/^(\d+)/);
+        const pfx = m ? m[1] : '901';
+        return {
+            prefix: pfx,
+            name: item.category_name || BOM_CATEGORY_NAMES[pfx] || 'Assembly',
+            isAssembly: true
+        };
+    }
+    const code = item.child_part_code || '';
+    const m = code.match(/^(\d+)/);
+    const pfx = m ? m[1] : (code.split('.')[0] || '999');
+    return {
+        prefix: pfx,
+        name: item.category_name || BOM_CATEGORY_NAMES[pfx] || 'Component',
+        isAssembly: false
+    };
+}
+
+function compareBomItemsByCategory(a, b) {
+    const isAssyA = (a.child_type === 'assembly');
+    const isAssyB = (b.child_type === 'assembly');
+    if (isAssyA !== isAssyB) {
+        return isAssyA ? -1 : 1; // Assemblies always appear at top of level
+    }
+    const catA = getBomItemCategory(a);
+    const catB = getBomItemCategory(b);
+    const numA = parseInt(catA.prefix, 10) || 9999;
+    const numB = parseInt(catB.prefix, 10) || 9999;
+    if (numA !== numB) {
+        return numA - numB; // Numerical category prefix order (101 < 102 < 103 < ... < 152 < 180)
+    }
+    // Natural alphanumeric collation by child_part_code
+    return (a.child_part_code || '').localeCompare(b.child_part_code || '', undefined, { numeric: true, sensitivity: 'base' });
+}
+
+function getCategoryBadgeStyle(prefix, catName, isAssembly) {
+    if (isAssembly || prefix.startsWith('9')) {
+        return {
+            icon: 'account_tree',
+            label: `${prefix} · ${catName || 'Assembly'}`,
+            bg: '#eef2ff',
+            color: '#4f46e5'
+        };
+    }
+    const num = parseInt(prefix, 10) || 0;
+    if (num >= 101 && num <= 112) {
+        const iconMap = { '101': 'electric_bolt', '102': 'offline_bolt', '103': 'arrow_forward', '105': 'memory', '106': 'developer_board', '110': 'transform' };
+        return {
+            icon: iconMap[prefix] || 'memory',
+            label: `${prefix} · ${catName}`,
+            bg: '#f0fdf4',
+            color: '#16a34a'
+        };
+    }
+    if (num >= 114 && num <= 126) {
+        const iconMap = { '114': 'cable', '120': 'lightbulb', '121': 'sensors', '187': 'cable' };
+        return {
+            icon: iconMap[prefix] || 'settings_input_component',
+            label: `${prefix} · ${catName}`,
+            bg: '#eff6ff',
+            color: '#2563eb'
+        };
+    }
+    if (num >= 151 && num <= 161) {
+        const iconMap = { '151': 'view_in_ar', '152': 'build', '153': 'radio_button_unchecked', '156': 'hardware' };
+        return {
+            icon: iconMap[prefix] || 'build',
+            label: `${prefix} · ${catName}`,
+            bg: '#fef3c7',
+            color: '#d97706'
+        };
+    }
+    if (num === 162) {
+        return {
+            icon: 'label',
+            label: `${prefix} · ${catName}`,
+            bg: '#fdf2f8',
+            color: '#db2777'
+        };
+    }
+    if (num >= 180 && num <= 199) {
+        return {
+            icon: num === 196 ? 'toys' : 'view_in_ar',
+            label: `${prefix} · ${catName}`,
+            bg: '#f3e8ff',
+            color: '#9333ea'
+        };
+    }
+    return {
+        icon: 'settings_input_component',
+        label: `${prefix} · ${catName}`,
+        bg: '#f1f5f9',
+        color: '#475569'
+    };
+}
+
+let currentCategoryFilter = 'all';
+
+function setCategoryFilter(prefix) {
+    currentCategoryFilter = prefix;
+    renderCategoryPills();
+    applyGridFilters();
+}
+
+function renderCategoryPills() {
+    const pillsBar = document.getElementById('bomCategoryPillsBar');
+    if (!pillsBar || !bomData || !bomData.items) return;
+
+    const items = buildFlatOrderedList(currentSelectedItemId);
+    if (!items || items.length === 0) {
+        pillsBar.style.display = 'none';
+        pillsBar.innerHTML = '';
+        return;
+    }
+    pillsBar.style.display = 'flex';
+
+    const catCounts = {};
+    items.forEach(it => {
+        const cat = getBomItemCategory(it);
+        const k = cat.prefix;
+        if (!catCounts[k]) {
+            catCounts[k] = { prefix: k, name: cat.name, count: 0, isAssembly: cat.isAssembly };
+        }
+        catCounts[k].count++;
+    });
+
+    const catKeys = Object.keys(catCounts).sort((a, b) => {
+        if (a.startsWith('9') !== b.startsWith('9')) return a.startsWith('9') ? -1 : 1;
+        return (parseInt(a, 10) || 0) - (parseInt(b, 10) || 0);
+    });
+
+    let pillsHtml = `
+        <button type="button" class="bom-cat-pill${currentCategoryFilter === 'all' ? ' active' : ''}" onclick="setCategoryFilter('all')"
+            style="padding:3px 10px; border-radius:14px; font-size:11px; font-weight:700; cursor:pointer; border:1px solid ${currentCategoryFilter === 'all' ? 'var(--accent)' : 'var(--border-color)'}; background:${currentCategoryFilter === 'all' ? 'var(--accent)' : 'var(--bg-primary)'}; color:${currentCategoryFilter === 'all' ? '#fff' : 'var(--text-secondary)'}; transition:all 0.15s;">
+            All (${items.length})
+        </button>
+    `;
+
+    catKeys.forEach(pfx => {
+        const c = catCounts[pfx];
+        const isActive = (currentCategoryFilter === pfx);
+        const badgeStyle = getCategoryBadgeStyle(pfx, c.name, c.isAssembly);
+        pillsHtml += `
+            <button type="button" class="bom-cat-pill${isActive ? ' active' : ''}" onclick="setCategoryFilter('${pfx}')"
+                style="padding:3px 9px; border-radius:14px; font-size:11px; font-weight:600; cursor:pointer; border:1px solid ${isActive ? badgeStyle.color : 'var(--border-color)'}; background:${isActive ? badgeStyle.bg : 'var(--bg-primary)'}; color:${isActive ? badgeStyle.color : 'var(--text-secondary)'}; display:inline-flex; align-items:center; gap:4px; transition:all 0.15s;">
+                <span class="material-icons-outlined" style="font-size:12px; color:${badgeStyle.color};">${badgeStyle.icon}</span>
+                <span>${c.name} (${c.prefix})</span>
+                <span style="background:${isActive ? badgeStyle.color : 'var(--bg-secondary)'}; color:${isActive ? '#fff' : 'var(--text-muted)'}; padding:0 5px; border-radius:8px; font-size:10px; font-weight:700;">${c.count}</span>
+            </button>
+        `;
+    });
+    pillsBar.innerHTML = pillsHtml;
+}
+
+function applyGridFilters() {
+    const gridSearch = document.getElementById('bomGridSearch');
+    const term = gridSearch ? gridSearch.value.trim().toLowerCase() : '';
+    const rows = document.querySelectorAll('#bomItemsTableBody tr');
+    let visible = 0;
+
+    const visibleGroupKeys = new Set();
+
+    rows.forEach(row => {
+        if (row.classList.contains('bom-item-data-row')) {
+            const pfx = row.getAttribute('data-cat-prefix');
+            const groupKey = row.getAttribute('data-group-key');
+            const catMatch = (currentCategoryFilter === 'all' || pfx === currentCategoryFilter);
+            const searchMatch = !term || row.innerText.toLowerCase().includes(term);
+            const isVisible = catMatch && searchMatch;
+            row.style.display = isVisible ? '' : 'none';
+            if (isVisible) {
+                visible++;
+                if (groupKey) visibleGroupKeys.add(groupKey);
+            }
+        }
+    });
+
+    rows.forEach(row => {
+        if (row.classList.contains('bom-cat-divider-row')) {
+            const groupKey = row.getAttribute('data-group-key');
+            const pfx = row.getAttribute('data-cat-prefix');
+            const catMatch = (currentCategoryFilter === 'all' || pfx === currentCategoryFilter);
+            row.style.display = (catMatch && visibleGroupKeys.has(groupKey)) ? '' : 'none';
+        }
+    });
+
+    const badge = document.getElementById('bomItemCountBadge');
+    if (badge) {
+        badge.textContent = `${visible} item${visible !== 1 ? 's' : ''}`;
+    }
 }
 
 // ─── GRID / TABLE ITEMS RENDER ───
@@ -580,9 +826,12 @@ function buildFlatOrderedList(rootParentId) {
             const ipid = i.parent_item_id === null ? null : String(i.parent_item_id);
             return ipid === pid;
         });
+        // Category-wise sorting: Assemblies first, then numerical categories, then natural part code
+        children.sort(compareBomItemsByCategory);
+
         children.forEach(child => {
             result.push(child);
-            // If assembly is not collapsed in grid, include its children
+            // If assembly is not collapsed in grid, include its children recursively
             if (!gridCollapsedItemIds.has(String(child.id))) {
                 walk(child.id);
             }
@@ -640,6 +889,9 @@ function renderStructureGrid() {
     }
     renderBomBreadcrumb();
 
+    // Render category quick filter pills
+    renderCategoryPills();
+
     // Update count badge and clear search
     const countBadge = document.getElementById('bomItemCountBadge');
     const gridSearch = document.getElementById('bomGridSearch');
@@ -682,7 +934,22 @@ function renderStructureGrid() {
 
     const viewBaseDepth = currentSelectedItemId ? computeItemDepth(String(currentSelectedItemId)) : 1;
 
-    tbody.innerHTML = items.map((item) => {
+    // Precalculate counts per parent and category prefix
+    const groupCounts = {};
+    items.forEach(it => {
+        const cat = getBomItemCategory(it);
+        const parentKey = it.parent_item_id === null ? '__root__' : String(it.parent_item_id);
+        const gkey = parentKey + '::' + cat.prefix;
+        groupCounts[gkey] = (groupCounts[gkey] || 0) + 1;
+    });
+
+    let lastGroupKey = null;
+    const rowsHtml = [];
+
+    items.forEach((item) => {
+        const cat = getBomItemCategory(item);
+        const parentKey = item.parent_item_id === null ? '__root__' : String(item.parent_item_id);
+        const groupKey = parentKey + '::' + cat.prefix;
         const totalCost = (item.unit_cost || 0) * (item.quantity || 1);
         const isAssembly = item.child_type === 'assembly';
         const level = item.level || 1;
@@ -693,6 +960,25 @@ function renderStructureGrid() {
         const relLevel = Math.max(0, level - viewBaseDepth);
         const indent = relLevel * 20;
 
+        const badgeStyle = getCategoryBadgeStyle(cat.prefix, cat.name, isAssembly);
+
+        // Section divider row between different categories under the same parent
+        if (groupKey !== lastGroupKey) {
+            lastGroupKey = groupKey;
+            const gCount = groupCounts[groupKey] || 1;
+            rowsHtml.push(`
+                <tr class="bom-cat-divider-row" data-cat-prefix="${cat.prefix}" data-group-key="${groupKey}" style="background:var(--bg-secondary); border-top:1px solid var(--border-color);">
+                    <td colspan="11" style="padding:5px 12px; padding-left:${indent + 12}px; font-size:11px; font-weight:700;">
+                        <span style="display:inline-flex; align-items:center; gap:6px;">
+                            <span class="material-icons-outlined" style="font-size:14px; color:${badgeStyle.color};">${badgeStyle.icon}</span>
+                            <span style="color:var(--text-primary); text-transform:uppercase; letter-spacing:0.4px;">${cat.name} (${cat.prefix})</span>
+                            <span style="background:var(--bg-primary); padding:1px 6px; border-radius:10px; font-size:10px; font-weight:600; color:var(--text-secondary); border:1px solid var(--border-color); margin-left:4px;">${gCount} item${gCount !== 1 ? 's' : ''}</span>
+                        </span>
+                    </td>
+                </tr>
+            `);
+        }
+
         const hasKids = isAssembly && bomData.items.some(i => String(i.parent_item_id) === String(item.id));
         const isCollapsed = gridCollapsedItemIds.has(String(item.id));
         const collapseToggle = hasKids
@@ -701,13 +987,9 @@ function renderStructureGrid() {
                </button>`
             : (isAssembly ? `<span style="display:inline-block; width:18px;"></span>` : '');
 
-        const typeBadge = isAssembly
-            ? `<span style="display:inline-flex;align-items:center;gap:3px;background:#eef2ff;color:#4f46e5;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap;">
-                   <span class="material-icons-outlined" style="font-size:11px;">account_tree</span>Assembly
-               </span>`
-            : `<span style="display:inline-flex;align-items:center;gap:3px;background:#f0fdf4;color:#16a34a;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap;">
-                   <span class="material-icons-outlined" style="font-size:11px;">settings_input_component</span>Component
-               </span>`;
+        const typeBadge = `<span style="display:inline-flex;align-items:center;gap:3px;background:${badgeStyle.bg};color:${badgeStyle.color};padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap;border:1px solid ${badgeStyle.color}22;" title="${cat.prefix} · ${cat.name}">
+            <span class="material-icons-outlined" style="font-size:11px;">${badgeStyle.icon}</span>${badgeStyle.label}
+        </span>`;
 
         const partCodeCell = isAssembly
             ? `${collapseToggle}<a onclick="loadBomDetailByPart('${item.child_part_code}')" href="javascript:void(0)"
@@ -729,8 +1011,8 @@ function renderStructureGrid() {
                </td>`
             : `<td></td>`;
 
-        return `
-            <tr style="transition:background 0.12s;" onmouseover="this.style.background='var(--bg-secondary)'" onmouseout="this.style.background=''">
+        rowsHtml.push(`
+            <tr class="bom-item-data-row" data-cat-prefix="${cat.prefix}" data-group-key="${groupKey}" style="transition:background 0.12s;" onmouseover="this.style.background='var(--bg-secondary)'" onmouseout="this.style.background=''">
                 <td style="text-align:center;overflow:hidden;">
                     ${item.isSubAssemblyComponent
                         ? `<span title="Belongs to sub-assembly BOM — edit there" style="color:var(--text-muted);cursor:default;">
@@ -748,45 +1030,146 @@ function renderStructureGrid() {
                 <td style="overflow:hidden;">
                     ${editMode && !item.isSubAssemblyComponent
                         ? `<input type="text" value="${(item.reference || '').replace(/"/g, '&quot;')}" placeholder="—"
-                               onblur="inlineUpdateReference('${item.id}', this.value)"
-                               onkeydown="if(event.key==='Enter')this.blur()"
-                               style="width:100%;padding:3px 6px;border:1px solid var(--border-color);border-radius:3px;font-size:11px;background:var(--bg-primary);color:var(--text-primary);outline:none;">`
+                                onblur="inlineUpdateReference('${item.id}', this.value)"
+                                onkeydown="if(event.key==='Enter')this.blur()"
+                                style="width:100%;padding:3px 6px;border:1px solid var(--border-color);border-radius:3px;font-size:11px;background:var(--bg-primary);color:var(--text-primary);outline:none;">`
                         : `<div style="font-size:11px;color:var(--text-secondary);word-break:break-word;" title="${item.reference || ''}">${item.reference || '—'}</div>`
                     }
                 </td>
                 <td style="text-align:right;font-size:12px;color:var(--text-muted);overflow:hidden;">Rs. ${(item.unit_cost || 0).toFixed(2)}</td>
                 <td style="text-align:right;font-weight:700;color:#10b981;overflow:hidden;">Rs. ${totalCost.toFixed(2)}</td>
                 ${actionsTd}
-            </tr>`;
-    }).join('');
+            </tr>
+        `);
+    });
+
+    tbody.innerHTML = rowsHtml.join('');
+    applyGridFilters();
 }
 
 
-// ─── INLINE GRID SEARCH ───
+// ─── CATEGORY PILLS & INLINE GRID SEARCH ───
+
+function renderCategoryPills() {
+    const pillsBar = document.getElementById('bomCategoryPillsBar');
+    if (!pillsBar) return;
+    if (!bomData || !bomData.items || bomData.items.length === 0) {
+        pillsBar.style.display = 'none';
+        pillsBar.innerHTML = '';
+        return;
+    }
+
+    const items = buildFlatOrderedList(currentSelectedItemId);
+    if (items.length === 0) {
+        pillsBar.style.display = 'none';
+        pillsBar.innerHTML = '';
+        return;
+    }
+
+    const counts = {};
+    const names = {};
+    items.forEach(it => {
+        const cat = getBomItemCategory(it);
+        counts[cat.prefix] = (counts[cat.prefix] || 0) + 1;
+        names[cat.prefix] = cat.name;
+    });
+
+    const prefixes = Object.keys(counts).sort((a, b) => {
+        if (a === '901') return -1;
+        if (b === '901') return 1;
+        return (names[a] || '').localeCompare(names[b] || '');
+    });
+
+    if (activeBomCategoryFilter !== 'ALL' && !counts[activeBomCategoryFilter]) {
+        activeBomCategoryFilter = 'ALL';
+    }
+
+    const isAll = activeBomCategoryFilter === 'ALL';
+    let pillsHtml = `
+        <span style="font-size:11px; font-weight:600; color:var(--text-secondary); margin-right:4px; display:inline-flex; align-items:center; gap:4px;">
+            <span class="material-icons-outlined" style="font-size:14px;">filter_list</span> Category:
+        </span>
+        <button type="button" onclick="selectCategoryFilter('ALL')" 
+            style="padding:3px 11px; border-radius:14px; font-size:11px; cursor:pointer; font-weight:600; transition:all 0.15s; border:1px solid ${isAll ? '#4f46e5' : 'var(--border-color)'}; background:${isAll ? '#4f46e5' : 'var(--bg-secondary)'}; color:${isAll ? '#fff' : 'var(--text-secondary)'};">
+            All (${items.length})
+        </button>
+    `;
+
+    prefixes.forEach(pfx => {
+        const isActive = activeBomCategoryFilter === pfx;
+        const name = names[pfx];
+        const count = counts[pfx];
+        pillsHtml += `
+            <button type="button" onclick="selectCategoryFilter('${pfx}')"
+                style="padding:3px 11px; border-radius:14px; font-size:11px; cursor:pointer; font-weight:600; transition:all 0.15s; border:1px solid ${isActive ? '#4f46e5' : 'var(--border-color)'}; background:${isActive ? '#4f46e5' : 'var(--bg-secondary)'}; color:${isActive ? '#fff' : 'var(--text-secondary)'};">
+                ${name} (${count})
+            </button>
+        `;
+    });
+
+    pillsBar.innerHTML = pillsHtml;
+    pillsBar.style.display = 'flex';
+}
+
+function selectCategoryFilter(prefix) {
+    activeBomCategoryFilter = prefix;
+    renderCategoryPills();
+    applyGridFilters();
+}
+
+function applyGridFilters() {
+    const searchInput = document.getElementById('bomGridSearch');
+    const term = searchInput ? searchInput.value.trim().toLowerCase() : '';
+    const itemRows = document.querySelectorAll('#bomItemsTableBody tr.bom-item-data-row');
+    const dividerRows = document.querySelectorAll('#bomItemsTableBody tr.bom-cat-divider-row');
+
+    const visibleGroups = new Set();
+    let visibleItemCount = 0;
+
+    itemRows.forEach(row => {
+        const catPrefix = row.getAttribute('data-cat-prefix') || '';
+        const groupKey = row.getAttribute('data-group-key') || '';
+        const catMatch = (activeBomCategoryFilter === 'ALL' || activeBomCategoryFilter === catPrefix);
+        const textMatch = (!term || row.innerText.toLowerCase().includes(term));
+
+        if (catMatch && textMatch) {
+            row.style.display = '';
+            visibleGroups.add(groupKey);
+            visibleItemCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    dividerRows.forEach(row => {
+        const groupKey = row.getAttribute('data-group-key') || '';
+        const catPrefix = row.getAttribute('data-cat-prefix') || '';
+        const catMatch = (activeBomCategoryFilter === 'ALL' || activeBomCategoryFilter === catPrefix);
+        if (catMatch && visibleGroups.has(groupKey)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    const badge = document.getElementById('bomItemCountBadge');
+    if (badge) {
+        if (term || activeBomCategoryFilter !== 'ALL') {
+            badge.textContent = `${visibleItemCount} match${visibleItemCount !== 1 ? 'es' : ''}`;
+            badge.style.background = '#eef2ff';
+            badge.style.color = '#4f46e5';
+            badge.style.borderColor = '#c7d2fe';
+        } else {
+            badge.textContent = `${visibleItemCount} item${visibleItemCount !== 1 ? 's' : ''}`;
+            badge.style.background = 'var(--bg-secondary)';
+            badge.style.color = 'var(--text-secondary)';
+            badge.style.borderColor = 'var(--border-color)';
+        }
+    }
+}
 
 function filterBomGrid(q) {
-    const rows = document.querySelectorAll('#bomItemsTableBody tr');
-    const term = q.trim().toLowerCase();
-    let visible = 0;
-    rows.forEach(row => {
-        if (row.cells.length < 3) return;
-        const match = !term || row.innerText.toLowerCase().includes(term);
-        row.style.display = match ? '' : 'none';
-        if (match) visible++;
-    });
-    const badge = document.getElementById('bomItemCountBadge');
-    if (badge && term) {
-        badge.textContent = `${visible} match${visible !== 1 ? 'es' : ''}`;
-        badge.style.background = '#eef2ff';
-        badge.style.color = '#4f46e5';
-        badge.style.borderColor = '#c7d2fe';
-    } else if (badge) {
-        const total = rows.length;
-        badge.textContent = `${total} item${total !== 1 ? 's' : ''}`;
-        badge.style.background = 'var(--bg-secondary)';
-        badge.style.color = 'var(--text-secondary)';
-        badge.style.borderColor = 'var(--border-color)';
-    }
+    applyGridFilters();
 }
 
 
@@ -1202,24 +1585,16 @@ document.addEventListener('click', function(e) {
 // ─── ADDING & EDITING BOM ITEMS MODALS ───
 
 function openAddBomItemModal(type) {
-    if (currentSelectedItemId) {
-        const item = bomData.items.find(i => String(i.id) === String(currentSelectedItemId));
-        if (item && item.isSubAssemblyComponent) {
-            showToast('You cannot add items to a sub-assembly from this screen. Please open the sub-assembly BOM directly to edit it.', 'error');
-            return;
-        }
-    }
-
     document.getElementById('addBomItemModalTitle').innerText = type === 'assembly' ? 'Add Assembly to BOM' : 'Add Component to BOM';
     document.getElementById('abiParentId').value = currentSelectedItemId || '';
     document.getElementById('abiChildType').value = type;
 
-    // Populate Parent Assembly dropdown
+    // Populate Parent Assembly dropdown with all assemblies
     const parentSelect = document.getElementById('abiParentSelect');
     if (parentSelect) {
         let opts = `<option value="">Root (Level 1) — ${bomData.fg_part_number}</option>`;
-        const directAssemblies = bomData.items.filter(i => i.child_type === 'assembly' && !i.isSubAssemblyComponent);
-        directAssemblies.forEach(a => {
+        const assemblies = bomData.items.filter(i => i.child_type === 'assembly');
+        assemblies.forEach(a => {
             const selected = (currentSelectedItemId && String(currentSelectedItemId) === String(a.id)) ? ' selected' : '';
             opts += `<option value="${a.id}"${selected}>${a.child_part_code} — ${a.description || 'Assembly'} (Level ${(a.level || 1) + 1})</option>`;
         });
@@ -1380,11 +1755,11 @@ async function submitBulkBomItems() {
         const partCode = document.getElementById(`bulkPart_${id}`).value.trim();
         if (!partCode) { errEl.textContent = 'All rows must have a part selected.'; errEl.style.display = 'block'; return; }
 
-        // Check against existing BOM items at this level
+        // Check against existing direct BOM items at this exact parent level
         const alreadyInBom = bomData.items.some(i =>
             !i.isSubAssemblyComponent &&
             i.child_part_code === partCode &&
-            ((i.parent_item_id || null) === (parentId || null))
+            String(i.parent_item_id || '') === String(parentId || '')
         );
         // Check against other rows in this same batch
         const alreadyInBatch = seenInBatch.has(partCode);
@@ -1516,12 +1891,13 @@ async function saveNewBomItem(event) {
     const parentItem = parentId ? bomData.items.find(i => String(i.id) === String(parentId)) : null;
     const itemLevel = parentItem ? ((parentItem.level || 1) + 1) : 1;
 
+    // Duplicate check: ONLY check direct items of the current BOM at this EXACT same parent level
     const isDuplicate = bomData.items.some(i =>
         !i.isSubAssemblyComponent &&
         i.child_part_code === cno &&
-        ((i.parent_item_id || null) === (parentId || null))
+        String(i.parent_item_id || '') === String(parentId || '')
     );
-    if (isDuplicate) { showToast(`${cno} already exists in this BOM at this level`, 'error'); return; }
+    if (isDuplicate) { showToast(`${cno} already exists at this level in the BOM`, 'error'); return; }
 
     const payload = {
         parent_item_id: parentId,

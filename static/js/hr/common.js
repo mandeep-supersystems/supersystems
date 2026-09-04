@@ -1,14 +1,30 @@
 // ─── HR MODULE: SHARED ───
 const API = '/api/v1/hr';
-const token = localStorage.getItem('access_token');
-const tenant = JSON.parse(localStorage.getItem('tenant') || '{}');
-const headers = () => ({
-    'Content-Type': 'application/json',
-    'Authorization': 'Bearer ' + token,
-    'X-Tenant-ID': tenant.id || tenant.code || '',
-    'X-User-Email': JSON.parse(localStorage.getItem('user') || '{}').email || '',
-    'X-User-Name': (JSON.parse(localStorage.getItem('user') || '{}').first_name || '') + ' ' + (JSON.parse(localStorage.getItem('user') || '{}').last_name || '')
-});
+const headers = () => {
+    let tid = '';
+    let userEmail = '';
+    let userName = '';
+    try {
+        const tenant = JSON.parse(localStorage.getItem('tenant') || '{}');
+        tid = tenant.id || tenant.code || '';
+    } catch(e) {}
+    if (!tid) {
+        tid = localStorage.getItem('tenant_id') || 'b424df0e-f766-4e94-b3fd-05777e158958';
+    }
+    try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        userEmail = user.email || localStorage.getItem('user_email') || '';
+        userName = (((user.first_name || '') + ' ' + (user.last_name || '')).trim()) || localStorage.getItem('user_name') || '';
+    } catch(e) {}
+    const token = localStorage.getItem('access_token') || '';
+    return {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token,
+        'X-Tenant-ID': tid,
+        'X-User-Email': userEmail,
+        'X-User-Name': userName
+    };
+};
 
 let criteriaList = [];
 let employeesList = [];

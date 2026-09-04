@@ -1,16 +1,18 @@
 -- ============================================================
 -- HR FULL SCHEMA MIGRATION
 -- Safe: uses CREATE TABLE IF NOT EXISTS + ADD COLUMN IF NOT EXISTS
--- No existing data is touched or deleted
+-- All primary keys and foreign keys use VARCHAR(36) for 100% compatibility
+-- with hr.employees(id VARCHAR(36)) and Python uuid.uuid4() string values.
+-- No existing data is touched or deleted.
 -- ============================================================
 
 -- ─── DEPARTMENTS ───
 CREATE TABLE IF NOT EXISTS hr.departments (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::varchar,
     name VARCHAR(200) NOT NULL,
     code VARCHAR(50),
-    parent_id UUID,
-    head_employee_id UUID,
+    parent_id VARCHAR(36),
+    head_employee_id VARCHAR(36),
     tenant_id VARCHAR(100),
     is_deleted BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -19,8 +21,8 @@ CREATE TABLE IF NOT EXISTS hr.departments (
 
 -- ─── DOCUMENT VAULT ───
 CREATE TABLE IF NOT EXISTS hr.employee_documents (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    employee_id UUID NOT NULL,
+    id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::varchar,
+    employee_id VARCHAR(36) NOT NULL,
     doc_type VARCHAR(100) NOT NULL,  -- offer_letter, id_proof, certificate, visa, etc.
     doc_name VARCHAR(300) NOT NULL,
     file_path VARCHAR(500),
@@ -36,8 +38,8 @@ CREATE TABLE IF NOT EXISTS hr.employee_documents (
 
 -- ─── PROFILE EDIT APPROVAL REQUESTS ───
 CREATE TABLE IF NOT EXISTS hr.profile_change_requests (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    employee_id UUID NOT NULL,
+    id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::varchar,
+    employee_id VARCHAR(36) NOT NULL,
     field_name VARCHAR(100) NOT NULL,
     old_value TEXT,
     new_value TEXT,
@@ -53,7 +55,7 @@ CREATE TABLE IF NOT EXISTS hr.profile_change_requests (
 
 -- ─── SHIFTS ───
 CREATE TABLE IF NOT EXISTS hr.shifts (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::varchar,
     name VARCHAR(200) NOT NULL,
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
@@ -67,9 +69,9 @@ CREATE TABLE IF NOT EXISTS hr.shifts (
 
 -- ─── SHIFT ROSTER ───
 CREATE TABLE IF NOT EXISTS hr.shift_roster (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    employee_id UUID NOT NULL,
-    shift_id UUID NOT NULL,
+    id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::varchar,
+    employee_id VARCHAR(36) NOT NULL,
+    shift_id VARCHAR(36) NOT NULL,
     roster_date DATE NOT NULL,
     tenant_id VARCHAR(100),
     created_by VARCHAR(200),
@@ -77,15 +79,15 @@ CREATE TABLE IF NOT EXISTS hr.shift_roster (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- ─── ATTENDANCE (extend existing if needed) ───
+-- ─── ATTENDANCE (extend existing table if needed) ───
 CREATE TABLE IF NOT EXISTS hr.attendance (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    employee_id UUID NOT NULL,
+    id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::varchar,
+    employee_id VARCHAR(36) NOT NULL,
     date DATE NOT NULL,
     check_in TIMESTAMPTZ,
     check_out TIMESTAMPTZ,
     hours_worked NUMERIC(5,2),
-    shift_id UUID,
+    shift_id VARCHAR(36),
     check_in_method VARCHAR(50) DEFAULT 'web',  -- web, biometric, geo
     check_in_location JSONB,
     status VARCHAR(50) DEFAULT 'present',  -- present, absent, half_day, holiday, leave
@@ -96,10 +98,16 @@ CREATE TABLE IF NOT EXISTS hr.attendance (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Ensure missing columns exist on existing hr.attendance table
+ALTER TABLE hr.attendance ADD COLUMN IF NOT EXISTS shift_id VARCHAR(36);
+ALTER TABLE hr.attendance ADD COLUMN IF NOT EXISTS check_in_method VARCHAR(50) DEFAULT 'web';
+ALTER TABLE hr.attendance ADD COLUMN IF NOT EXISTS check_in_location JSONB;
+ALTER TABLE hr.attendance ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
 -- ─── REGULARIZATION REQUESTS ───
 CREATE TABLE IF NOT EXISTS hr.regularization_requests (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    employee_id UUID NOT NULL,
+    id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::varchar,
+    employee_id VARCHAR(36) NOT NULL,
     attendance_date DATE NOT NULL,
     requested_check_in TIMESTAMPTZ,
     requested_check_out TIMESTAMPTZ,
@@ -115,7 +123,7 @@ CREATE TABLE IF NOT EXISTS hr.regularization_requests (
 
 -- ─── LEAVE TYPES ───
 CREATE TABLE IF NOT EXISTS hr.leave_types (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::varchar,
     name VARCHAR(200) NOT NULL,
     code VARCHAR(50) NOT NULL,
     accrual_type VARCHAR(50) DEFAULT 'manual',  -- manual, monthly, yearly
@@ -132,9 +140,9 @@ CREATE TABLE IF NOT EXISTS hr.leave_types (
 
 -- ─── LEAVE BALANCES ───
 CREATE TABLE IF NOT EXISTS hr.leave_balances (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    employee_id UUID NOT NULL,
-    leave_type_id UUID NOT NULL,
+    id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::varchar,
+    employee_id VARCHAR(36) NOT NULL,
+    leave_type_id VARCHAR(36) NOT NULL,
     year INTEGER NOT NULL,
     total_days NUMERIC(5,2) DEFAULT 0,
     used_days NUMERIC(5,2) DEFAULT 0,
@@ -147,9 +155,9 @@ CREATE TABLE IF NOT EXISTS hr.leave_balances (
 
 -- ─── LEAVE REQUESTS ───
 CREATE TABLE IF NOT EXISTS hr.leave_requests (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    employee_id UUID NOT NULL,
-    leave_type_id UUID,
+    id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::varchar,
+    employee_id VARCHAR(36) NOT NULL,
+    leave_type_id VARCHAR(36),
     leave_type VARCHAR(50),
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
@@ -168,7 +176,7 @@ CREATE TABLE IF NOT EXISTS hr.leave_requests (
 
 -- ─── HOLIDAY CALENDAR ───
 CREATE TABLE IF NOT EXISTS hr.holidays (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::varchar,
     name VARCHAR(200) NOT NULL,
     date DATE NOT NULL,
     holiday_type VARCHAR(50) DEFAULT 'national',  -- national, optional, restricted
@@ -182,7 +190,7 @@ CREATE TABLE IF NOT EXISTS hr.holidays (
 
 -- ─── SALARY STRUCTURES ───
 CREATE TABLE IF NOT EXISTS hr.salary_structures (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::varchar,
     name VARCHAR(200) NOT NULL,
     description TEXT,
     components JSONB DEFAULT '[]',
@@ -196,9 +204,9 @@ CREATE TABLE IF NOT EXISTS hr.salary_structures (
 
 -- ─── EMPLOYEE SALARY ASSIGNMENT ───
 CREATE TABLE IF NOT EXISTS hr.employee_salaries (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    employee_id UUID NOT NULL,
-    salary_structure_id UUID,
+    id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::varchar,
+    employee_id VARCHAR(36) NOT NULL,
+    salary_structure_id VARCHAR(36),
     ctc NUMERIC(18,2),
     basic NUMERIC(18,2),
     hra NUMERIC(18,2),
@@ -217,7 +225,7 @@ CREATE TABLE IF NOT EXISTS hr.employee_salaries (
 
 -- ─── PAYROLL RUNS ───
 CREATE TABLE IF NOT EXISTS hr.payroll_runs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::varchar,
     period_month INTEGER NOT NULL,
     period_year INTEGER NOT NULL,
     status VARCHAR(50) DEFAULT 'draft',  -- draft, processing, finalized, paid
@@ -235,9 +243,9 @@ CREATE TABLE IF NOT EXISTS hr.payroll_runs (
 
 -- ─── PAYSLIPS (immutable once finalized) ───
 CREATE TABLE IF NOT EXISTS hr.payslips (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    payroll_run_id UUID,
-    employee_id UUID NOT NULL,
+    id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::varchar,
+    payroll_run_id VARCHAR(36),
+    employee_id VARCHAR(36) NOT NULL,
     emp_code VARCHAR(100),
     period_month INTEGER NOT NULL,
     period_year INTEGER NOT NULL,
@@ -270,8 +278,8 @@ CREATE TABLE IF NOT EXISTS hr.payslips (
 
 -- ─── PF CONTRIBUTIONS ───
 CREATE TABLE IF NOT EXISTS hr.pf_contributions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    employee_id UUID NOT NULL,
+    id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::varchar,
+    employee_id VARCHAR(36) NOT NULL,
     emp_code VARCHAR(100),
     uan_number VARCHAR(50),
     period_month INTEGER NOT NULL,
@@ -287,8 +295,8 @@ CREATE TABLE IF NOT EXISTS hr.pf_contributions (
 
 -- ─── TDS / TAX DECLARATIONS ───
 CREATE TABLE IF NOT EXISTS hr.tax_declarations (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    employee_id UUID NOT NULL,
+    id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::varchar,
+    employee_id VARCHAR(36) NOT NULL,
     financial_year VARCHAR(10) NOT NULL,  -- e.g. 2024-25
     tax_regime VARCHAR(20) DEFAULT 'new',
     section_80c NUMERIC(18,2) DEFAULT 0,
@@ -307,9 +315,9 @@ CREATE TABLE IF NOT EXISTS hr.tax_declarations (
 
 -- ─── JOB REQUISITIONS ───
 CREATE TABLE IF NOT EXISTS hr.job_requisitions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::varchar,
     title VARCHAR(300) NOT NULL,
-    department_id UUID,
+    department_id VARCHAR(36),
     department VARCHAR(200),
     vacancies INTEGER DEFAULT 1,
     employment_type VARCHAR(50) DEFAULT 'full_time',
@@ -332,8 +340,8 @@ CREATE TABLE IF NOT EXISTS hr.job_requisitions (
 
 -- ─── CANDIDATES ───
 CREATE TABLE IF NOT EXISTS hr.candidates (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    requisition_id UUID,
+    id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::varchar,
+    requisition_id VARCHAR(36),
     first_name VARCHAR(200) NOT NULL,
     last_name VARCHAR(200),
     email VARCHAR(300),
@@ -354,9 +362,9 @@ CREATE TABLE IF NOT EXISTS hr.candidates (
 
 -- ─── INTERVIEWS ───
 CREATE TABLE IF NOT EXISTS hr.interviews (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    candidate_id UUID NOT NULL,
-    requisition_id UUID,
+    id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::varchar,
+    candidate_id VARCHAR(36) NOT NULL,
+    requisition_id VARCHAR(36),
     interview_type VARCHAR(100) DEFAULT 'technical',  -- hr, technical, final
     scheduled_at TIMESTAMPTZ,
     interviewer VARCHAR(200),
@@ -373,8 +381,8 @@ CREATE TABLE IF NOT EXISTS hr.interviews (
 
 -- ─── ONBOARDING TASKS ───
 CREATE TABLE IF NOT EXISTS hr.onboarding_tasks (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    employee_id UUID NOT NULL,
+    id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::varchar,
+    employee_id VARCHAR(36) NOT NULL,
     task_name VARCHAR(300) NOT NULL,
     task_category VARCHAR(100),  -- documents, it_setup, training, admin
     due_date DATE,
@@ -391,8 +399,8 @@ CREATE TABLE IF NOT EXISTS hr.onboarding_tasks (
 
 -- ─── EXIT REQUESTS ───
 CREATE TABLE IF NOT EXISTS hr.exit_requests (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    employee_id UUID NOT NULL,
+    id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::varchar,
+    employee_id VARCHAR(36) NOT NULL,
     resignation_date DATE,
     last_working_date DATE,
     reason VARCHAR(200),
@@ -409,8 +417,8 @@ CREATE TABLE IF NOT EXISTS hr.exit_requests (
 
 -- ─── PERFORMANCE GOALS ───
 CREATE TABLE IF NOT EXISTS hr.performance_goals (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    employee_id UUID NOT NULL,
+    id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::varchar,
+    employee_id VARCHAR(36) NOT NULL,
     title VARCHAR(300) NOT NULL,
     description TEXT,
     goal_type VARCHAR(50) DEFAULT 'kra',  -- kra, okr
@@ -420,7 +428,7 @@ CREATE TABLE IF NOT EXISTS hr.performance_goals (
     start_date DATE,
     end_date DATE,
     status VARCHAR(50) DEFAULT 'active',  -- active, completed, cancelled
-    review_cycle_id UUID,
+    review_cycle_id VARCHAR(36),
     tenant_id VARCHAR(100),
     is_deleted BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -429,7 +437,7 @@ CREATE TABLE IF NOT EXISTS hr.performance_goals (
 
 -- ─── REVIEW CYCLES ───
 CREATE TABLE IF NOT EXISTS hr.review_cycles (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::varchar,
     name VARCHAR(200) NOT NULL,
     cycle_type VARCHAR(50) DEFAULT 'annual',  -- annual, half_yearly, quarterly
     start_date DATE,
@@ -443,10 +451,10 @@ CREATE TABLE IF NOT EXISTS hr.review_cycles (
 
 -- ─── PERFORMANCE REVIEWS ───
 CREATE TABLE IF NOT EXISTS hr.performance_reviews (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    employee_id UUID NOT NULL,
+    id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::varchar,
+    employee_id VARCHAR(36) NOT NULL,
     reviewer_id VARCHAR(200),
-    review_cycle_id UUID,
+    review_cycle_id VARCHAR(36),
     review_type VARCHAR(50) DEFAULT 'manager',  -- self, manager, peer, 360
     overall_rating NUMERIC(3,1),
     self_rating NUMERIC(3,1),
@@ -464,7 +472,7 @@ CREATE TABLE IF NOT EXISTS hr.performance_reviews (
 
 -- ─── TRAINING COURSES ───
 CREATE TABLE IF NOT EXISTS hr.training_courses (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::varchar,
     title VARCHAR(300) NOT NULL,
     description TEXT,
     category VARCHAR(100),
@@ -481,9 +489,9 @@ CREATE TABLE IF NOT EXISTS hr.training_courses (
 
 -- ─── TRAINING ASSIGNMENTS ───
 CREATE TABLE IF NOT EXISTS hr.training_assignments (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    course_id UUID NOT NULL,
-    employee_id UUID NOT NULL,
+    id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::varchar,
+    course_id VARCHAR(36) NOT NULL,
+    employee_id VARCHAR(36) NOT NULL,
     assigned_by VARCHAR(200),
     due_date DATE,
     completed_at TIMESTAMPTZ,
@@ -499,12 +507,12 @@ CREATE TABLE IF NOT EXISTS hr.training_assignments (
 
 -- ─── HR MODULE USERS ───
 CREATE TABLE IF NOT EXISTS hr.module_users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid()::varchar,
     user_id VARCHAR(200) NOT NULL,
     user_email VARCHAR(300),
     user_name VARCHAR(300),
     hr_role VARCHAR(100) DEFAULT 'employee',  -- hr_admin, hr_manager, manager, employee
-    employee_id UUID,
+    employee_id VARCHAR(36),
     tenant_id VARCHAR(100),
     is_active BOOLEAN DEFAULT TRUE,
     is_deleted BOOLEAN DEFAULT FALSE,
@@ -522,3 +530,67 @@ CREATE INDEX IF NOT EXISTS idx_hr_candidates_req ON hr.candidates(requisition_id
 CREATE INDEX IF NOT EXISTS idx_hr_onboarding_emp ON hr.onboarding_tasks(employee_id);
 CREATE INDEX IF NOT EXISTS idx_hr_goals_emp ON hr.performance_goals(employee_id);
 CREATE INDEX IF NOT EXISTS idx_hr_training_emp ON hr.training_assignments(employee_id);
+
+-- ─── DEFAULT SEED DATA ───
+-- Shifts
+INSERT INTO hr.shifts (id, name, start_time, end_time, break_minutes, is_night_shift, tenant_id)
+SELECT gen_random_uuid()::varchar, 'General Shift', '09:00:00', '18:00:00', 60, FALSE, 'b424df0e-f766-4e94-b3fd-05777e158958'
+WHERE NOT EXISTS (SELECT 1 FROM hr.shifts WHERE name = 'General Shift');
+
+INSERT INTO hr.shifts (id, name, start_time, end_time, break_minutes, is_night_shift, tenant_id)
+SELECT gen_random_uuid()::varchar, 'Morning Shift', '06:00:00', '14:30:00', 30, FALSE, 'b424df0e-f766-4e94-b3fd-05777e158958'
+WHERE NOT EXISTS (SELECT 1 FROM hr.shifts WHERE name = 'Morning Shift');
+
+INSERT INTO hr.shifts (id, name, start_time, end_time, break_minutes, is_night_shift, tenant_id)
+SELECT gen_random_uuid()::varchar, 'Evening Shift', '14:00:00', '22:30:00', 30, FALSE, 'b424df0e-f766-4e94-b3fd-05777e158958'
+WHERE NOT EXISTS (SELECT 1 FROM hr.shifts WHERE name = 'Evening Shift');
+
+INSERT INTO hr.shifts (id, name, start_time, end_time, break_minutes, is_night_shift, tenant_id)
+SELECT gen_random_uuid()::varchar, 'Night Shift', '22:00:00', '06:30:00', 30, TRUE, 'b424df0e-f766-4e94-b3fd-05777e158958'
+WHERE NOT EXISTS (SELECT 1 FROM hr.shifts WHERE name = 'Night Shift');
+
+-- Leave Types
+INSERT INTO hr.leave_types (id, name, code, accrual_type, days_per_year, carry_forward, max_carry_forward, is_paid, tenant_id)
+SELECT gen_random_uuid()::varchar, 'Casual Leave', 'CL', 'yearly', 12, FALSE, 0, TRUE, 'b424df0e-f766-4e94-b3fd-05777e158958'
+WHERE NOT EXISTS (SELECT 1 FROM hr.leave_types WHERE code = 'CL');
+
+INSERT INTO hr.leave_types (id, name, code, accrual_type, days_per_year, carry_forward, max_carry_forward, is_paid, tenant_id)
+SELECT gen_random_uuid()::varchar, 'Sick Leave', 'SL', 'yearly', 12, TRUE, 12, TRUE, 'b424df0e-f766-4e94-b3fd-05777e158958'
+WHERE NOT EXISTS (SELECT 1 FROM hr.leave_types WHERE code = 'SL');
+
+INSERT INTO hr.leave_types (id, name, code, accrual_type, days_per_year, carry_forward, max_carry_forward, is_paid, tenant_id)
+SELECT gen_random_uuid()::varchar, 'Earned Leave', 'EL', 'monthly', 15, TRUE, 30, TRUE, 'b424df0e-f766-4e94-b3fd-05777e158958'
+WHERE NOT EXISTS (SELECT 1 FROM hr.leave_types WHERE code = 'EL');
+
+INSERT INTO hr.leave_types (id, name, code, accrual_type, days_per_year, carry_forward, max_carry_forward, is_paid, applicable_gender, tenant_id)
+SELECT gen_random_uuid()::varchar, 'Maternity Leave', 'ML', 'manual', 180, FALSE, 0, TRUE, 'female', 'b424df0e-f766-4e94-b3fd-05777e158958'
+WHERE NOT EXISTS (SELECT 1 FROM hr.leave_types WHERE code = 'ML');
+
+-- Review Cycles
+INSERT INTO hr.review_cycles (id, name, cycle_type, start_date, end_date, status, tenant_id)
+SELECT gen_random_uuid()::varchar, 'Annual Review 2026-27', 'annual', '2026-04-01', '2027-03-31', 'active', 'b424df0e-f766-4e94-b3fd-05777e158958'
+WHERE NOT EXISTS (SELECT 1 FROM hr.review_cycles WHERE name = 'Annual Review 2026-27');
+
+-- Salary Structure
+INSERT INTO hr.salary_structures (id, name, description, components, is_active, tenant_id)
+SELECT gen_random_uuid()::varchar, 'Standard Structure', 'Standard Indian Salary Structure with Basic, HRA, PF & ESI',
+'[{"name": "Basic", "type": "earning", "calc_type": "percent", "value": 40, "basis": "ctc"}, {"name": "HRA", "type": "earning", "calc_type": "percent", "value": 20, "basis": "ctc"}, {"name": "Special Allowance", "type": "earning", "calc_type": "percent", "value": 40, "basis": "ctc"}, {"name": "PF (Employee)", "type": "deduction", "calc_type": "percent", "value": 12, "basis": "basic"}, {"name": "ESI (Employee)", "type": "deduction", "calc_type": "percent", "value": 0.75, "basis": "gross"}]'::jsonb,
+TRUE, 'b424df0e-f766-4e94-b3fd-05777e158958'
+WHERE NOT EXISTS (SELECT 1 FROM hr.salary_structures WHERE name = 'Standard Structure');
+
+-- Holidays (Current Year 2026)
+INSERT INTO hr.holidays (id, name, date, holiday_type, year, tenant_id)
+SELECT gen_random_uuid()::varchar, 'Republic Day', '2026-01-26', 'national', 2026, 'b424df0e-f766-4e94-b3fd-05777e158958'
+WHERE NOT EXISTS (SELECT 1 FROM hr.holidays WHERE name = 'Republic Day' AND year = 2026);
+
+INSERT INTO hr.holidays (id, name, date, holiday_type, year, tenant_id)
+SELECT gen_random_uuid()::varchar, 'Independence Day', '2026-08-15', 'national', 2026, 'b424df0e-f766-4e94-b3fd-05777e158958'
+WHERE NOT EXISTS (SELECT 1 FROM hr.holidays WHERE name = 'Independence Day' AND year = 2026);
+
+INSERT INTO hr.holidays (id, name, date, holiday_type, year, tenant_id)
+SELECT gen_random_uuid()::varchar, 'Gandhi Jayanti', '2026-10-02', 'national', 2026, 'b424df0e-f766-4e94-b3fd-05777e158958'
+WHERE NOT EXISTS (SELECT 1 FROM hr.holidays WHERE name = 'Gandhi Jayanti' AND year = 2026);
+
+INSERT INTO hr.holidays (id, name, date, holiday_type, year, tenant_id)
+SELECT gen_random_uuid()::varchar, 'Diwali', '2026-11-08', 'national', 2026, 'b424df0e-f766-4e94-b3fd-05777e158958'
+WHERE NOT EXISTS (SELECT 1 FROM hr.holidays WHERE name = 'Diwali' AND year = 2026);
