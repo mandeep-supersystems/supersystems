@@ -202,7 +202,7 @@
                         <div class="bom-title-wrap">
                             <h2 id="detBomTitle" style="margin:0; font-size:20px;">Loading BOM...</h2>
                             <div style="display:flex; gap:8px; align-items:center; margin-top:2px;">
-                                <span class="badge badge-info" id="detBomNo">-</span>
+                                <span class="badge badge-info" id="detBomNo" style="cursor:pointer; display:inline-flex; align-items:center; gap:3px;" onclick="if(this.innerText && this.innerText !== '-') window.open('/part/detail/' + encodeURIComponent(this.innerText), '_blank')" title="Click to open Part Details in new tab">-</span>
                                 <span class="badge badge-success" id="detBomVersion">V1</span>
                                 <span class="badge" id="detBomStatus" style="background:#e0e7ff; color:#4f46e5;">Draft</span>
                             </div>
@@ -1077,7 +1077,7 @@
 <script>requireAuth();</script>
 <script src="/static/js/manufacturing/common.js?v=2"></script>
 <script src="/static/js/manufacturing/overview.js?v=2"></script>
-<script src="/static/js/manufacturing/bom.js?v=22"></script>
+<script src="/static/js/manufacturing/bom.js?v=23"></script>
 <script src="/static/js/manufacturing/productionorders.js?v=2"></script>
 <script src="/static/js/manufacturing/workcenters.js?v=2"></script>
 <script src="/static/js/manufacturing/routing.js?v=2"></script>

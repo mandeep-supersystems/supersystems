@@ -10,6 +10,8 @@ async function loadStockLevels() {
             tbody.innerHTML = json.data.map(item => {
                 const pnum = (item.part_number || '').toString();
                 const desc = (item.part_description || '').toString();
+                const mpn = (item.mpn || '').toString();
+                const mfr = (item.manufacturer || '').toString();
                 const itype = (item.item_type || 'PART').toString();
                 const wh = (item.warehouse_code || 'MAIN').toString();
                 const bin = (item.bin_code || '-').toString();
@@ -21,9 +23,17 @@ async function loadStockLevels() {
                 const val = item.total_value !== undefined && item.total_value !== null ? item.total_value : (qoh * cost);
                 const rp = item.reorder_point || 0;
 
+                const mpnBadge = mpn ? `<span style="display:inline-block;background:#e0e7ff;color:#4338ca;padding:1px 6px;border-radius:4px;font-size:10px;font-family:monospace;margin-right:6px;font-weight:600;">MPN: ${mpn}</span>` : '';
+                const mfrText = mfr ? `<span style="font-weight:600;color:var(--text-secondary, #4b5563);margin-right:6px;">${mfr}</span>` : '';
+
                 return `
                     <tr style="cursor:pointer;" onclick="window.location.href='/inventory/stock-level/${item.id}'">
-                        <td><strong>${pnum}</strong><div style="font-size:11px; color:var(--text-muted);">${desc}</div></td>
+                        <td>
+                            <strong>${pnum}</strong>
+                            <div style="font-size:11px; margin-top:2px;">
+                                ${mpnBadge}${mfrText}${desc ? `<span style="color:var(--text-muted);">${desc}</span>` : ''}
+                            </div>
+                        </td>
                         <td><span class="badge badge-info">${itype}</span></td>
                         <td>${wh} / <strong>${bin}</strong></td>
                         <td>${qoh} ${unit}</td>

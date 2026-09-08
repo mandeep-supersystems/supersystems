@@ -178,6 +178,8 @@
                 <tr><th>Warehouse Code</th><td id="sltWarehouse">-</td></tr>
                 <tr><th>Zone Code</th><td id="sltZone">-</td></tr>
                 <tr><th>Assigned Bin Code</th><td id="sltBin">-</td></tr>
+                <tr><th>Manufacturer (Make)</th><td id="sltMake">-</td></tr>
+                <tr><th>MPN</th><td id="sltMpn">-</td></tr>
                 <tr><th>Last Movement</th><td id="sltLastMov">-</td></tr>
             </table>
         </div>
@@ -239,6 +241,8 @@ async function loadStockLevelDetail() {
             document.getElementById('sltWarehouse').innerText = s.warehouse_code || 'MAIN';
             document.getElementById('sltZone').innerText = s.zone_code || '-';
             document.getElementById('sltBin').innerText = s.bin_code || '-';
+            document.getElementById('sltMake').innerText = s.manufacturer || '-';
+            document.getElementById('sltMpn').innerText = s.mpn || '-';
             document.getElementById('sltLastMov').innerText = s.last_movement_at || '-';
         }
     } catch(e) { console.error(e); }

@@ -82,7 +82,7 @@ def list_stock_levels():
     params = {"tid": tenant_id}
 
     if search:
-        where_clause += " AND (part_number LIKE :search OR part_description LIKE :search OR bin_code LIKE :search)"
+        where_clause += " AND (part_number LIKE :search OR part_description LIKE :search OR bin_code LIKE :search OR mpn LIKE :search OR manufacturer LIKE :search)"
         params["search"] = f"%{search}%"
     if warehouse:
         where_clause += " AND warehouse_code = :wh"
@@ -98,7 +98,7 @@ def list_stock_levels():
     sql = f"""
         SELECT id, part_number, part_description, item_type, warehouse_code, zone_code, bin_code,
                qty_on_hand, qty_reserved, qty_available, reorder_point, reorder_qty, unit,
-               unit_cost, total_value, last_movement_at
+               unit_cost, total_value, last_movement_at, COALESCE(manufacturer, ''), COALESCE(mpn, '')
         FROM inventory_stock_levels
         {where_clause}
         ORDER BY part_number ASC
@@ -122,7 +122,9 @@ def list_stock_levels():
             "unit": r[12] or "pcs",
             "unit_cost": float(r[13] or 0),
             "total_value": float(r[14] or 0),
-            "last_movement_at": str(r[15]) if r[15] else None
+            "last_movement_at": str(r[15]) if r[15] else None,
+            "manufacturer": r[16] or "",
+            "mpn": r[17] or ""
         })
 
     return jsonify({"success": True, "data": items})
@@ -136,7 +138,7 @@ def get_stock_level(slid):
         r = db.session.execute(db.text(
             f"SELECT id, part_number, part_description, item_type, warehouse_code, zone_code, bin_code, "
             f"qty_on_hand, qty_reserved, qty_available, reorder_point, reorder_qty, unit, "
-            f"unit_cost, total_value, last_movement_at "
+            f"unit_cost, total_value, last_movement_at, COALESCE(manufacturer, ''), COALESCE(mpn, '') "
             f"FROM inventory_stock_levels WHERE id = :id AND is_deleted = false AND {cond}"
         ), {"id": slid, "tid": tenant_id}).first()
         if not r:
@@ -149,7 +151,9 @@ def get_stock_level(slid):
             "qty_available": float(r[9] or 0), "reorder_point": float(r[10] or 0),
             "reorder_qty": float(r[11] or 0), "unit": r[12] or "pcs",
             "unit_cost": float(r[13] or 0), "total_value": float(r[14] or 0),
-            "last_movement_at": str(r[15]) if r[15] else None
+            "last_movement_at": str(r[15]) if r[15] else None,
+            "manufacturer": r[16] or "",
+            "mpn": r[17] or ""
         }})
     except Exception as e:
         db.session.rollback()

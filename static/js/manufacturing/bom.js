@@ -59,7 +59,14 @@ async function loadAssemblyBomList(q = '') {
                 return `
                     <tr style="cursor:pointer;" onclick="${a.has_bom ? `navigateToBomDetailByPart('${a.part_code}')` : `openNewBomModal('${a.part_code}', '${(a.description || '').replace(/'/g, "\\'")}')`}">
                         <td style="color:var(--text-secondary);font-size:12px;">${idx + 1}</td>
-                        <td><code style="font-size:12px;font-weight:700;background:var(--bg-secondary);padding:2px 6px;border-radius:4px;color:var(--accent);">${a.part_code}</code></td>
+                        <td>
+                            <a href="/part/detail/${encodeURIComponent(a.part_code)}" target="_blank" onclick="event.stopPropagation();" title="Open Part Details in new tab" style="text-decoration:none;">
+                                <code style="font-size:12px;font-weight:700;background:var(--bg-secondary);padding:2px 6px;border-radius:4px;color:var(--accent);cursor:pointer;display:inline-flex;align-items:center;gap:3px;">
+                                    ${a.part_code}
+                                    <span class="material-icons-outlined" style="font-size:11px;opacity:0.7;">open_in_new</span>
+                                </code>
+                            </a>
+                        </td>
                         <td style="max-width:320px;" title="${desc}">${descShort}</td>
                         <td>${verHtml}</td>
                         <td>${statusHtml}</td>
@@ -367,9 +374,10 @@ function renderStructureTree() {
                     <span class="tree-node-toggle" onclick="toggleTreeNode(event,'${child.id}')" style="opacity:${hasKids ? 1 : 0.25};pointer-events:${hasKids ? 'auto' : 'none'}">
                         <span class="material-icons-outlined" style="font-size:15px;">${hasKids ? (isExpanded ? 'expand_more' : 'chevron_right') : 'remove'}</span>
                     </span>
-                    <span class="material-icons-outlined" style="font-size:14px;color:${child.isSubAssemblyComponent ? '#7c3aed' : '#4f46e5'};margin-right:4px;">account_tree</span>
                     <span class="tree-node-label" title="${child.child_part_code}">${child.child_part_code}</span>
-                    <span class="material-icons-outlined" style="font-size:13px;color:var(--text-muted);margin-left:auto;opacity:0.6;" title="Open sub-assembly BOM">open_in_new</span>
+                    <a href="/part/detail/${encodeURIComponent(child.child_part_code)}" target="_blank" onclick="event.stopPropagation();" title="Open Part Details in new tab" style="margin-left:auto;color:var(--text-muted);display:inline-flex;align-items:center;text-decoration:none;">
+                        <span class="material-icons-outlined" style="font-size:13px;opacity:0.6;">open_in_new</span>
+                    </a>
                 </div>
                 ${hasKids && isExpanded ? buildNodes(child.id, depth + 1) : ''}
             </div>`;
@@ -382,7 +390,12 @@ function renderStructureTree() {
         <div class="tree-node-item">
             <div class="tree-node-row${isRoot ? ' active' : ''}" onclick="selectTreeNode(null, null)" style="padding-left:8px;">
                 <span class="material-icons-outlined" style="font-size:16px;color:var(--accent);margin-right:6px;">precision_manufacturing</span>
-                <span class="tree-node-label"><strong>${bomData.fg_part_number}</strong></span>
+                <span class="tree-node-label">
+                    <a href="/part/detail/${encodeURIComponent(bomData.fg_part_number)}" target="_blank" onclick="event.stopPropagation();" title="Open Root Part Details in new tab" style="color:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:3px;">
+                        <strong>${bomData.fg_part_number}</strong>
+                        <span class="material-icons-outlined" style="font-size:12px;opacity:0.6;">open_in_new</span>
+                    </a>
+                </span>
                 <span style="font-size:10px;color:var(--text-muted);margin-left:6px;">Root</span>
             </div>
         </div>
@@ -995,9 +1008,18 @@ function renderStructureGrid() {
             ? `${collapseToggle}<a onclick="loadBomDetailByPart('${item.child_part_code}')" href="javascript:void(0)"
                   style="font-weight:700;color:#4f46e5;text-decoration:none;font-size:13px;"
                   title="Open sub-assembly BOM">${item.child_part_code}
-                  <span class="material-icons-outlined" style="font-size:11px;vertical-align:middle;opacity:0.7;">open_in_new</span>
+                  <span class="material-icons-outlined" style="font-size:11px;vertical-align:middle;opacity:0.7;">account_tree</span>
+               </a>
+               <a href="/part/detail/${encodeURIComponent(item.child_part_code)}" target="_blank" title="Open Part Details in new tab"
+                  style="margin-left:4px; color:var(--text-muted); text-decoration:none; vertical-align:middle; display:inline-flex; align-items:center;" onclick="event.stopPropagation();">
+                  <span class="material-icons-outlined" style="font-size:13px;opacity:0.6;">open_in_new</span>
                </a>`
-            : `<span style="font-weight:600;font-size:13px;">${item.child_part_code}</span>`;
+            : `<a href="/part/detail/${encodeURIComponent(item.child_part_code)}" target="_blank"
+                  style="font-weight:600;font-size:13px;color:var(--accent,#4f46e5);text-decoration:none;display:inline-flex;align-items:center;gap:3px;"
+                  title="Open Part Details in new tab" onclick="event.stopPropagation();">
+                  <span>${item.child_part_code}</span>
+                  <span class="material-icons-outlined" style="font-size:12px;opacity:0.6;">open_in_new</span>
+               </a>`;
 
         // Actions cell — always present for consistent column count
         const actionsTd = editMode
@@ -2060,7 +2082,12 @@ async function loadCostingTab() {
             
             return `
                 <tr>
-                    <td><strong>${item.part_number}</strong></td>
+                    <td>
+                        <a href="/part/detail/${encodeURIComponent(item.part_number)}" target="_blank" style="font-weight:700;color:var(--accent,#4f46e5);text-decoration:none;display:inline-flex;align-items:center;gap:3px;" title="Open Part Details in new tab">
+                            <strong>${item.part_number}</strong>
+                            <span class="material-icons-outlined" style="font-size:12px;opacity:0.6;">open_in_new</span>
+                        </a>
+                    </td>
                     <td><span style="font-size:12px; color:var(--text-secondary);">${item.description || '-'}</span></td>
                     <td>Rs. ${item.default_cost.toFixed(2)}</td>
                     <td>${vendorsHtml}</td>
