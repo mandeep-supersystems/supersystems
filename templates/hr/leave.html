@@ -17,42 +17,26 @@
             <img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SUPERSYSTEMS" height="36">
             <span class="logo-text">SUPERSYSTEMS</span>
         </div>
-        <div class="nav-item services-trigger" onclick="toggleServices()">
-            <span class="material-icons-outlined">apps</span><span>Services</span>
-            <span class="material-icons-outlined arrow">expand_more</span>
-        </div>
+        <div class="nav-item services-trigger" onclick="toggleServices()"><span class="material-icons-outlined">apps</span><span>Services</span><span class="material-icons-outlined arrow">expand_more</span></div>
     </div>
-    <div class="header-center">
-        <div class="search-box"><span class="material-icons-outlined">search</span>
-            <input type="text" placeholder="Search..." id="globalSearch" oninput="handleSearch(this.value)">
-            <div class="search-results" id="searchResults"></div>
-        </div>
-    </div>
+    <div class="header-center"><div class="search-box"><span class="material-icons-outlined">search</span><input type="text" placeholder="Search..." id="globalSearch" oninput="handleSearch(this.value)"><div class="search-results" id="searchResults"></div></div></div>
     <div class="header-right">
-        <button class="header-icon-btn theme-toggle" onclick="toggleTheme()">
-            <span class="material-icons-outlined icon-light">dark_mode</span>
-            <span class="material-icons-outlined icon-dark">light_mode</span>
-        </button>
-        <div class="user-menu" id="userMenu">
-            <div class="user-avatar" onclick="toggleUserMenu()"><span class="material-icons-outlined">person</span></div>
-            <div class="user-dropdown" id="userDropdown">
-                <a href="#" onclick="logout()"><span class="material-icons-outlined">logout</span>Logout</a>
-            </div>
-        </div>
+        <button class="header-icon-btn theme-toggle" onclick="toggleTheme()"><span class="material-icons-outlined icon-light">dark_mode</span><span class="material-icons-outlined icon-dark">light_mode</span></button>
+        <div class="user-menu" id="userMenu"><div class="user-avatar" onclick="toggleUserMenu()"><span class="material-icons-outlined">person</span></div><div class="user-dropdown" id="userDropdown"><a href="#" onclick="logout()"><span class="material-icons-outlined">logout</span>Logout</a></div></div>
     </div>
 </header>
-<div class="services-panel" id="servicesPanel">
-    <div class="services-panel-header"><h3>All Services</h3><button class="close-btn" onclick="toggleServices()"><span class="material-icons-outlined">close</span></button></div>
-    <div class="services-grid" id="servicesGrid"></div>
-</div>
+<div class="services-panel" id="servicesPanel"><div class="services-panel-header"><h3>All Services</h3><button class="close-btn" onclick="toggleServices()"><span class="material-icons-outlined">close</span></button></div><div class="services-grid" id="servicesGrid"></div></div>
 <div class="overlay" id="overlay" onclick="toggleServices()"></div>
 
 <div class="hr-layout">
     <aside class="hr-sidebar">
         <div class="sidebar-header"><span class="material-icons-outlined">people</span><h3>Human Resources</h3></div>
         <nav class="sidebar-nav">
-            <a href="/hr" class="sidebar-link"><span class="material-icons-outlined">arrow_back</span>Back to HR</a>
+            <a href="/" class="sidebar-link"><span class="material-icons-outlined">arrow_back</span>Home</a>
             <div class="sidebar-divider"></div>
+            <a class="sidebar-link" href="/hr"><span class="material-icons-outlined">dashboard</span>Overview</a>
+            <a class="sidebar-link" href="/hr#codecriteria"><span class="material-icons-outlined">pin</span>Employee Code Criteria</a>
+            <a class="sidebar-link" href="/hr#employees"><span class="material-icons-outlined">badge</span>Employee Management</a>
             <a class="sidebar-link" href="/hr/attendance"><span class="material-icons-outlined">schedule</span>Attendance & Shifts</a>
             <a class="sidebar-link active" href="/hr/leave"><span class="material-icons-outlined">event_busy</span>Leave Management</a>
             <a class="sidebar-link" href="/hr/payroll"><span class="material-icons-outlined">payments</span>Payroll</a>
@@ -61,96 +45,204 @@
             <a class="sidebar-link" href="/hr/performance"><span class="material-icons-outlined">trending_up</span>Performance</a>
             <a class="sidebar-link" href="/hr/training"><span class="material-icons-outlined">school</span>Training</a>
             <a class="sidebar-link" href="/hr/analytics"><span class="material-icons-outlined">bar_chart</span>Analytics</a>
+            <a class="sidebar-link" href="/hr/audit-logs"><span class="material-icons-outlined">manage_search</span>Audit Logs</a>
             <a class="sidebar-link" href="/hr/users"><span class="material-icons-outlined">manage_accounts</span>User Management</a>
+            <a class="sidebar-link" href="/hr/approvals"><span class="material-icons-outlined">task_alt</span>Approvals</a>
         </nav>
     </aside>
 
     <main class="hr-content">
-        <div class="section-header">
-            <h2>Leave Management</h2>
-            <div class="section-actions">
-                <button class="btn-outline" onclick="showTab('requests')">Requests</button>
-                <button class="btn-outline" onclick="showTab('types')">Leave Types</button>
-                <button class="btn-outline" onclick="showTab('balances')">Balances</button>
-                <button class="btn-outline" onclick="showTab('calendar')">Calendar</button>
-                <button class="btn-outline" onclick="showTab('holidays')">Holidays</button>
-            </div>
-        </div>
-
-        <!-- REQUESTS -->
-        <div class="tab-panel active" id="tab-requests">
-            <div class="section-header" style="margin-top:0">
-                <select id="reqStatusFilter" onchange="loadRequests()">
-                    <option value="">All Status</option>
-                    <option value="pending">Pending</option>
-                    <option value="approved">Approved</option>
-                    <option value="rejected">Rejected</option>
-                </select>
-                <button class="btn-primary" onclick="openLeaveReqModal()"><span class="material-icons-outlined">add</span> New Request</button>
-            </div>
-            <div class="table-container">
-                <table class="data-table">
-                    <thead><tr><th>Employee</th><th>Leave Type</th><th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Status</th><th>Actions</th></tr></thead>
-                    <tbody id="reqBody"><tr><td colspan="8" class="empty">Loading...</td></tr></tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- LEAVE TYPES -->
-        <div class="tab-panel" id="tab-types">
-            <div class="section-header" style="margin-top:0">
-                <span></span>
-                <button class="btn-primary" onclick="openLeaveTypeModal()"><span class="material-icons-outlined">add</span> New Leave Type</button>
-            </div>
-            <div class="table-container">
-                <table class="data-table">
-                    <thead><tr><th>Name</th><th>Code</th><th>Accrual</th><th>Days/Year</th><th>Carry Forward</th><th>Paid</th><th>Actions</th></tr></thead>
-                    <tbody id="typesBody"><tr><td colspan="7" class="empty">Loading...</td></tr></tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- BALANCES -->
-        <div class="tab-panel" id="tab-balances">
-            <div class="section-header" style="margin-top:0">
-                <select id="balYear" onchange="loadBalances()"></select>
-                <button class="btn-primary" onclick="openBalanceModal()"><span class="material-icons-outlined">add</span> Set Balance</button>
-            </div>
-            <div class="table-container">
-                <table class="data-table">
-                    <thead><tr><th>Employee</th><th>Leave Type</th><th>Total</th><th>Used</th><th>Pending</th><th>Balance</th></tr></thead>
-                    <tbody id="balBody"><tr><td colspan="6" class="empty">Loading...</td></tr></tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- CALENDAR -->
-        <div class="tab-panel" id="tab-calendar">
-            <div class="section-header" style="margin-top:0">
-                <div style="display:flex;gap:8px">
-                    <select id="calMonth" onchange="loadCalendar()"></select>
-                    <select id="calYear" onchange="loadCalendar()"></select>
+        <!-- HEADER BLOCK -->
+        <div class="hr-header-block">
+            <div class="hr-header-main">
+                <div class="hr-header-titles">
+                    <h2>Leave Management</h2>
+                    <p>Employee leave applications, holiday calendars, entitlement balances, and policy rules</p>
                 </div>
-                <button class="btn-outline" onclick="loadCalendar()"><span class="material-icons-outlined">refresh</span></button>
+                <div class="hr-header-actions">
+                    <button class="btn-outline" onclick="openPageHistory('Leave Type,Leave Request,Holiday,Leave Balance', 'Leave Management History')">
+                        <span class="material-icons-outlined">history</span> History
+                    </button>
+                    <button class="btn-outline" onclick="loadRequests()">
+                        <span class="material-icons-outlined">refresh</span> Refresh
+                    </button>
+                    <button class="btn-primary" onclick="openLeaveReqModal()">
+                        <span class="material-icons-outlined">add</span> Apply Leave
+                    </button>
+                </div>
             </div>
-            <div class="table-container">
+        </div>
+
+        <!-- KPI SUMMARY GRID -->
+        <div class="hr-kpi-grid">
+            <div class="hr-kpi-card">
+                <div class="hr-kpi-top">
+                    <span class="hr-kpi-label">On Leave Today</span>
+                    <div class="hr-kpi-icon blue"><span class="material-icons-outlined">flight_takeoff</span></div>
+                </div>
+                <div class="hr-kpi-value" id="kpiOnLeave">0</div>
+                <div class="hr-kpi-sub">Active approved leaves</div>
+            </div>
+            <div class="hr-kpi-card">
+                <div class="hr-kpi-top">
+                    <span class="hr-kpi-label">Pending Approval</span>
+                    <div class="hr-kpi-icon amber"><span class="material-icons-outlined">pending_actions</span></div>
+                </div>
+                <div class="hr-kpi-value" id="kpiPendingLeave">0</div>
+                <div class="hr-kpi-sub">Requests awaiting review</div>
+            </div>
+            <div class="hr-kpi-card">
+                <div class="hr-kpi-top">
+                    <span class="hr-kpi-label">Approved This Month</span>
+                    <div class="hr-kpi-icon green"><span class="material-icons-outlined">check_circle</span></div>
+                </div>
+                <div class="hr-kpi-value" id="kpiApprovedLeave">0</div>
+                <div class="hr-kpi-sub">Processed applications</div>
+            </div>
+            <div class="hr-kpi-card">
+                <div class="hr-kpi-top">
+                    <span class="hr-kpi-label">Active Policies</span>
+                    <div class="hr-kpi-icon purple"><span class="material-icons-outlined">policy</span></div>
+                </div>
+                <div class="hr-kpi-value" id="kpiLeaveTypes">0</div>
+                <div class="hr-kpi-sub">Configured leave types</div>
+            </div>
+            <div class="hr-kpi-card">
+                <div class="hr-kpi-top">
+                    <span class="hr-kpi-label">Upcoming Holidays</span>
+                    <div class="hr-kpi-icon teal"><span class="material-icons-outlined">event</span></div>
+                </div>
+                <div class="hr-kpi-value" id="kpiHolidays">0</div>
+                <div class="hr-kpi-sub">Calendar holidays this year</div>
+            </div>
+        </div>
+
+        <!-- SEGMENTED NAVIGATION TABS -->
+        <div class="hr-segmented-nav">
+            <button class="hr-seg-btn active" id="seg-requests" onclick="showTab('requests')">
+                <span class="material-icons-outlined">assignment</span> Leave Requests
+                <span class="hr-seg-count" id="count-requests">0</span>
+            </button>
+            <button class="hr-seg-btn" id="seg-types" onclick="showTab('types')">
+                <span class="material-icons-outlined">tune</span> Leave Types
+                <span class="hr-seg-count" id="count-types">0</span>
+            </button>
+            <button class="hr-seg-btn" id="seg-balances" onclick="showTab('balances')">
+                <span class="material-icons-outlined">account_balance_wallet</span> Balances
+                <span class="hr-seg-count" id="count-balances">0</span>
+            </button>
+            <button class="hr-seg-btn" id="seg-calendar" onclick="showTab('calendar')">
+                <span class="material-icons-outlined">calendar_month</span> Calendar View
+            </button>
+            <button class="hr-seg-btn" id="seg-holidays" onclick="showTab('holidays')">
+                <span class="material-icons-outlined">celebration</span> Holidays
+                <span class="hr-seg-count" id="count-holidays">0</span>
+            </button>
+        </div>
+
+        <!-- TAB PANEL: REQUESTS -->
+        <div class="tab-panel active" id="tab-requests">
+            <div class="hr-toolbar">
+                <div class="hr-toolbar-left">
+                    <div class="hr-search-input">
+                        <span class="material-icons-outlined">search</span>
+                        <input type="text" id="searchRequests" placeholder="Search employee, leave type..." oninput="filterRequestsClient()">
+                    </div>
+                    <select class="hr-filter-select" id="reqStatusFilter" onchange="loadRequests()">
+                        <option value="">All Statuses</option>
+                        <option value="pending">Pending</option>
+                        <option value="approved">Approved</option>
+                        <option value="rejected">Rejected</option>
+                    </select>
+                </div>
+                <div class="hr-toolbar-right">
+                    <button class="btn-primary" onclick="openLeaveReqModal()">
+                        <span class="material-icons-outlined">add</span> Apply Leave
+                    </button>
+                </div>
+            </div>
+            <div class="hr-table-card">
                 <table class="data-table">
-                    <thead><tr><th>Employee</th><th>Leave Type</th><th>From</th><th>To</th><th>Days</th><th>Status</th></tr></thead>
-                    <tbody id="calBody"><tr><td colspan="6" class="empty">Loading...</td></tr></tbody>
+                    <thead><tr><th>Employee</th><th>Leave Type</th><th>From Date</th><th>To Date</th><th>Days</th><th>Reason</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody id="reqBody"><tr><td colspan="8" class="empty">Loading leave requests...</td></tr></tbody>
                 </table>
             </div>
         </div>
 
-        <!-- HOLIDAYS -->
-        <div class="tab-panel" id="tab-holidays">
-            <div class="section-header" style="margin-top:0">
-                <select id="holYear" onchange="loadHolidays()"></select>
-                <button class="btn-primary" onclick="openHolidayModal()"><span class="material-icons-outlined">add</span> Add Holiday</button>
+        <!-- TAB PANEL: LEAVE TYPES -->
+        <div class="tab-panel" id="tab-types">
+            <div class="hr-toolbar">
+                <div class="hr-toolbar-left">
+                    <span style="font-size:13px;color:var(--text-secondary)">Define paid/unpaid leaves, annual limits, and carry-forward rules</span>
+                </div>
+                <div class="hr-toolbar-right">
+                    <button class="btn-primary" onclick="openLeaveTypeModal()">
+                        <span class="material-icons-outlined">add</span> New Leave Type
+                    </button>
+                </div>
             </div>
-            <div class="table-container">
+            <div class="hr-table-card">
                 <table class="data-table">
-                    <thead><tr><th>Name</th><th>Date</th><th>Type</th><th>Location</th><th>Actions</th></tr></thead>
-                    <tbody id="holBody"><tr><td colspan="5" class="empty">Loading...</td></tr></tbody>
+                    <thead><tr><th>Policy Name</th><th>Code</th><th>Accrual Frequency</th><th>Days/Year</th><th>Carry Forward</th><th>Paid Leave</th><th>Actions</th></tr></thead>
+                    <tbody id="typesBody"><tr><td colspan="7" class="empty">Loading leave types...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB PANEL: BALANCES -->
+        <div class="tab-panel" id="tab-balances">
+            <div class="hr-toolbar">
+                <div class="hr-toolbar-left">
+                    <div class="hr-search-input">
+                        <span class="material-icons-outlined">search</span>
+                        <input type="text" id="searchBalances" placeholder="Search employee..." oninput="filterBalancesClient()">
+                    </div>
+                    <select class="hr-filter-select" id="balYear" onchange="loadBalances()"></select>
+                </div>
+                <div class="hr-toolbar-right">
+                    <button class="btn-primary" onclick="openBalanceModal()">
+                        <span class="material-icons-outlined">add</span> Set Leave Quota
+                    </button>
+                </div>
+            </div>
+            <div class="hr-table-card">
+                <table class="data-table">
+                    <thead><tr><th>Employee</th><th>Leave Type</th><th>Total Quota</th><th>Used</th><th>Pending</th><th>Available Balance</th></tr></thead>
+                    <tbody id="balBody"><tr><td colspan="6" class="empty">Loading balances...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB PANEL: CALENDAR -->
+        <div class="tab-panel" id="tab-calendar">
+            <div class="hr-toolbar">
+                <div class="hr-toolbar-left">
+                    <select class="hr-filter-select" id="calMonth" onchange="loadCalendar()"></select>
+                    <select class="hr-filter-select" id="calYear" onchange="loadCalendar()"></select>
+                </div>
+                <div class="hr-toolbar-right">
+                    <button class="btn-outline" onclick="loadCalendar()"><span class="material-icons-outlined">refresh</span> Refresh Calendar</button>
+                </div>
+            </div>
+            <div id="calGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:12px"></div>
+        </div>
+
+        <!-- TAB PANEL: HOLIDAYS -->
+        <div class="tab-panel" id="tab-holidays">
+            <div class="hr-toolbar">
+                <div class="hr-toolbar-left">
+                    <select class="hr-filter-select" id="holYear" onchange="loadHolidays()"></select>
+                </div>
+                <div class="hr-toolbar-right">
+                    <button class="btn-primary" onclick="openHolidayModal()">
+                        <span class="material-icons-outlined">add</span> Add Holiday
+                    </button>
+                </div>
+            </div>
+            <div class="hr-table-card">
+                <table class="data-table">
+                    <thead><tr><th>Holiday Name</th><th>Date</th><th>Type</th><th>Actions</th></tr></thead>
+                    <tbody id="holBody"><tr><td colspan="4" class="empty">Loading holidays...</td></tr></tbody>
                 </table>
             </div>
         </div>
@@ -160,19 +252,18 @@
 <!-- LEAVE REQUEST MODAL -->
 <div class="modal-overlay" id="leaveReqModal">
     <div class="modal">
-        <div class="modal-header"><h3>New Leave Request</h3><button class="close-btn" onclick="closeModal('leaveReqModal')"><span class="material-icons-outlined">close</span></button></div>
+        <div class="modal-header"><h3>Apply Leave</h3><button class="close-btn" onclick="closeModal('leaveReqModal')"><span class="material-icons-outlined">close</span></button></div>
         <div class="modal-body">
             <div class="form-group"><label>Employee *</label><select id="lrEmp"></select></div>
             <div class="form-group"><label>Leave Type *</label><select id="lrType"></select></div>
             <div class="form-row">
-                <div class="form-group"><label>From *</label><input type="date" id="lrFrom"></div>
-                <div class="form-group"><label>To *</label><input type="date" id="lrTo"></div>
+                <div class="form-group"><label>From Date *</label><input type="date" id="lrFrom"></div>
+                <div class="form-group"><label>To Date *</label><input type="date" id="lrTo"></div>
             </div>
-            <div class="form-group"><label>Days</label><input type="number" id="lrDays" value="1" min="0.5" step="0.5"></div>
-            <div class="form-group"><label>Reason</label><textarea id="lrReason" rows="3"></textarea></div>
+            <div class="form-group"><label>Reason *</label><textarea id="lrReason" rows="3" placeholder="State the reason for leave..."></textarea></div>
             <div class="form-actions">
                 <button class="btn-secondary" onclick="closeModal('leaveReqModal')">Cancel</button>
-                <button class="btn-primary" onclick="saveLeaveReq()">Submit</button>
+                <button class="btn-primary" onclick="saveLeaveReq()">Submit Application</button>
             </div>
         </div>
     </div>
@@ -185,56 +276,24 @@
         <div class="modal-body">
             <input type="hidden" id="ltId">
             <div class="form-row">
-                <div class="form-group"><label>Name *</label><input type="text" id="ltName"></div>
-                <div class="form-group"><label>Code *</label><input type="text" id="ltCode"></div>
+                <div class="form-group"><label>Name *</label><input type="text" id="ltName" placeholder="e.g. Casual Leave"></div>
+                <div class="form-group"><label>Code *</label><input type="text" id="ltCode" placeholder="e.g. CL"></div>
             </div>
             <div class="form-row">
-                <div class="form-group"><label>Accrual Type</label>
-                    <select id="ltAccrual"><option value="manual">Manual</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select>
+                <div class="form-group"><label>Days/Year</label><input type="number" id="ltDays" value="12"></div>
+                <div class="form-group"><label>Accrual</label>
+                    <select id="ltAccrual"><option value="yearly">Yearly</option><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option></select>
                 </div>
-                <div class="form-group"><label>Days/Year</label><input type="number" id="ltDays" value="0" step="0.5"></div>
             </div>
             <div class="form-row">
-                <div class="form-group"><label>Carry Forward</label>
-                    <select id="ltCF"><option value="false">No</option><option value="true">Yes</option></select>
-                </div>
-                <div class="form-group"><label>Max Carry Forward</label><input type="number" id="ltMCF" value="0"></div>
-            </div>
-            <div class="form-row">
+                <div class="form-group"><label>Carry Forward Limit</label><input type="number" id="ltCF" value="0"></div>
                 <div class="form-group"><label>Paid Leave</label>
-                    <select id="ltPaid"><option value="true">Yes</option><option value="false">No</option></select>
-                </div>
-                <div class="form-group"><label>Applicable Gender</label>
-                    <select id="ltGender"><option value="all">All</option><option value="male">Male</option><option value="female">Female</option></select>
+                    <select id="ltPaid"><option value="true">Yes (Paid)</option><option value="false">No (Unpaid)</option></select>
                 </div>
             </div>
             <div class="form-actions">
                 <button class="btn-secondary" onclick="closeModal('leaveTypeModal')">Cancel</button>
-                <button class="btn-primary" onclick="saveLeaveType()">Save</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- HOLIDAY MODAL -->
-<div class="modal-overlay" id="holidayModal">
-    <div class="modal">
-        <div class="modal-header"><h3>Add Holiday</h3><button class="close-btn" onclick="closeModal('holidayModal')"><span class="material-icons-outlined">close</span></button></div>
-        <div class="modal-body">
-            <div class="form-group"><label>Name *</label><input type="text" id="holName"></div>
-            <div class="form-row">
-                <div class="form-group"><label>Date *</label><input type="date" id="holDate"></div>
-                <div class="form-group"><label>Type</label>
-                    <select id="holType"><option value="national">National</option><option value="optional">Optional</option><option value="restricted">Restricted</option></select>
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group"><label>Location</label><input type="text" id="holLocation" placeholder="All locations"></div>
-                <div class="form-group"><label>Year</label><input type="number" id="holYear2"></div>
-            </div>
-            <div class="form-actions">
-                <button class="btn-secondary" onclick="closeModal('holidayModal')">Cancel</button>
-                <button class="btn-primary" onclick="saveHoliday()">Add</button>
+                <button class="btn-primary" onclick="saveLeaveType()">Save Policy</button>
             </div>
         </div>
     </div>
@@ -243,18 +302,38 @@
 <!-- BALANCE MODAL -->
 <div class="modal-overlay" id="balanceModal">
     <div class="modal">
-        <div class="modal-header"><h3>Set Leave Balance</h3><button class="close-btn" onclick="closeModal('balanceModal')"><span class="material-icons-outlined">close</span></button></div>
+        <div class="modal-header"><h3>Set Leave Quota</h3><button class="close-btn" onclick="closeModal('balanceModal')"><span class="material-icons-outlined">close</span></button></div>
         <div class="modal-body">
             <div class="form-group"><label>Employee *</label><select id="balEmp"></select></div>
             <div class="form-group"><label>Leave Type *</label><select id="balType"></select></div>
-            <div class="form-group"><label>Year *</label><input type="number" id="balYearInput"></div>
             <div class="form-row">
-                <div class="form-group"><label>Total Days</label><input type="number" id="balTotal" value="0" step="0.5"></div>
-                <div class="form-group"><label>Used Days</label><input type="number" id="balUsed" value="0" step="0.5"></div>
+                <div class="form-group"><label>Year *</label><input type="number" id="balYearInput"></div>
+                <div class="form-group"><label>Total Days *</label><input type="number" id="balTotal" value="12"></div>
             </div>
             <div class="form-actions">
                 <button class="btn-secondary" onclick="closeModal('balanceModal')">Cancel</button>
-                <button class="btn-primary" onclick="saveBalance()">Save</button>
+                <button class="btn-primary" onclick="saveBalance()">Save Quota</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- HOLIDAY MODAL -->
+<div class="modal-overlay" id="holidayModal">
+    <div class="modal">
+        <div class="modal-header"><h3>Add Calendar Holiday</h3><button class="close-btn" onclick="closeModal('holidayModal')"><span class="material-icons-outlined">close</span></button></div>
+        <div class="modal-body">
+            <div class="form-group"><label>Holiday Name *</label><input type="text" id="holName" placeholder="e.g. Independence Day"></div>
+            <div class="form-row">
+                <div class="form-group"><label>Date *</label><input type="date" id="holDate"></div>
+                <div class="form-group"><label>Year</label><input type="number" id="holYear2"></div>
+            </div>
+            <div class="form-group"><label>Type</label>
+                <select id="holType"><option value="national">National Holiday</option><option value="regional">Regional / State Holiday</option><option value="optional">Optional / Restricted</option></select>
+            </div>
+            <div class="form-actions">
+                <button class="btn-secondary" onclick="closeModal('holidayModal')">Cancel</button>
+                <button class="btn-primary" onclick="saveHoliday()">Save Holiday</button>
             </div>
         </div>
     </div>

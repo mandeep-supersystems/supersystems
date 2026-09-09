@@ -17,43 +17,26 @@
             <img class="logo-dark" src="/static/img/Dark_mode_logo.png" alt="SUPERSYSTEMS" height="36">
             <span class="logo-text">SUPERSYSTEMS</span>
         </div>
-        <div class="nav-item services-trigger" onclick="toggleServices()">
-            <span class="material-icons-outlined">apps</span><span>Services</span>
-            <span class="material-icons-outlined arrow">expand_more</span>
-        </div>
+        <div class="nav-item services-trigger" onclick="toggleServices()"><span class="material-icons-outlined">apps</span><span>Services</span><span class="material-icons-outlined arrow">expand_more</span></div>
     </div>
-    <div class="header-center">
-        <div class="search-box">
-            <span class="material-icons-outlined">search</span>
-            <input type="text" placeholder="Search..." id="globalSearch" oninput="handleSearch(this.value)">
-            <div class="search-results" id="searchResults"></div>
-        </div>
-    </div>
+    <div class="header-center"><div class="search-box"><span class="material-icons-outlined">search</span><input type="text" placeholder="Search..." id="globalSearch" oninput="handleSearch(this.value)"><div class="search-results" id="searchResults"></div></div></div>
     <div class="header-right">
-        <button class="header-icon-btn theme-toggle" onclick="toggleTheme()">
-            <span class="material-icons-outlined icon-light">dark_mode</span>
-            <span class="material-icons-outlined icon-dark">light_mode</span>
-        </button>
-        <div class="user-menu" id="userMenu">
-            <div class="user-avatar" onclick="toggleUserMenu()"><span class="material-icons-outlined">person</span></div>
-            <div class="user-dropdown" id="userDropdown">
-                <a href="#" onclick="logout()"><span class="material-icons-outlined">logout</span>Logout</a>
-            </div>
-        </div>
+        <button class="header-icon-btn theme-toggle" onclick="toggleTheme()"><span class="material-icons-outlined icon-light">dark_mode</span><span class="material-icons-outlined icon-dark">light_mode</span></button>
+        <div class="user-menu" id="userMenu"><div class="user-avatar" onclick="toggleUserMenu()"><span class="material-icons-outlined">person</span></div><div class="user-dropdown" id="userDropdown"><a href="#" onclick="logout()"><span class="material-icons-outlined">logout</span>Logout</a></div></div>
     </div>
 </header>
-<div class="services-panel" id="servicesPanel">
-    <div class="services-panel-header"><h3>All Services</h3><button class="close-btn" onclick="toggleServices()"><span class="material-icons-outlined">close</span></button></div>
-    <div class="services-grid" id="servicesGrid"></div>
-</div>
+<div class="services-panel" id="servicesPanel"><div class="services-panel-header"><h3>All Services</h3><button class="close-btn" onclick="toggleServices()"><span class="material-icons-outlined">close</span></button></div><div class="services-grid" id="servicesGrid"></div></div>
 <div class="overlay" id="overlay" onclick="toggleServices()"></div>
 
 <div class="hr-layout">
     <aside class="hr-sidebar">
         <div class="sidebar-header"><span class="material-icons-outlined">people</span><h3>Human Resources</h3></div>
         <nav class="sidebar-nav">
-            <a href="/hr" class="sidebar-link"><span class="material-icons-outlined">arrow_back</span>Back to HR</a>
+            <a href="/" class="sidebar-link"><span class="material-icons-outlined">arrow_back</span>Home</a>
             <div class="sidebar-divider"></div>
+            <a class="sidebar-link" href="/hr"><span class="material-icons-outlined">dashboard</span>Overview</a>
+            <a class="sidebar-link" href="/hr#codecriteria"><span class="material-icons-outlined">pin</span>Employee Code Criteria</a>
+            <a class="sidebar-link" href="/hr#employees"><span class="material-icons-outlined">badge</span>Employee Management</a>
             <a class="sidebar-link active" href="/hr/attendance"><span class="material-icons-outlined">schedule</span>Attendance & Shifts</a>
             <a class="sidebar-link" href="/hr/leave"><span class="material-icons-outlined">event_busy</span>Leave Management</a>
             <a class="sidebar-link" href="/hr/payroll"><span class="material-icons-outlined">payments</span>Payroll</a>
@@ -62,99 +45,194 @@
             <a class="sidebar-link" href="/hr/performance"><span class="material-icons-outlined">trending_up</span>Performance</a>
             <a class="sidebar-link" href="/hr/training"><span class="material-icons-outlined">school</span>Training</a>
             <a class="sidebar-link" href="/hr/analytics"><span class="material-icons-outlined">bar_chart</span>Analytics</a>
+            <a class="sidebar-link" href="/hr/audit-logs"><span class="material-icons-outlined">manage_search</span>Audit Logs</a>
             <a class="sidebar-link" href="/hr/users"><span class="material-icons-outlined">manage_accounts</span>User Management</a>
+            <a class="sidebar-link" href="/hr/approvals"><span class="material-icons-outlined">task_alt</span>Approvals</a>
         </nav>
     </aside>
 
     <main class="hr-content">
-        <!-- TABS -->
-        <div class="section-header">
-            <h2>Attendance & Shifts</h2>
-            <div class="section-actions">
-                <button class="btn-outline" onclick="showTab('attendance')">Attendance</button>
-                <button class="btn-outline" onclick="showTab('shifts')">Shifts</button>
-                <button class="btn-outline" onclick="showTab('roster')">Roster</button>
-                <button class="btn-outline" onclick="showTab('regularization')">Regularization</button>
-                <button class="btn-outline" onclick="showTab('summary')">Summary</button>
+        <!-- HEADER BLOCK -->
+        <div class="hr-header-block">
+            <div class="hr-header-main">
+                <div class="hr-header-titles">
+                    <h2>Attendance & Shifts</h2>
+                    <p>Employee clock-in/out tracking, shift schedules, roster assignment, and regularization workflows</p>
+                </div>
+                <div class="hr-header-actions">
+                    <button class="btn-outline" onclick="openPageHistory('Attendance,Shift,Roster,Regularization', 'Attendance & Shifts History')">
+                        <span class="material-icons-outlined">history</span> History
+                    </button>
+                    <button class="btn-outline" onclick="loadAttendance()">
+                        <span class="material-icons-outlined">refresh</span> Refresh
+                    </button>
+                    <button class="btn-primary" onclick="openCheckinModal()">
+                        <span class="material-icons-outlined">login</span> Manual Check-in
+                    </button>
+                </div>
             </div>
+        </div>
+
+        <!-- KPI SUMMARY GRID -->
+        <div class="hr-kpi-grid">
+            <div class="hr-kpi-card">
+                <div class="hr-kpi-top">
+                    <span class="hr-kpi-label">Present Today</span>
+                    <div class="hr-kpi-icon green"><span class="material-icons-outlined">check_circle</span></div>
+                </div>
+                <div class="hr-kpi-value" id="kpiPresent">0</div>
+                <div class="hr-kpi-sub"><span id="kpiPresentRate">0% of workforce</span></div>
+            </div>
+            <div class="hr-kpi-card">
+                <div class="hr-kpi-top">
+                    <span class="hr-kpi-label">On Time Clock-ins</span>
+                    <div class="hr-kpi-icon blue"><span class="material-icons-outlined">alarm_on</span></div>
+                </div>
+                <div class="hr-kpi-value" id="kpiOnTime">0</div>
+                <div class="hr-kpi-sub">Within grace period</div>
+            </div>
+            <div class="hr-kpi-card">
+                <div class="hr-kpi-top">
+                    <span class="hr-kpi-label">Active Shifts</span>
+                    <div class="hr-kpi-icon amber"><span class="material-icons-outlined">schedule</span></div>
+                </div>
+                <div class="hr-kpi-value" id="kpiShifts">0</div>
+                <div class="hr-kpi-sub">Day & Night schedules</div>
+            </div>
+            <div class="hr-kpi-card">
+                <div class="hr-kpi-top">
+                    <span class="hr-kpi-label">Pending Regularizations</span>
+                    <div class="hr-kpi-icon purple"><span class="material-icons-outlined">pending_actions</span></div>
+                </div>
+                <div class="hr-kpi-value" id="kpiRegPending">0</div>
+                <div class="hr-kpi-sub">Awaiting approval</div>
+            </div>
+        </div>
+
+        <!-- SEGMENTED NAVIGATION TABS -->
+        <div class="hr-segmented-nav">
+            <button class="hr-seg-btn active" id="seg-att" onclick="showTab('attendance')">
+                <span class="material-icons-outlined">schedule</span> Daily Attendance
+                <span class="hr-seg-count" id="count-att">0</span>
+            </button>
+            <button class="hr-seg-btn" id="seg-shifts" onclick="showTab('shifts')">
+                <span class="material-icons-outlined">more_time</span> Shifts
+                <span class="hr-seg-count" id="count-shifts">0</span>
+            </button>
+            <button class="hr-seg-btn" id="seg-roster" onclick="showTab('roster')">
+                <span class="material-icons-outlined">calendar_month</span> Roster Planning
+                <span class="hr-seg-count" id="count-roster">0</span>
+            </button>
+            <button class="hr-seg-btn" id="seg-reg" onclick="showTab('regularization')">
+                <span class="material-icons-outlined">published_with_changes</span> Regularization
+                <span class="hr-seg-count" id="count-reg">0</span>
+            </button>
+            <button class="hr-seg-btn" id="seg-sum" onclick="showTab('summary')">
+                <span class="material-icons-outlined">summarize</span> Monthly Summary
+            </button>
         </div>
 
         <!-- ATTENDANCE TAB -->
         <div class="tab-panel active" id="tab-attendance">
-            <div class="section-header" style="margin-top:0">
-                <div style="display:flex;gap:8px;align-items:center">
-                    <select id="attMonth" onchange="loadAttendance()"></select>
-                    <select id="attYear" onchange="loadAttendance()"></select>
-                    <input type="text" id="attEmpFilter" placeholder="Filter by employee..." oninput="loadAttendance()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary)">
+            <div class="hr-toolbar">
+                <div class="hr-toolbar-left">
+                    <div class="hr-search-input">
+                        <span class="material-icons-outlined">search</span>
+                        <input type="text" id="attEmpFilter" placeholder="Search employee name or code..." oninput="loadAttendance()">
+                    </div>
+                    <select class="hr-filter-select" id="attMonth" onchange="loadAttendance()"></select>
+                    <select class="hr-filter-select" id="attYear" onchange="loadAttendance()"></select>
                 </div>
-                <button class="btn-primary" onclick="openCheckinModal()"><span class="material-icons-outlined">login</span> Manual Check-in</button>
+                <div class="hr-toolbar-right">
+                    <button class="btn-primary" onclick="openCheckinModal()">
+                        <span class="material-icons-outlined">login</span> Manual Check-in
+                    </button>
+                </div>
             </div>
-            <div class="table-container">
+            <div class="hr-table-card">
                 <table class="data-table">
                     <thead><tr><th>Employee</th><th>Date</th><th>Check In</th><th>Check Out</th><th>Hours</th><th>Method</th><th>Status</th><th>Actions</th></tr></thead>
-                    <tbody id="attendanceBody"><tr><td colspan="8" class="empty">Loading...</td></tr></tbody>
+                    <tbody id="attendanceBody"><tr><td colspan="8" class="empty">Loading attendance records...</td></tr></tbody>
                 </table>
             </div>
         </div>
 
         <!-- SHIFTS TAB -->
         <div class="tab-panel" id="tab-shifts">
-            <div class="section-header" style="margin-top:0">
-                <span></span>
-                <button class="btn-primary" onclick="openShiftModal()"><span class="material-icons-outlined">add</span> New Shift</button>
+            <div class="hr-toolbar">
+                <div class="hr-toolbar-left">
+                    <span style="font-size:13px;color:var(--text-secondary)">Manage organization work shifts and break schedules</span>
+                </div>
+                <div class="hr-toolbar-right">
+                    <button class="btn-primary" onclick="openShiftModal()">
+                        <span class="material-icons-outlined">add</span> New Shift Schedule
+                    </button>
+                </div>
             </div>
-            <div class="table-container">
+            <div class="hr-table-card">
                 <table class="data-table">
-                    <thead><tr><th>Shift Name</th><th>Start Time</th><th>End Time</th><th>Break (min)</th><th>Night Shift</th><th>Actions</th></tr></thead>
-                    <tbody id="shiftsBody"><tr><td colspan="6" class="empty">Loading...</td></tr></tbody>
+                    <thead><tr><th>Shift Name</th><th>Start Time</th><th>End Time</th><th>Break Duration</th><th>Night Shift</th><th>Actions</th></tr></thead>
+                    <tbody id="shiftsBody"><tr><td colspan="6" class="empty">Loading shifts...</td></tr></tbody>
                 </table>
             </div>
         </div>
 
         <!-- ROSTER TAB -->
         <div class="tab-panel" id="tab-roster">
-            <div class="section-header" style="margin-top:0">
-                <div style="display:flex;gap:8px;align-items:center">
-                    <select id="rosterMonth" onchange="loadRoster()"></select>
-                    <select id="rosterYear" onchange="loadRoster()"></select>
+            <div class="hr-toolbar">
+                <div class="hr-toolbar-left">
+                    <select class="hr-filter-select" id="rosterMonth" onchange="loadRoster()"></select>
+                    <select class="hr-filter-select" id="rosterYear" onchange="loadRoster()"></select>
                 </div>
-                <button class="btn-primary" onclick="openRosterModal()"><span class="material-icons-outlined">add</span> Assign Shift</button>
+                <div class="hr-toolbar-right">
+                    <button class="btn-primary" onclick="openRosterModal()">
+                        <span class="material-icons-outlined">add</span> Assign Shift Roster
+                    </button>
+                </div>
             </div>
-            <div class="table-container">
+            <div class="hr-table-card">
                 <table class="data-table">
-                    <thead><tr><th>Employee</th><th>Date</th><th>Shift</th></tr></thead>
-                    <tbody id="rosterBody"><tr><td colspan="3" class="empty">Loading...</td></tr></tbody>
+                    <thead><tr><th>Employee</th><th>Date</th><th>Assigned Shift</th></tr></thead>
+                    <tbody id="rosterBody"><tr><td colspan="3" class="empty">Loading roster...</td></tr></tbody>
                 </table>
             </div>
         </div>
 
         <!-- REGULARIZATION TAB -->
         <div class="tab-panel" id="tab-regularization">
-            <div class="section-header" style="margin-top:0">
-                <span></span>
-                <button class="btn-primary" onclick="openRegModal()"><span class="material-icons-outlined">add</span> New Request</button>
+            <div class="hr-toolbar">
+                <div class="hr-toolbar-left">
+                    <span style="font-size:13px;color:var(--text-secondary)">Employee requests for missing punch or work hour adjustments</span>
+                </div>
+                <div class="hr-toolbar-right">
+                    <button class="btn-primary" onclick="openRegModal()">
+                        <span class="material-icons-outlined">add</span> New Regularization Request
+                    </button>
+                </div>
             </div>
-            <div class="table-container">
+            <div class="hr-table-card">
                 <table class="data-table">
-                    <thead><tr><th>Employee</th><th>Date</th><th>Req. Check-in</th><th>Req. Check-out</th><th>Reason</th><th>Status</th><th>Actions</th></tr></thead>
-                    <tbody id="regBody"><tr><td colspan="7" class="empty">Loading...</td></tr></tbody>
+                    <thead><tr><th>Employee</th><th>Date</th><th>Requested In</th><th>Requested Out</th><th>Reason</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody id="regBody"><tr><td colspan="7" class="empty">Loading requests...</td></tr></tbody>
                 </table>
             </div>
         </div>
 
         <!-- SUMMARY TAB -->
         <div class="tab-panel" id="tab-summary">
-            <div class="section-header" style="margin-top:0">
-                <div style="display:flex;gap:8px;align-items:center">
-                    <select id="sumMonth" onchange="loadSummary()"></select>
-                    <select id="sumYear" onchange="loadSummary()"></select>
+            <div class="hr-toolbar">
+                <div class="hr-toolbar-left">
+                    <select class="hr-filter-select" id="sumMonth" onchange="loadSummary()"></select>
+                    <select class="hr-filter-select" id="sumYear" onchange="loadSummary()"></select>
                 </div>
-                <button class="btn-outline" onclick="loadSummary()"><span class="material-icons-outlined">refresh</span> Refresh</button>
+                <div class="hr-toolbar-right">
+                    <button class="btn-outline" onclick="loadSummary()"><span class="material-icons-outlined">refresh</span> Refresh Summary</button>
+                </div>
             </div>
-            <div class="table-container">
+            <div class="hr-table-card">
                 <table class="data-table">
-                    <thead><tr><th>Employee</th><th>Present</th><th>Absent</th><th>Half Day</th><th>On Leave</th><th>Avg Hours</th></tr></thead>
-                    <tbody id="summaryBody"><tr><td colspan="6" class="empty">Loading...</td></tr></tbody>
+                    <thead><tr><th>Employee</th><th>Present Days</th><th>Absent Days</th><th>Half Days</th><th>On Leave</th><th>Average Daily Hours</th></tr></thead>
+                    <tbody id="summaryBody"><tr><td colspan="6" class="empty">Loading summary...</td></tr></tbody>
                 </table>
             </div>
         </div>
@@ -164,16 +242,16 @@
 <!-- CHECKIN MODAL -->
 <div class="modal-overlay" id="checkinModal">
     <div class="modal">
-        <div class="modal-header"><h3>Manual Check-in/out</h3><button class="close-btn" onclick="closeModal('checkinModal')"><span class="material-icons-outlined">close</span></button></div>
+        <div class="modal-header"><h3>Manual Check-in / Check-out</h3><button class="close-btn" onclick="closeModal('checkinModal')"><span class="material-icons-outlined">close</span></button></div>
         <div class="modal-body">
-            <div class="form-group"><label>Employee</label><select id="ciEmp"></select></div>
-            <div class="form-group"><label>Date</label><input type="date" id="ciDate"></div>
-            <div class="form-group"><label>Action</label>
+            <div class="form-group"><label>Employee *</label><select id="ciEmp"></select></div>
+            <div class="form-group"><label>Date *</label><input type="date" id="ciDate"></div>
+            <div class="form-group"><label>Action *</label>
                 <select id="ciAction"><option value="checkin">Check In</option><option value="checkout">Check Out</option></select>
             </div>
             <div class="form-actions">
                 <button class="btn-secondary" onclick="closeModal('checkinModal')">Cancel</button>
-                <button class="btn-primary" onclick="submitCheckin()">Submit</button>
+                <button class="btn-primary" onclick="submitCheckin()">Submit Attendance</button>
             </div>
         </div>
     </div>
@@ -182,21 +260,21 @@
 <!-- SHIFT MODAL -->
 <div class="modal-overlay" id="shiftModal">
     <div class="modal">
-        <div class="modal-header"><h3 id="shiftModalTitle">New Shift</h3><button class="close-btn" onclick="closeModal('shiftModal')"><span class="material-icons-outlined">close</span></button></div>
+        <div class="modal-header"><h3 id="shiftModalTitle">New Shift Schedule</h3><button class="close-btn" onclick="closeModal('shiftModal')"><span class="material-icons-outlined">close</span></button></div>
         <div class="modal-body">
             <input type="hidden" id="shiftId">
-            <div class="form-group"><label>Shift Name *</label><input type="text" id="shiftName"></div>
+            <div class="form-group"><label>Shift Name *</label><input type="text" id="shiftName" placeholder="e.g. Morning Shift"></div>
             <div class="form-row">
                 <div class="form-group"><label>Start Time *</label><input type="time" id="shiftStart"></div>
                 <div class="form-group"><label>End Time *</label><input type="time" id="shiftEnd"></div>
             </div>
             <div class="form-row">
-                <div class="form-group"><label>Break (minutes)</label><input type="number" id="shiftBreak" value="30"></div>
-                <div class="form-group"><label>Night Shift</label><select id="shiftNight"><option value="false">No</option><option value="true">Yes</option></select></div>
+                <div class="form-group"><label>Break Duration (minutes)</label><input type="number" id="shiftBreak" value="30"></div>
+                <div class="form-group"><label>Night Shift</label><select id="shiftNight"><option value="false">No (Day Shift)</option><option value="true">Yes (Night Shift)</option></select></div>
             </div>
             <div class="form-actions">
                 <button class="btn-secondary" onclick="closeModal('shiftModal')">Cancel</button>
-                <button class="btn-primary" onclick="saveShift()">Save</button>
+                <button class="btn-primary" onclick="saveShift()">Save Shift</button>
             </div>
         </div>
     </div>
@@ -205,14 +283,14 @@
 <!-- ROSTER MODAL -->
 <div class="modal-overlay" id="rosterModal">
     <div class="modal">
-        <div class="modal-header"><h3>Assign Shift</h3><button class="close-btn" onclick="closeModal('rosterModal')"><span class="material-icons-outlined">close</span></button></div>
+        <div class="modal-header"><h3>Assign Shift Roster</h3><button class="close-btn" onclick="closeModal('rosterModal')"><span class="material-icons-outlined">close</span></button></div>
         <div class="modal-body">
-            <div class="form-group"><label>Employee</label><select id="rosterEmp"></select></div>
-            <div class="form-group"><label>Shift</label><select id="rosterShift"></select></div>
-            <div class="form-group"><label>Date</label><input type="date" id="rosterDate"></div>
+            <div class="form-group"><label>Employee *</label><select id="rosterEmp"></select></div>
+            <div class="form-group"><label>Shift Schedule *</label><select id="rosterShift"></select></div>
+            <div class="form-group"><label>Assignment Date *</label><input type="date" id="rosterDate"></div>
             <div class="form-actions">
                 <button class="btn-secondary" onclick="closeModal('rosterModal')">Cancel</button>
-                <button class="btn-primary" onclick="saveRoster()">Assign</button>
+                <button class="btn-primary" onclick="saveRoster()">Assign Shift</button>
             </div>
         </div>
     </div>
@@ -223,16 +301,16 @@
     <div class="modal">
         <div class="modal-header"><h3>Regularization Request</h3><button class="close-btn" onclick="closeModal('regModal')"><span class="material-icons-outlined">close</span></button></div>
         <div class="modal-body">
-            <div class="form-group"><label>Employee</label><select id="regEmp"></select></div>
-            <div class="form-group"><label>Attendance Date</label><input type="date" id="regDate"></div>
+            <div class="form-group"><label>Employee *</label><select id="regEmp"></select></div>
+            <div class="form-group"><label>Attendance Date *</label><input type="date" id="regDate"></div>
             <div class="form-row">
-                <div class="form-group"><label>Requested Check-in</label><input type="datetime-local" id="regCI"></div>
-                <div class="form-group"><label>Requested Check-out</label><input type="datetime-local" id="regCO"></div>
+                <div class="form-group"><label>Corrected Check-in</label><input type="datetime-local" id="regCI"></div>
+                <div class="form-group"><label>Corrected Check-out</label><input type="datetime-local" id="regCO"></div>
             </div>
-            <div class="form-group"><label>Reason *</label><textarea id="regReason" rows="3"></textarea></div>
+            <div class="form-group"><label>Reason for Adjustment *</label><textarea id="regReason" rows="3" placeholder="Explain missing punch or time adjustment reason..."></textarea></div>
             <div class="form-actions">
                 <button class="btn-secondary" onclick="closeModal('regModal')">Cancel</button>
-                <button class="btn-primary" onclick="saveReg()">Submit</button>
+                <button class="btn-primary" onclick="saveReg()">Submit Request</button>
             </div>
         </div>
     </div>

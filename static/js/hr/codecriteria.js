@@ -3,23 +3,37 @@ async function loadCriteria() {
     const res = await fetch(API + '/code-criteria', { headers: headers() });
     const data = await res.json();
     criteriaList = data.data || [];
-    renderCriteriaTable();
+    renderCriteriaTable(criteriaList);
 }
 
-function renderCriteriaTable() {
+function filterCriteria() {
+    const q = (document.getElementById('criteriaSearchInput')?.value || '').toLowerCase().trim();
+    const filtered = criteriaList.filter(c => {
+        return !q || 
+            (c.name && c.name.toLowerCase().includes(q)) ||
+            (c.prefix && c.prefix.toLowerCase().includes(q)) ||
+            (c.suffix && c.suffix.toLowerCase().includes(q));
+    });
+    renderCriteriaTable(filtered);
+}
+
+function renderCriteriaTable(list = criteriaList) {
     const tbody = document.getElementById('criteriaTableBody');
-    if (!criteriaList.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">No code criteria defined yet</td></tr>'; return; }
-    tbody.innerHTML = criteriaList.map(c => {
+    if (!tbody) return;
+    if (!list.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">No matching code criteria found</td></tr>'; return; }
+    tbody.innerHTML = list.map(c => {
         const next = c.current_sequence + 1;
         const preview = buildPreview(c.prefix, c.prefix_separator, next, c.suffix_separator, c.suffix);
         return `<tr>
             <td><strong>${c.name}</strong></td>
             <td><span class="preview-code">${preview}</span></td>
             <td>${c.prefix || '—'}</td><td>${c.prefix_separator || '—'}</td>
-            <td>${next}</td><td>${c.suffix_separator || '—'}</td><td>${c.suffix || '—'}</td>
-            <td class="actions-cell">
-                <button class="btn-icon" title="Edit" onclick="openEditCriteria('${c.id}')"><span class="material-icons-outlined">edit</span></button>
-                <button class="btn-icon danger" title="Delete" onclick="confirmDeleteCriteria('${c.id}','${c.name}')"><span class="material-icons-outlined">delete</span></button>
+            <td><strong>${next}</strong></td><td>${c.suffix_separator || '—'}</td><td>${c.suffix || '—'}</td>
+            <td style="text-align:right">
+                <div style="display:inline-flex;gap:4px">
+                    <button class="btn-icon" title="Edit" onclick="openEditCriteria('${c.id}')"><span class="material-icons-outlined">edit</span></button>
+                    <button class="btn-icon danger" title="Delete" onclick="confirmDeleteCriteria('${c.id}','${c.name}')"><span class="material-icons-outlined">delete</span></button>
+                </div>
             </td>
         </tr>`;
     }).join('');

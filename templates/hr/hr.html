@@ -213,10 +213,24 @@
             <div class="section-header">
                 <h2>Employee Code Criteria</h2>
                 <div class="section-actions">
+                    <button class="btn-outline" onclick="openPageHistory('Code Criteria', 'Code Criteria History')">
+                        <span class="material-icons-outlined">history</span> History
+                    </button>
+                    <button class="btn-outline" onclick="loadCriteria()">
+                        <span class="material-icons-outlined">refresh</span> Refresh
+                    </button>
                     <button class="btn-primary" onclick="openCreateCriteriaModal()"><span class="material-icons-outlined">add</span> New Criteria</button>
                 </div>
             </div>
             <p class="section-desc">Define how employee codes are generated. Format: <strong>Prefix + Separator + Auto-Number + Separator + Suffix</strong></p>
+            <div class="hr-toolbar" style="margin-top:12px;">
+                <div class="hr-toolbar-left">
+                    <div class="hr-search-input">
+                        <span class="material-icons-outlined">search</span>
+                        <input type="text" id="criteriaSearchInput" placeholder="Search criteria name, prefix, suffix..." oninput="filterCriteria()">
+                    </div>
+                </div>
+            </div>
             <div class="table-container">
                 <table class="data-table">
                     <thead><tr><th>Name</th><th>Preview</th><th>Prefix</th><th>Sep</th><th>Next Code</th><th>Sep</th><th>Suffix</th><th>Actions</th></tr></thead>
@@ -230,7 +244,27 @@
             <div class="section-header">
                 <h2>Employee Management</h2>
                 <div class="section-actions">
+                    <button class="btn-outline" onclick="openPageHistory('Employee', 'Employee Management History')">
+                        <span class="material-icons-outlined">history</span> History
+                    </button>
+                    <button class="btn-outline" onclick="loadEmployees()">
+                        <span class="material-icons-outlined">refresh</span> Refresh
+                    </button>
                     <button class="btn-primary" onclick="openAddEmployeeModal()"><span class="material-icons-outlined">person_add</span> Add Employee</button>
+                </div>
+            </div>
+            <div class="hr-toolbar" style="margin-top:12px;">
+                <div class="hr-toolbar-left">
+                    <div class="hr-search-input">
+                        <span class="material-icons-outlined">search</span>
+                        <input type="text" id="empSearchInput" placeholder="Search by name, code, email, designation..." oninput="filterEmployees()">
+                    </div>
+                    <select class="hr-filter-select" id="empStatusFilter" onchange="filterEmployees()">
+                        <option value="">All Statuses</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="terminated">Terminated</option>
+                    </select>
                 </div>
             </div>
             <div class="table-container">

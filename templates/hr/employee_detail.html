@@ -90,6 +90,9 @@
             <button class="ed-nav-link" data-section="experience" onclick="switchSection('experience')">
                 <span class="material-icons-outlined">history_edu</span> Experience
             </button>
+            <button class="ed-nav-link" data-section="hierarchy" onclick="switchSection('hierarchy')">
+                <span class="material-icons-outlined">account_tree</span> Hierarchy
+            </button>
             <button class="ed-nav-link" data-section="audit" onclick="switchSection('audit')">
                 <span class="material-icons-outlined">manage_search</span> Audit Logs
             </button>
@@ -205,6 +208,13 @@
                 </div>
                 <div id="experienceContainer"></div>
                 <button class="ed-add-btn" onclick="alert('Experience add flow can be enabled in next step.')"><span class="material-icons-outlined">add</span> Add Experience</button>
+            </section>
+
+            <section class="ed-section" id="section-hierarchy">
+                <div class="ed-section-title">
+                    <span class="material-icons-outlined">account_tree</span> Reporting Hierarchy
+                </div>
+                <div id="hierarchyContainer"><div style="text-align:center;padding:40px;color:var(--text-secondary)"><span class="material-icons-outlined" style="font-size:36px;opacity:0.5;display:block">account_tree</span>Click the Hierarchy tab to load.</div></div>
             </section>
 
             <section class="ed-section" id="section-audit">
@@ -410,16 +420,35 @@ function renderAuditSection(auditLogs) {
         const action = (item.action || 'UPDATE').toUpperCase();
         const iconClass = action === 'CREATE' ? 'audit-create' : action === 'DELETE' ? 'audit-delete' : 'audit-update';
         const iconName = action === 'CREATE' ? 'add_circle' : action === 'DELETE' ? 'delete' : 'edit';
+        const userStr = item.user_email ? `${item.user_email}${item.user_name ? ` (${item.user_name})` : ''}` : (item.user_name || 'System');
+
+        let diffHtml = '';
+        let extra = {};
+        try { extra = typeof item.extra_data === 'string' ? JSON.parse(item.extra_data || '{}') : (item.extra_data || {}); } catch(e) {}
+        const changes = extra.changes || {};
+        const changeKeys = Object.keys(changes);
+        if (changeKeys.length > 0) {
+            diffHtml = `<div style="margin-top:6px;font-size:12px;background:var(--bg,#f8f9fa);padding:6px 10px;border-radius:6px;border:1px solid var(--border);">
+                ${changeKeys.map(k => `<div style="display:flex;gap:6px;align-items:baseline;"><strong style="min-width:90px;color:var(--text-secondary);">${k}:</strong> <span style="color:#d32f2f;text-decoration:line-through;background:rgba(211,47,47,0.08);padding:1px 4px;border-radius:3px;">${changes[k].old !== null && changes[k].old !== undefined ? changes[k].old : 'none'}</span> <span style="color:var(--text-secondary);font-size:11px;">→</span> <span style="color:#2e7d32;font-weight:500;background:rgba(46,125,50,0.1);padding:1px 4px;border-radius:3px;">${changes[k].new !== null && changes[k].new !== undefined ? changes[k].new : 'none'}</span></div>`).join('')}
+            </div>`;
+        } else if (extra.new) {
+            const entries = Object.entries(extra.new).slice(0, 4);
+            diffHtml = `<div style="margin-top:6px;font-size:12px;background:var(--bg,#f8f9fa);padding:6px 10px;border-radius:6px;border:1px solid var(--border);">
+                ${entries.map(([k, v]) => `<div style="display:flex;gap:6px;"><strong style="min-width:90px;color:var(--text-secondary);">${k}:</strong> <span>${v ?? ''}</span></div>`).join('')}
+            </div>`;
+        }
+
         return `
             <div class="ed-audit-item">
                 <div class="ed-audit-icon ${iconClass}"><span class="material-icons-outlined">${iconName}</span></div>
-                <div class="ed-audit-body">
+                <div class="ed-audit-body" style="flex:1">
                     <div class="ed-audit-action">${action}</div>
                     <div class="ed-audit-meta">
-                        <span>${item.user_name || item.user_email || 'System'}</span>
+                        <span style="font-weight:600;color:var(--text)">${userStr}</span>
                         <span>•</span>
                         <span>${item.ip_address || 'N/A'}</span>
                     </div>
+                    ${diffHtml}
                 </div>
                 <div class="ed-audit-time">${item.created_at || '—'}</div>
             </div>`;
@@ -645,6 +674,89 @@ async function loadEmployeeDetail() {
 window.addEventListener('DOMContentLoaded', function() {
     loadEmployeeDetail();
 });
+
+// ─── HIERARCHY ───
+async function loadHierarchy() {
+    const container = document.getElementById('hierarchyContainer');
+    if (!container) return;
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary)"><span class="material-icons-outlined ed-spin">autorenew</span> Loading hierarchy...</div>';
+    try {
+        const res = await fetch(`/api/v1/hr/employees/${empId}/hierarchy`, { headers: getAuthHeaders() });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message);
+        const { reports_to, direct_reports, employee } = data.data;
+
+        const statusColor = s => s === 'active' ? '#2e7d32' : '#e53935';
+        const empCard = (e, label) => `
+            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;display:flex;align-items:center;gap:14px;box-shadow:0 1px 4px rgba(0,0,0,.05);">
+                <div style="width:44px;height:44px;border-radius:50%;background:rgba(26,115,232,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <span class="material-icons-outlined" style="color:#1a73e8;font-size:22px">person</span>
+                </div>
+                <div style="flex:1;min-width:0">
+                    <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:#1a73e8;margin-bottom:2px">${label}</div>
+                    <a href="/hr/employee/${e.id}" style="font-weight:700;color:var(--text-primary);text-decoration:none;font-size:15px">${e.name}</a>
+                    <div style="font-size:12px;color:var(--text-secondary);margin-top:2px">${e.emp_code} ${e.designation ? '· ' + e.designation : ''}</div>
+                </div>
+                <span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:10px;background:${statusColor(e.status)}18;color:${statusColor(e.status)}">${e.status || 'active'}</span>
+            </div>`;
+
+        let html = '';
+
+        // Reporting Manager
+        html += '<div style="margin-bottom:24px">';
+        html += '<div style="font-size:13px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Reports To</div>';
+        if (reports_to) {
+            html += empCard(reports_to, 'Reporting Manager');
+        } else {
+            html += '<div style="background:var(--bg-card);border:1px dashed var(--border);border-radius:12px;padding:16px 20px;color:var(--text-secondary);font-size:13px">'
+                + '<span class="material-icons-outlined" style="vertical-align:middle;margin-right:6px;font-size:18px">info</span>'
+                + (employee.reporting_to_text ? `No matching employee found for "${employee.reporting_to_text}"` : 'No reporting manager assigned')
+                + '</div>';
+        }
+        html += '</div>';
+
+        // Org divider
+        html += '<div style="display:flex;align-items:center;justify-content:center;margin:16px 0 8px">';
+        html += '<div style="width:2px;height:32px;background:var(--border)"></div>';
+        html += '</div>';
+
+        // This employee (center)
+        html += '<div style="margin-bottom:8px">';
+        html += `<div style="background:rgba(26,115,232,.07);border:2px solid rgba(26,115,232,.25);border-radius:12px;padding:16px 20px;display:flex;align-items:center;gap:14px">`;
+        html += `<div style="width:44px;height:44px;border-radius:50%;background:#1a73e8;display:flex;align-items:center;justify-content:center;flex-shrink:0"><span class="material-icons-outlined" style="color:#fff;font-size:22px">person</span></div>`;
+        html += `<div style="flex:1"><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:#1a73e8;margin-bottom:2px">This Employee</div>`;
+        html += `<div style="font-weight:700;font-size:15px;color:var(--text-primary)">${employee.name}</div>`;
+        html += `<div style="font-size:12px;color:var(--text-secondary);margin-top:2px">${employee.emp_code} ${employee.designation ? '· ' + employee.designation : ''}</div></div></div></div>`;
+
+        // Divider to direct reports
+        if (direct_reports.length > 0) {
+            html += '<div style="display:flex;align-items:center;justify-content:center;margin:8px 0">';
+            html += '<div style="width:2px;height:24px;background:var(--border)"></div>';
+            html += '</div>';
+            html += `<div style="font-size:13px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Direct Reports (${direct_reports.length})</div>`;
+            html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">';
+            direct_reports.forEach(dr => {
+                html += empCard(dr, 'Direct Report');
+            });
+            html += '</div>';
+        } else {
+            html += '<div style="display:flex;align-items:center;justify-content:center;margin:8px 0"><div style="width:2px;height:24px;background:var(--border)"></div></div>';
+            html += '<div style="background:var(--bg-card);border:1px dashed var(--border);border-radius:12px;padding:16px 20px;color:var(--text-secondary);font-size:13px;text-align:center">No direct reports found</div>';
+        }
+
+        container.innerHTML = html;
+    } catch(e) {
+        container.innerHTML = `<div class="ed-error"><span class="material-icons-outlined">error</span><div>Failed to load hierarchy: ${e.message}</div></div>`;
+    }
+}
+
+// Override switchSection to load hierarchy lazily
+const _origSwitch = switchSection;
+switchSection = function(section) {
+    _origSwitch(section);
+    if (section === 'hierarchy') loadHierarchy();
+};
+
 </script>
 </body>
 </html>

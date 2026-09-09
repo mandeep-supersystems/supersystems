@@ -71,9 +71,12 @@ async function saveCategory(e) {
     } catch (e) { showToast('Network error', 'error'); }
 }
 
+let editingCatColIdx = -1;
+
 function editCategory(id) {
     const cat = categories.find(c => c.id === id);
     if (!cat) return;
+    editingCatColIdx = -1;
     document.getElementById('editCatId').value = id;
     document.getElementById('editCatName').value = cat.name || '';
     document.getElementById('editCatDesc').value = cat.description || '';
@@ -97,16 +100,67 @@ function renderEditCatColumns(cols, descCols) {
         descContainer.innerHTML = '<span class="text-muted" style="font-size:12px">No columns defined</span>';
         return;
     }
-    container.innerHTML = cols.map((c, i) => `
+    container.innerHTML = cols.map((c, i) => {
+        if (i === editingCatColIdx) {
+            return `
+            <div class="edit-cat-col-row editing" data-idx="${i}" style="display:flex;align-items:center;gap:6px;margin-bottom:6px;padding:6px 8px;background:var(--bg-secondary);border:1px solid var(--accent);border-radius:6px">
+                <input type="text" id="inlineEditColLabel_${i}" value="${esc(c.label || c.name)}" placeholder="Label" style="flex:2;padding:4px 8px;font-size:12px;border:1px solid var(--border-color);border-radius:4px">
+                <select id="inlineEditColType_${i}" style="flex:1;padding:4px 6px;font-size:12px;border:1px solid var(--border-color);border-radius:4px">
+                    <option value="varchar" ${c.type === 'varchar' ? 'selected' : ''}>Text</option>
+                    <option value="numeric" ${c.type === 'numeric' ? 'selected' : ''}>Number</option>
+                    <option value="boolean" ${c.type === 'boolean' ? 'selected' : ''}>Boolean</option>
+                    <option value="date" ${c.type === 'date' ? 'selected' : ''}>Date</option>
+                </select>
+                <button type="button" class="btn-icon" onclick="saveInlineCatCol(${i})" title="Save column changes" style="color:#2e7d32;background:none;border:none;cursor:pointer;padding:2px 4px"><span class="material-icons-outlined" style="font-size:18px">check</span></button>
+                <button type="button" class="btn-icon" onclick="cancelInlineCatCol()" title="Cancel edit" style="color:var(--text-muted);background:none;border:none;cursor:pointer;padding:2px 4px"><span class="material-icons-outlined" style="font-size:18px">close</span></button>
+            </div>`;
+        }
+        return `
         <div class="edit-cat-col-row" data-idx="${i}" style="display:flex;align-items:center;gap:8px;margin-bottom:6px;padding:6px 8px;background:var(--bg-secondary);border-radius:6px">
-            <span style="flex:1;font-size:13px;font-weight:500">${esc(c.label || c.name)}</span>
+            <span style="flex:1;font-size:13px;font-weight:500">${esc(c.label || c.name)} <span style="font-size:11px;color:var(--text-muted);font-weight:normal">(${esc(c.name)})</span></span>
             <span style="font-size:11px;color:var(--text-muted);background:var(--bg-primary);padding:2px 6px;border-radius:4px">${esc(c.type || 'varchar')}</span>
-            <button type="button" class="btn-icon" onclick="removeEditCatCol(${i})" title="Remove column" style="color:#e53935"><span class="material-icons-outlined" style="font-size:16px">delete</span></button>
-        </div>`).join('');
+            <button type="button" class="btn-icon" onclick="editCatCol(${i})" title="Edit column label & type" style="color:var(--accent);background:none;border:none;cursor:pointer;padding:2px 4px"><span class="material-icons-outlined" style="font-size:16px">edit</span></button>
+            <button type="button" class="btn-icon" onclick="removeEditCatCol(${i})" title="Remove column" style="color:#e53935;background:none;border:none;cursor:pointer;padding:2px 4px"><span class="material-icons-outlined" style="font-size:16px">delete</span></button>
+        </div>`;
+    }).join('');
+
     descContainer.innerHTML = cols.map(c => `
         <label style="display:inline-flex;align-items:center;gap:5px;margin-right:12px;margin-bottom:6px;font-size:13px;cursor:pointer">
             <input type="checkbox" class="edit-cat-desc-cb" value="${esc(c.name)}" ${descCols.includes(c.name) ? 'checked' : ''}> ${esc(c.label || c.name)}
         </label>`).join('');
+}
+
+function editCatCol(idx) {
+    editingCatColIdx = idx;
+    const id = document.getElementById('editCatId').value;
+    const cat = categories.find(c => c.id === id);
+    renderEditCatColumns(cat ? (cat.columns || []) : [], getEditCatDescCols());
+}
+
+function cancelInlineCatCol() {
+    editingCatColIdx = -1;
+    const id = document.getElementById('editCatId').value;
+    const cat = categories.find(c => c.id === id);
+    renderEditCatColumns(cat ? (cat.columns || []) : [], getEditCatDescCols());
+}
+
+function saveInlineCatCol(idx) {
+    const labelEl = document.getElementById(`inlineEditColLabel_${idx}`);
+    const typeEl = document.getElementById(`inlineEditColType_${idx}`);
+    if (!labelEl || !typeEl) return;
+    const newLabel = labelEl.value.trim();
+    if (!newLabel) { showToast('Column label cannot be empty', 'error'); return; }
+    const newType = typeEl.value;
+
+    const id = document.getElementById('editCatId').value;
+    const cat = categories.find(c => c.id === id);
+    if (!cat || !cat.columns || !cat.columns[idx]) return;
+
+    cat.columns[idx].label = newLabel;
+    cat.columns[idx].type = newType;
+    editingCatColIdx = -1;
+    renderEditCatColumns(cat.columns, getEditCatDescCols());
+    showToast('Column updated. Click "Save & Sync All Subcategories" to apply.');
 }
 
 function removeEditCatCol(idx) {
@@ -114,10 +168,19 @@ function removeEditCatCol(idx) {
     const cat = categories.find(c => c.id === id);
     if (!cat) return;
     const cols = [...(cat.columns || [])];
+    const removedCol = cols[idx];
+    if (!removedCol) return;
+
+    if (!confirm(`Are you sure you want to remove column "${removedCol.label || removedCol.name}" from this category?`)) {
+        return;
+    }
+
     cols.splice(idx, 1);
     cat.columns = cols;
-    const descCols = getEditCatDescCols();
+    editingCatColIdx = -1;
+    const descCols = getEditCatDescCols().filter(c => c !== removedCol.name);
     renderEditCatColumns(cols, descCols);
+    showToast(`Column "${removedCol.label || removedCol.name}" removed. Click "Save & Sync All Subcategories" to apply.`);
 }
 
 function getEditCatDescCols() {
@@ -129,18 +192,20 @@ function getEditCatDescCols() {
 function addEditCatColumn() {
     const nameEl = document.getElementById('editCatNewColName');
     const typeEl = document.getElementById('editCatNewColType');
-    const name = nameEl.value.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
-    if (!name) { showToast('Enter a column name', 'error'); return; }
+    const rawVal = nameEl.value.trim();
+    if (!rawVal) { showToast('Enter a column name', 'error'); return; }
+    const name = rawVal.toLowerCase().replace(/[^a-z0-9_]/g, '_');
     const id = document.getElementById('editCatId').value;
     const cat = categories.find(c => c.id === id);
     if (!cat) return;
     const cols = [...(cat.columns || [])];
     if (cols.find(c => c.name === name)) { showToast('Column already exists', 'error'); return; }
-    const label = nameEl.value.trim().replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    const label = rawVal.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     cols.push({ name, label, type: typeEl.value });
     cat.columns = cols;
     nameEl.value = '';
     renderEditCatColumns(cols, getEditCatDescCols());
+    showToast(`Column "${label}" added. Click "Save & Sync All Subcategories" to apply.`);
 }
 
 function setEditCatSep(sep) {

@@ -3,21 +3,57 @@ async function loadEmployees() {
     const res = await fetch(API + '/employees', { headers: headers() });
     const data = await res.json();
     employeesList = data.data || [];
-    renderEmployeesTable();
+    renderEmployeesTable(employeesList);
 }
 
-function renderEmployeesTable() {
+function filterEmployees() {
+    const q = (document.getElementById('empSearchInput')?.value || '').toLowerCase().trim();
+    const st = document.getElementById('empStatusFilter')?.value || '';
+    const tp = document.getElementById('empTypeFilter')?.value || '';
+
+    const filtered = employeesList.filter(e => {
+        const fullStr = `${e.emp_code || ''} ${e.first_name || ''} ${e.last_name || ''} ${e.email || ''} ${e.designation || ''} ${e.department || ''}`.toLowerCase();
+        const matchesQ = !q || fullStr.includes(q);
+        const matchesSt = !st || e.status === st;
+        const matchesTp = !tp || e.employment_type === tp;
+        return matchesQ && matchesSt && matchesTp;
+    });
+    renderEmployeesTable(filtered);
+}
+
+function renderEmployeesTable(list = employeesList) {
     const tbody = document.getElementById('employeesTableBody');
-    if (!employeesList.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">No employees added yet</td></tr>'; return; }
-    tbody.innerHTML = employeesList.map(e => `<tr style="cursor:pointer" onclick="window.location='/hr/employee/${e.id}'">
+    if (!tbody) return;
+    if (!list.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">No matching employees found</td></tr>'; return; }
+    
+    const statusPill = (status) => {
+        if (status === 'active') return '<span class="hr-pill success">Active</span>';
+        if (status === 'inactive') return '<span class="hr-pill warning">Inactive</span>';
+        if (status === 'terminated') return '<span class="hr-pill danger">Terminated</span>';
+        return `<span class="hr-pill neutral">${status || 'Unknown'}</span>`;
+    };
+
+    tbody.innerHTML = list.map(e => `<tr style="cursor:pointer" onclick="window.location='/hr/employee/${e.id}'">
         <td><a class="emp-code-link" href="/hr/employee/${e.id}" onclick="event.stopPropagation()">${e.emp_code}</a></td>
-        <td>${e.first_name} ${e.last_name}</td><td>${e.email}</td><td>${e.phone}</td>
-        <td>${e.designation}</td><td>${e.date_of_joining}</td>
-        <td><span class="status-badge ${e.status}">${e.status}</span></td>
-        <td class="actions-cell">
-            <button class="btn-icon" title="View" onclick="event.stopPropagation();window.location='/hr/employee/${e.id}'"><span class="material-icons-outlined">open_in_new</span></button>
-            <button class="btn-icon" title="Edit" onclick="event.stopPropagation();openEditEmployee('${e.id}')"><span class="material-icons-outlined">edit</span></button>
-            <button class="btn-icon danger" title="Delete" onclick="event.stopPropagation();confirmDeleteEmployee('${e.id}','${e.emp_code}')"><span class="material-icons-outlined">delete</span></button>
+        <td>
+            <div style="font-weight:600;color:var(--text-primary);">${e.first_name} ${e.last_name || ''}</div>
+        </td>
+        <td>
+            <div>${e.email || '—'}</div>
+            <div style="font-size:12px;color:var(--text-secondary)">${e.phone || ''}</div>
+        </td>
+        <td>
+            <div>${e.designation || '—'}</div>
+            <div style="font-size:12px;color:var(--text-secondary)">${e.department || '—'}</div>
+        </td>
+        <td>${e.date_of_joining ? e.date_of_joining.substring(0, 10) : '—'}</td>
+        <td>${statusPill(e.status)}</td>
+        <td style="text-align:right">
+            <div style="display:inline-flex;gap:4px">
+                <button class="btn-icon" title="View Profile" onclick="event.stopPropagation();window.location='/hr/employee/${e.id}'"><span class="material-icons-outlined">open_in_new</span></button>
+                <button class="btn-icon" title="Edit Employee" onclick="event.stopPropagation();openEditEmployee('${e.id}')"><span class="material-icons-outlined">edit</span></button>
+                <button class="btn-icon danger" title="Delete Employee" onclick="event.stopPropagation();confirmDeleteEmployee('${e.id}','${e.emp_code}')"><span class="material-icons-outlined">delete</span></button>
+            </div>
         </td>
     </tr>`).join('');
 }

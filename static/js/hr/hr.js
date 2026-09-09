@@ -40,10 +40,12 @@ async function loadCriteria() {
     renderCriteriaTable();
 }
 
-function renderCriteriaTable() {
+function renderCriteriaTable(list) {
+    const data = list || criteriaList;
     const tbody = document.getElementById('criteriaTableBody');
-    if (!criteriaList.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">No code criteria defined yet</td></tr>'; return; }
-    tbody.innerHTML = criteriaList.map(c => {
+    if (!tbody) return;
+    if (!data.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">No code criteria found</td></tr>'; return; }
+    tbody.innerHTML = data.map(c => {
         const next = c.current_sequence + 1;
         const preview = buildPreview(c.prefix, c.prefix_separator, next, c.suffix_separator, c.suffix);
         return `<tr>
@@ -170,10 +172,12 @@ async function loadEmployees() {
     renderEmployeesTable();
 }
 
-function renderEmployeesTable() {
+function renderEmployeesTable(list) {
+    const data = list || employeesList;
     const tbody = document.getElementById('employeesTableBody');
-    if (!employeesList.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">No employees added yet</td></tr>'; return; }
-    tbody.innerHTML = employeesList.map(e => `<tr>
+    if (!tbody) return;
+    if (!data.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">No employees found</td></tr>'; return; }
+    tbody.innerHTML = data.map(e => `<tr>
         <td><strong>${e.emp_code}</strong></td>
         <td>${e.first_name} ${e.last_name}</td>
         <td>${e.email}</td>
@@ -187,6 +191,33 @@ function renderEmployeesTable() {
             <button class="btn-icon danger" title="Delete" onclick="confirmDeleteEmployee('${e.id}','${e.emp_code}')"><span class="material-icons-outlined">delete</span></button>
         </td>
     </tr>`).join('');
+}
+
+function filterCriteria() {
+    const q = (document.getElementById('criteriaSearchInput')?.value || '').toLowerCase().trim();
+    if (!q) { renderCriteriaTable(); return; }
+    const filtered = criteriaList.filter(c => 
+        (c.name || '').toLowerCase().includes(q) ||
+        (c.prefix || '').toLowerCase().includes(q) ||
+        (c.suffix || '').toLowerCase().includes(q)
+    );
+    renderCriteriaTable(filtered);
+}
+
+function filterEmployees() {
+    const q = (document.getElementById('empSearchInput')?.value || '').toLowerCase().trim();
+    const st = (document.getElementById('empStatusFilter')?.value || '').toLowerCase();
+    const filtered = employeesList.filter(e => {
+        const matchesQ = !q || 
+            (e.emp_code || '').toLowerCase().includes(q) ||
+            (`${e.first_name || ''} ${e.last_name || ''}`).toLowerCase().includes(q) ||
+            (e.email || '').toLowerCase().includes(q) ||
+            (e.designation || '').toLowerCase().includes(q) ||
+            (e.phone || '').toLowerCase().includes(q);
+        const matchesSt = !st || (e.status || '').toLowerCase() === st;
+        return matchesQ && matchesSt;
+    });
+    renderEmployeesTable(filtered);
 }
 
 function openAddEmployeeModal() {

@@ -6,34 +6,8 @@ import json
 hr_bp = Blueprint("hr", __name__)
 
 
-def _log_audit(action, entity_type, entity_id, old_values=None, new_values=None):
-    """Write to audit.logs with user context, old/new values for full change tracking."""
-    try:
-        forwarded = request.headers.get('X-Forwarded-For', '')
-        ip = forwarded.split(',')[0].strip() if forwarded else (request.remote_addr or '')
-        extra = {}
-        if old_values:
-            extra['old'] = old_values
-        if new_values:
-            extra['new'] = new_values
-        if old_values and new_values:
-            extra['changes'] = {k: {'old': old_values.get(k), 'new': v}
-                                for k, v in new_values.items() if old_values.get(k) != v}
-        db.session.execute(db.text(
-            "INSERT INTO audit.logs (id, action, module, entity_type, entity_id, "
-            "ip_address, tenant_id, user_email, user_name, extra_data, created_at) "
-            "VALUES (gen_random_uuid(), :action, 'HR', :etype, :eid, "
-            ":ip, :tid, :email, :name, :extra, NOW())"
-        ), {
-            "action": action, "etype": entity_type, "eid": str(entity_id),
-            "ip": ip,
-            "tid": request.headers.get('X-Tenant-ID', ''),
-            "email": request.headers.get('X-User-Email', ''),
-            "name": request.headers.get('X-User-Name', ''),
-            "extra": json.dumps(extra) if extra else None
-        })
-    except Exception:
-        pass
+from modules.hr.audit import log_hr_audit
+_log_audit = log_hr_audit
 
 
 DEFAULT_TENANT_ID = 'b424df0e-f766-4e94-b3fd-05777e158958'
@@ -421,6 +395,72 @@ def get_employee_detail(emp_id):
     audit_list.sort(key=lambda x: x["created_at"] or '', reverse=True)
 
     return {"success": True, "data": {"employee": emp, "audit_logs": audit_list[:100]}}
+
+
+@hr_bp.route("/employees/<emp_id>/hierarchy", methods=["GET"])
+def get_employee_hierarchy(emp_id):
+    """Return the employee's reporting manager (up) and their direct reports (down)."""
+    # Get this employee's info first
+    emp_row = db.session.execute(db.text(
+        "SELECT id, emp_code, first_name, last_name, designation, department_id, "
+        "reporting_to, status FROM hr.employees WHERE id = :id AND is_deleted = false"
+    ), {"id": emp_id}).first()
+    if not emp_row:
+        return {"success": False, "message": "Employee not found"}, 404
+
+    reporting_to_str = emp_row[6] or ""
+
+    # Find reporting manager: match by emp_code OR full name (case-insensitive)
+    reports_to = None
+    if reporting_to_str:
+        rm_row = db.session.execute(db.text(
+            "SELECT id, emp_code, first_name, last_name, designation, department_id, status "
+            "FROM hr.employees WHERE is_deleted = false AND ("
+            "LOWER(emp_code) = LOWER(:rt) OR "
+            "LOWER(TRIM(first_name || ' ' || COALESCE(last_name,''))) = LOWER(:rt) OR "
+            "LOWER(first_name) = LOWER(:rt)"
+            ") LIMIT 1"
+        ), {"rt": reporting_to_str.strip()}).first()
+        if rm_row:
+            reports_to = {
+                "id": str(rm_row[0]), "emp_code": rm_row[1],
+                "first_name": rm_row[2], "last_name": rm_row[3] or "",
+                "name": f"{rm_row[2]} {rm_row[3] or ''}".strip(),
+                "designation": rm_row[4] or "", "department": rm_row[5] or "",
+                "status": rm_row[6] or "active"
+            }
+
+    # Find direct reports: employees whose reporting_to matches this employee's emp_code or full name
+    emp_code = emp_row[1]
+    emp_full_name = f"{emp_row[2]} {emp_row[3] or ''}".strip()
+    dr_rows = db.session.execute(db.text(
+        "SELECT id, emp_code, first_name, last_name, designation, department_id, status "
+        "FROM hr.employees WHERE is_deleted = false AND id != :id AND ("
+        "LOWER(reporting_to) = LOWER(:code) OR "
+        "LOWER(reporting_to) = LOWER(:name) OR "
+        "LOWER(reporting_to) = LOWER(:fname)"
+        ") ORDER BY first_name"
+    ), {"id": emp_id, "code": emp_code, "name": emp_full_name, "fname": emp_row[2]}).fetchall()
+
+    direct_reports = [{
+        "id": str(r[0]), "emp_code": r[1],
+        "first_name": r[2], "last_name": r[3] or "",
+        "name": f"{r[2]} {r[3] or ''}".strip(),
+        "designation": r[4] or "", "department": r[5] or "",
+        "status": r[6] or "active"
+    } for r in dr_rows]
+
+    return {"success": True, "data": {
+        "employee": {
+            "id": str(emp_row[0]), "emp_code": emp_row[1],
+            "name": f"{emp_row[2]} {emp_row[3] or ''}".strip(),
+            "designation": emp_row[4] or "", "department": emp_row[5] or "",
+            "reporting_to_text": reporting_to_str, "status": emp_row[7] or "active"
+        },
+        "reports_to": reports_to,
+        "direct_reports": direct_reports,
+        "direct_reports_count": len(direct_reports)
+    }}
 
 
 @hr_bp.route("/employees/<emp_id>", methods=["DELETE"])

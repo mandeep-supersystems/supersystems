@@ -377,6 +377,10 @@
 .btn-sm { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; background: var(--accent-light); color: var(--accent); border: 1px solid var(--accent); border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; }
 .btn-sm .material-icons-outlined { font-size: 14px; }
 
+.btn-icon { background: none; border: none; cursor: pointer; padding: 4px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; color: var(--text-secondary); transition: all 0.15s; }
+.btn-icon:hover { background: var(--bg-primary); color: var(--accent); }
+.btn-icon.danger:hover { color: #e53935; background: #fee2e2; }
+
 .btn-icon-danger { background: none; border: none; color: #e53935; cursor: pointer; padding: 4px; border-radius: 4px; }
 .btn-icon-danger:hover { background: #fbe9e7; }
 [data-theme="dark"] .btn-icon-danger:hover { background: #3d1b1b; }

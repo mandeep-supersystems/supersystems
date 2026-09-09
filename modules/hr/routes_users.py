@@ -5,20 +5,10 @@ import uuid, json
 hr_users_bp = Blueprint("hr_users", __name__)
 
 
-def _log(action, etype, eid, new=None):
-    try:
-        ip = (request.headers.get('X-Forwarded-For', '') or request.remote_addr or '').split(',')[0].strip()
-        db.session.execute(db.text(
-            "INSERT INTO audit.logs (id, action, module, entity_type, entity_id, ip_address, "
-            "tenant_id, user_email, user_name, extra_data, created_at) "
-            "VALUES (gen_random_uuid(), :action, 'HR', :etype, :eid, :ip, :tid, :email, :name, :extra, NOW())"
-        ), {"action": action, "etype": etype, "eid": str(eid), "ip": ip,
-            "tid": request.headers.get('X-Tenant-ID', ''),
-            "email": request.headers.get('X-User-Email', ''),
-            "name": request.headers.get('X-User-Name', ''),
-            "extra": json.dumps({"new": new}) if new else None})
-    except Exception:
-        pass
+from modules.hr.audit import log_hr_audit
+
+def _log(action, etype, eid, old=None, new=None):
+    log_hr_audit(action, etype, eid, old_values=old, new_values=new)
 
 
 @hr_users_bp.route("/module-users", methods=["GET"])
@@ -27,7 +17,8 @@ def list_module_users():
     try:
         rows = db.session.execute(db.text(
             "SELECT mu.id, mu.user_id, mu.user_email, mu.user_name, mu.hr_role, "
-            "mu.employee_id, e.emp_code, mu.is_active, mu.created_at "
+            "mu.employee_id, e.emp_code, mu.is_active, mu.created_at, "
+            "e.designation, e.department_id, e.first_name, e.last_name "
             "FROM hr.module_users mu "
             "LEFT JOIN hr.employees e ON e.id=mu.employee_id "
             "WHERE mu.tenant_id=:tid AND mu.is_deleted=false ORDER BY mu.user_name"
@@ -36,11 +27,15 @@ def list_module_users():
             {"id": str(r[0]), "user_id": r[1], "user_email": r[2] or '',
              "user_name": r[3] or '', "hr_role": r[4],
              "employee_id": str(r[5]) if r[5] else None, "emp_code": r[6] or '',
-             "is_active": r[7], "created_at": str(r[8]) if r[8] else None}
+             "is_active": r[7], "created_at": str(r[8]) if r[8] else None,
+             "designation": r[9] or '', "department": r[10] or '',
+             "emp_first_name": r[11] or '', "emp_last_name": r[12] or '',
+             "emp_full_name": f"{r[11] or ''} {r[12] or ''}".strip()}
             for r in rows]}
     except Exception as e:
         db.session.rollback()
         return {"success": False, "message": str(e), "data": []}, 500
+
 
 
 @hr_users_bp.route("/module-users", methods=["POST"])
@@ -71,8 +66,10 @@ def add_module_user():
 def update_module_user(uid):
     data = request.get_json()
     db.session.execute(db.text(
-        "UPDATE hr.module_users SET hr_role=:role, is_active=:active, updated_at=NOW() WHERE id=:id"
-    ), {"id": uid, "role": data.get("hr_role", "employee"), "active": data.get("is_active", True)})
+        "UPDATE hr.module_users SET hr_role=:role, is_active=:active, "
+        "employee_id=:emp, updated_at=NOW() WHERE id=:id"
+    ), {"id": uid, "role": data.get("hr_role", "employee"), "active": data.get("is_active", True),
+        "emp": data.get("employee_id")})
     db.session.commit()
     _log('UPDATE', 'HR Module User', uid, new=data)
     return {"success": True, "message": "User updated"}

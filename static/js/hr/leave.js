@@ -7,7 +7,21 @@ async function safeJson(res) {
 
 function showTab(name) {
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    document.getElementById('tab-' + name).classList.add('active');
+    document.querySelectorAll('.hr-seg-btn').forEach(b => b.classList.remove('active'));
+
+    const tabMap = {
+        'requests': 'seg-requests',
+        'types': 'seg-types',
+        'balances': 'seg-balances',
+        'calendar': 'seg-calendar',
+        'holidays': 'seg-holidays'
+    };
+    const segBtn = document.getElementById(tabMap[name]);
+    if (segBtn) segBtn.classList.add('active');
+
+    const panel = document.getElementById('tab-' + name);
+    if (panel) panel.classList.add('active');
+
     if (name === 'requests') loadRequests();
     if (name === 'types') loadLeaveTypes();
     if (name === 'balances') loadBalances();
@@ -57,13 +71,25 @@ async function loadRequests() {
         const res = await fetch(url, { headers: headers() });
         const data = await safeJson(res);
         const rows = data.data || [];
+
+        const badge = document.getElementById('count-requests'); if (badge) badge.textContent = rows.length;
+        const pending = rows.filter(r => r.status === 'pending').length;
+        const kpiP = document.getElementById('kpiPendingLeave'); if (kpiP) kpiP.textContent = pending;
+        const approved = rows.filter(r => r.status === 'approved').length;
+        const kpiA = document.getElementById('kpiApprovedLeave'); if (kpiA) kpiA.textContent = approved;
+
+        const today = new Date().toISOString().split('T')[0];
+        const onLeave = rows.filter(r => r.status === 'approved' && r.start_date <= today && r.end_date >= today).length;
+        const kpiO = document.getElementById('kpiOnLeave'); if (kpiO) kpiO.textContent = onLeave;
+
         const tbody = document.getElementById('reqBody');
-        if (!rows.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">No leave requests</td></tr>'; return; }
+        if (!rows.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">No leave requests found for this filter.</td></tr>'; return; }
         tbody.innerHTML = rows.map(r => `<tr>
             <td><strong>${r.emp_code}</strong> ${r.employee_name}</td>
-            <td>${r.leave_type}</td><td>${r.start_date}</td><td>${r.end_date}</td>
-            <td>${r.days}</td><td>${r.reason}</td>
-            <td><span class="status-badge ${r.status}">${r.status}</span></td>
+            <td><span class="hr-pill neutral">${r.leave_type}</span></td>
+            <td>${r.start_date}</td><td>${r.end_date}</td>
+            <td><strong>${r.days} Days</strong></td><td>${r.reason}</td>
+            <td><span class="hr-pill ${r.status}">${r.status}</span></td>
             <td class="actions-cell">
                 ${r.status === 'pending' ? `
                 <button class="btn-icon" title="Approve" onclick="approveLeave('${r.id}')"><span class="material-icons-outlined" style="color:#4caf50">check_circle</span></button>
@@ -74,7 +100,7 @@ async function loadRequests() {
         </tr>`).join('');
     } catch(e) {
         const tbody = document.getElementById('reqBody');
-        if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="empty">Failed to load. Run HR migration SQL first.</td></tr>';
+        if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="empty">Failed to load leave requests.</td></tr>';
     }
 }
 

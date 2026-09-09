@@ -244,101 +244,78 @@ def _build_description(columns_config, col_values, desc_columns, cat_name, sub_n
         v_str = str(v).strip()
         return v_str if v_str.lower() not in ('none', 'null') else ''
 
+    def format_val(col_name, val):
+        if not val:
+            return ''
+        if col_name in ('no_of_pins', 'pin', 'no_of_pin') and not str(val).lower().endswith(('pin', 'pins', 'p')):
+            return f"{val} Pin"
+        if col_name in ('no_of_rows', 'row', 'no_of_row') and not str(val).lower().endswith(('row', 'rows', 'r')):
+            return f"{val} Row"
+        return str(val)
+
     parts = []
     code = (cat_code or '').strip()
     cname = (cat_name or '').strip()
     sname = (sub_name or '').strip()
     cat_lower = cname.lower()
 
+    # Header: Category code or name
+    header = []
     if 'mosfet' in cat_lower or code == 'MOS':
-        # mosfet - category, sub category, Value, Drain source voltage, Drain current, Mounting type
         header = [code or 'MOS', cname or 'MOSFET']
-        if sname and sname != cname:
-            header.append(sname)
-        parts.extend(header)
-        for val in [get('value'), get('drain_source_voltage'), get('drain_current'), get('mounting_type')]:
-            if val:
-                parts.append(val)
-
-    elif 'resistor' in cat_lower or code == 'Res':
-        # resistor - Value, Package, Mounting type, rated power, tolerance
-        parts.append(code or 'Res')
-        for val in [get('value'), get('package_size') or get('package'), get('mounting_type'), get('rated_power'), get('tolerance')]:
-            if val:
-                parts.append(val)
-
-    elif 'capacitor' in cat_lower or code == 'Cap':
-        # capacitor- Sub category, Value, Voltage, Package type, Mounting type
-        parts.append(code or 'Cap')
-        if sname:
-            parts.append(sname)
-        for val in [get('value'), get('voltage'), get('package_size') or get('package_height'), get('mounting_type')]:
-            if val:
-                parts.append(val)
-
-    elif 'connector' in cat_lower or code in ('Con', 'Conn'):
-        # connector- conn, sub category, Gender, No of pin, pitch, orientation, no of row(row), connector type
-        parts.append('Conn')
-        if sname:
-            parts.append(sname)
-        pin_val = get('no_of_pins')
-        if pin_val and not pin_val.lower().endswith(('pin', 'pins', 'p')):
-            pin_val = f"{pin_val} Pin"
-        row_val = get('no_of_rows')
-        if row_val and not row_val.lower().endswith(('row', 'rows', 'r')):
-            row_val = f"{row_val} Row"
-        for val in [get('gender'), pin_val, get('pitch'), get('orientation'), row_val, get('connector_type')]:
-            if val:
-                parts.append(val)
-
     elif 'screw' in cat_lower or code == 'SCR':
-        # screw- category, sub category, size, length, material, finish/coating
         header = [code or 'SCR', cname or 'Screw']
-        if sname and sname != cname:
-            header.append(sname)
-        parts.extend(header)
-        for val in [get('size'), get('length'), get('material'), get('finish_coating')]:
-            if val:
-                parts.append(val)
-
     elif 'washer' in cat_lower or code == 'WAS':
-        # washer- category, sub category, size, material, finish/coating
         header = [code or 'WAS', cname or 'Washer']
-        if sname and sname != cname:
-            header.append(sname)
-        parts.extend(header)
-        for val in [get('size'), get('material'), get('finish_coating')]:
-            if val:
-                parts.append(val)
-
+    elif 'connector' in cat_lower or code in ('Con', 'Conn'):
+        header = ['Conn']
+    elif 'resistor' in cat_lower or code == 'Res':
+        header = [code or 'Res']
+    elif 'capacitor' in cat_lower or code == 'Cap':
+        header = [code or 'Cap']
     elif 'relay' in cat_lower or code == 'Relay':
-        # relay- category, value, coil voltage, current rating, no. of pin(pin)
         header = [code or 'Relay']
-        if sname and sname != cname:
-            header.append(sname)
-        parts.extend(header)
-        pin_val = get('no_of_pins')
-        if pin_val and not pin_val.lower().endswith(('pin', 'pins', 'p')):
-            pin_val = f"{pin_val} Pin"
-        for val in [get('value'), get('coil_voltage'), get('current_rating'), pin_val]:
-            if val:
-                parts.append(val)
-
+    elif 'power ic' in cat_lower or code == 'Power IC':
+        header = [code or 'Power IC']
+    elif cat_lower == 'ic' or code == 'IC':
+        header = [code or 'IC']
     else:
-        # Generic fallback
-        parts.append(code or cname)
-        if desc_columns:
-            for col_name in desc_columns:
-                val = get(col_name)
-                if val:
-                    parts.append(val)
+        header = [code or cname]
+
+    if sname and sname != cname and sname not in header:
+        header.append(sname)
+    parts.extend(header)
+
+    # Use description_columns if configured, otherwise fall back to category-specific defaults
+    if desc_columns:
+        for col_name in desc_columns:
+            val = get(col_name) or (get('package') if col_name == 'package_size' else (get('package_size') if col_name == 'package' else ''))
+            if val:
+                parts.append(format_val(col_name, val))
+    else:
+        if 'mosfet' in cat_lower or code == 'MOS':
+            default_cols = ['value', 'drain_source_voltage', 'drain_current', 'mounting_type']
+        elif 'resistor' in cat_lower or code == 'Res':
+            default_cols = ['value', 'package_size', 'mounting_type', 'rated_power', 'tolerance']
+        elif 'capacitor' in cat_lower or code == 'Cap':
+            default_cols = ['value', 'voltage', 'package_size', 'mounting_type']
+        elif 'connector' in cat_lower or code in ('Con', 'Conn'):
+            default_cols = ['gender', 'no_of_pins', 'pitch', 'orientation', 'no_of_rows', 'connector_type']
+        elif 'screw' in cat_lower or code == 'SCR':
+            default_cols = ['size', 'length', 'material', 'finish_coating']
+        elif 'washer' in cat_lower or code == 'WAS':
+            default_cols = ['size', 'material', 'finish_coating']
+        elif 'relay' in cat_lower or code == 'Relay':
+            default_cols = ['value', 'coil_voltage', 'current_rating', 'no_of_pins']
+        elif 'power ic' in cat_lower or code == 'Power IC' or cat_lower == 'ic' or code == 'IC':
+            default_cols = ['type', 'package']
         else:
-            if sname and sname != cname:
-                parts.append(sname)
-            for k in ['value', 'package_size', 'voltage', 'current', 'power', 'material']:
-                val = get(k)
-                if val:
-                    parts.append(val)
+            default_cols = ['value', 'package_size', 'voltage', 'current', 'power', 'material']
+
+        for col_name in default_cols:
+            val = get(col_name) or (get('package') if col_name == 'package_size' else (get('package_size') if col_name == 'package' else ''))
+            if val:
+                parts.append(format_val(col_name, val))
 
     cleaned = []
     for p in parts:

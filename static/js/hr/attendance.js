@@ -1,5 +1,5 @@
 // ─── ATTENDANCE JS ───
-let shiftsList = [], employeesList = [];
+let shiftsList = [];
 
 async function safeJson(res) {
     try { return await res.json(); } catch(e) { return { success: false, message: 'Server error (run HR migration SQL)', data: [] }; }
@@ -7,23 +7,28 @@ async function safeJson(res) {
 
 function showTab(name) {
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.section-actions button').forEach(b => {
-        if (b.getAttribute('onclick') && b.getAttribute('onclick').includes(`'${name}'`)) {
-            b.classList.remove('btn-outline');
-            b.classList.add('btn-primary');
-        } else if (b.getAttribute('onclick') && b.getAttribute('onclick').includes('showTab')) {
-            b.classList.remove('btn-primary');
-            b.classList.add('btn-outline');
-        }
-    });
+    document.querySelectorAll('.hr-seg-btn').forEach(b => b.classList.remove('active'));
+
+    const tabMap = {
+        'attendance': 'seg-att',
+        'shifts': 'seg-shifts',
+        'roster': 'seg-roster',
+        'regularization': 'seg-reg',
+        'summary': 'seg-sum'
+    };
+    const segBtn = document.getElementById(tabMap[name]);
+    if (segBtn) segBtn.classList.add('active');
+
     const panel = document.getElementById('tab-' + name);
     if (panel) panel.classList.add('active');
+
     if (name === 'attendance') loadAttendance();
     if (name === 'shifts') loadShifts();
     if (name === 'roster') loadRoster();
     if (name === 'regularization') loadRegularization();
     if (name === 'summary') loadSummary();
 }
+
 
 function initMonthYearSelects() {
     const now = new Date();
@@ -56,13 +61,15 @@ async function loadShifts() {
         const res = await fetch(API + '/shifts', { headers: headers() });
         const data = await safeJson(res);
         shiftsList = data.data || [];
+        const badge = document.getElementById('count-shifts'); if (badge) badge.textContent = shiftsList.length;
+        const kpiSh = document.getElementById('kpiShifts'); if (kpiSh) kpiSh.textContent = shiftsList.length;
         const tbody = document.getElementById('shiftsBody');
         if (!shiftsList.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">No shifts defined</td></tr>'; return; }
         tbody.innerHTML = shiftsList.map(s => `<tr>
             <td><strong>${s.name}</strong></td>
             <td>${s.start_time}</td><td>${s.end_time}</td>
-            <td>${s.break_minutes}</td>
-            <td>${s.is_night_shift ? '<span class="status-badge active">Yes</span>' : 'No'}</td>
+            <td>${s.break_minutes} mins</td>
+            <td>${s.is_night_shift ? '<span class="hr-pill warning">Night Shift</span>' : '<span class="hr-pill neutral">Day</span>'}</td>
             <td class="actions-cell">
                 <button class="btn-icon" onclick="editShift('${s.id}')"><span class="material-icons-outlined">edit</span></button>
                 <button class="btn-icon danger" onclick="deleteShift('${s.id}','${s.name}')"><span class="material-icons-outlined">delete</span></button>
@@ -72,7 +79,7 @@ async function loadShifts() {
         if (rSel) rSel.innerHTML = '<option value="">Select Shift</option>' + shiftsList.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
     } catch(e) {
         const tbody = document.getElementById('shiftsBody');
-        if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="empty">Failed to load. Run HR migration SQL first.</td></tr>';
+        if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="empty">Failed to load shifts.</td></tr>';
     }
 }
 
@@ -133,9 +140,16 @@ async function loadAttendance() {
         const res = await fetch(`${API}/attendance?month=${month}&year=${year}`, { headers: headers() });
         const data = await safeJson(res);
         let rows = data.data || [];
+
+        const badge = document.getElementById('count-att'); if (badge) badge.textContent = rows.length;
+        const present = rows.filter(r => r.status === 'present').length;
+        const kpiP = document.getElementById('kpiPresent'); if (kpiP) kpiP.textContent = present;
+        const onTime = rows.filter(r => r.check_in && r.status === 'present').length;
+        const kpiO = document.getElementById('kpiOnTime'); if (kpiO) kpiO.textContent = onTime;
+
         if (empFilter) rows = rows.filter(r => r.employee_name.toLowerCase().includes(empFilter) || r.emp_code.toLowerCase().includes(empFilter));
         const tbody = document.getElementById('attendanceBody');
-        if (!rows.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">No attendance records</td></tr>'; return; }
+        if (!rows.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">No attendance records for this period. Click "Manual Check-in" to add.</td></tr>'; return; }
         tbody.innerHTML = rows.map(r => `<tr>
             <td><strong>${r.emp_code}</strong> ${r.employee_name}</td>
             <td>${r.date}</td>
@@ -143,14 +157,14 @@ async function loadAttendance() {
             <td>${r.check_out ? r.check_out.replace('T',' ').substring(0,16) : '—'}</td>
             <td>${r.hours_worked ? r.hours_worked.toFixed(1)+'h' : '—'}</td>
             <td>${r.check_in_method || 'web'}</td>
-            <td><span class="status-badge ${r.status}">${r.status}</span></td>
+            <td><span class="hr-pill ${r.status}">${r.status}</span></td>
             <td class="actions-cell">
                 <button class="btn-icon" title="Edit Status" onclick="editAttStatus('${r.id}','${r.status}')"><span class="material-icons-outlined">edit</span></button>
             </td>
         </tr>`).join('');
     } catch(e) {
         const tbody = document.getElementById('attendanceBody');
-        if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="empty">Failed to load. Run HR migration SQL first.</td></tr>';
+        if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="empty">Failed to load attendance records.</td></tr>';
     }
 }
 
@@ -188,15 +202,16 @@ async function loadRoster() {
         const res = await fetch(`${API}/roster?month=${month}&year=${year}`, { headers: headers() });
         const data = await safeJson(res);
         const rows = data.data || [];
+        const badge = document.getElementById('count-roster'); if (badge) badge.textContent = rows.length;
         const tbody = document.getElementById('rosterBody');
-        if (!rows.length) { tbody.innerHTML = '<tr><td colspan="3" class="empty">No roster assigned</td></tr>'; return; }
+        if (!rows.length) { tbody.innerHTML = '<tr><td colspan="3" class="empty">No roster assigned for this period. Click "Assign Shift Roster" to schedule.</td></tr>'; return; }
         tbody.innerHTML = rows.map(r => `<tr>
             <td><strong>${r.emp_code}</strong> ${r.employee_name}</td>
-            <td>${r.roster_date}</td><td>${r.shift_name}</td>
+            <td>${r.roster_date}</td><td><span class="hr-pill neutral">${r.shift_name}</span></td>
         </tr>`).join('');
     } catch(e) {
         const tbody = document.getElementById('rosterBody');
-        if (tbody) tbody.innerHTML = '<tr><td colspan="3" class="empty">Failed to load.</td></tr>';
+        if (tbody) tbody.innerHTML = '<tr><td colspan="3" class="empty">Failed to load roster.</td></tr>';
     }
 }
 
@@ -224,15 +239,19 @@ async function loadRegularization() {
         const res = await fetch(`${API}/regularization`, { headers: headers() });
         const data = await safeJson(res);
         const rows = data.data || [];
+        const badge = document.getElementById('count-reg'); if (badge) badge.textContent = rows.length;
+        const pending = rows.filter(r => r.status === 'pending').length;
+        const kpiR = document.getElementById('kpiRegPending'); if (kpiR) kpiR.textContent = pending;
+
         const tbody = document.getElementById('regBody');
-        if (!rows.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">No requests</td></tr>'; return; }
+        if (!rows.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">No regularization requests found.</td></tr>'; return; }
         tbody.innerHTML = rows.map(r => `<tr>
             <td><strong>${r.emp_code}</strong> ${r.employee_name}</td>
             <td>${r.attendance_date}</td>
             <td>${r.requested_check_in ? r.requested_check_in.replace('T',' ').substring(0,16) : '—'}</td>
             <td>${r.requested_check_out ? r.requested_check_out.replace('T',' ').substring(0,16) : '—'}</td>
             <td>${r.reason}</td>
-            <td><span class="status-badge ${r.status}">${r.status}</span></td>
+            <td><span class="hr-pill ${r.status}">${r.status}</span></td>
             <td class="actions-cell">
                 ${r.status === 'pending' ? `
                 <button class="btn-icon" title="Approve" onclick="approveReg('${r.id}')"><span class="material-icons-outlined" style="color:#4caf50">check_circle</span></button>
@@ -242,7 +261,7 @@ async function loadRegularization() {
         </tr>`).join('');
     } catch(e) {
         const tbody = document.getElementById('regBody');
-        if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="empty">Failed to load.</td></tr>';
+        if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="empty">Failed to load regularization requests.</td></tr>';
     }
 }
 
@@ -293,21 +312,25 @@ async function loadSummary() {
         const data = await safeJson(res);
         const rows = data.data || [];
         const tbody = document.getElementById('summaryBody');
-        if (!rows.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">No data</td></tr>'; return; }
+        if (!rows.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">No summary data available.</td></tr>'; return; }
         tbody.innerHTML = rows.map(r => `<tr>
             <td><strong>${r.emp_code}</strong> ${r.name}</td>
-            <td>${r.present}</td><td>${r.absent}</td><td>${r.half_day}</td>
-            <td>${r.on_leave}</td><td>${r.avg_hours}h</td>
+            <td><span class="hr-pill success">${r.present} Days</span></td>
+            <td><span class="hr-pill danger">${r.absent} Days</span></td>
+            <td><span class="hr-pill warning">${r.half_day} Days</span></td>
+            <td><span class="hr-pill info">${r.on_leave} Days</span></td>
+            <td><strong>${r.avg_hours}h</strong></td>
         </tr>`).join('');
     } catch(e) {
         const tbody = document.getElementById('summaryBody');
-        if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="empty">Failed to load.</td></tr>';
+        if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="empty">Failed to load summary.</td></tr>';
     }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     initMonthYearSelects();
     loadEmployeesForSelects();
-    loadShifts();
     loadAttendance();
+    loadShifts();
+    loadRegularization();
 });

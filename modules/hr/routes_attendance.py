@@ -5,22 +5,10 @@ import uuid, json
 hr_attendance_bp = Blueprint("hr_attendance", __name__)
 
 
+from modules.hr.audit import log_hr_audit
+
 def _log(action, etype, eid, old=None, new=None):
-    try:
-        ip = (request.headers.get('X-Forwarded-For', '') or request.remote_addr or '').split(',')[0].strip()
-        extra = {}
-        if old: extra['old'] = old
-        if new: extra['new'] = new
-        db.session.execute(db.text(
-            "INSERT INTO audit.logs (id, action, module, entity_type, entity_id, ip_address, tenant_id, user_email, user_name, extra_data, created_at) "
-            "VALUES (gen_random_uuid(), :action, 'HR', :etype, :eid, :ip, :tid, :email, :name, :extra, NOW())"
-        ), {"action": action, "etype": etype, "eid": str(eid),
-            "ip": ip, "tid": request.headers.get('X-Tenant-ID', ''),
-            "email": request.headers.get('X-User-Email', ''),
-            "name": request.headers.get('X-User-Name', ''),
-            "extra": json.dumps(extra) if extra else None})
-    except Exception:
-        pass
+    log_hr_audit(action, etype, eid, old_values=old, new_values=new)
 
 
 def _err(e):

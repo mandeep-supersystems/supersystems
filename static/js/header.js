@@ -199,14 +199,19 @@ const services = [
         comingSoon: false,
         route: "/hr",
         items: [
-            { label: "Employee Code Criteria", route: "/hr/codecriteria" },
-            { label: "Employee Management", route: "/hr/employees" },
-            "Leave Management",
-            "Attendance",
-            "Payroll",
-            "Recruitment",
-            "Performance",
-            "Training"
+            { label: "Overview", route: "/hr" },
+            { label: "Employee Code Criteria", route: "/hr#codecriteria" },
+            { label: "Employee Management", route: "/hr#employees" },
+            { label: "Attendance & Shifts", route: "/hr/attendance" },
+            { label: "Leave Management", route: "/hr/leave" },
+            { label: "Payroll & Compliance", route: "/hr/payroll" },
+            { label: "Recruitment", route: "/hr/recruitment" },
+            { label: "Onboarding / Exit", route: "/hr/onboarding" },
+            { label: "Performance", route: "/hr/performance" },
+            { label: "Training", route: "/hr/training" },
+            { label: "Analytics", route: "/hr/analytics" },
+            { label: "Audit Logs", route: "/hr/audit-logs" },
+            { label: "User Management", route: "/hr/users" }
         ]
     },
     {

@@ -81,6 +81,7 @@ def create_app(config_name="development"):
     from modules.hr.routes_training import hr_training_bp
     from modules.hr.routes_analytics import hr_analytics_bp
     from modules.hr.routes_users import hr_users_bp
+    from modules.hr.routes_approvals import hr_approvals_bp
     from modules.manufacturing.routes import manufacturing_bp, bom_api_bp
     from modules.quality.routes import quality_bp
     from modules.warehouse.routes import warehouse_bp
@@ -116,6 +117,7 @@ def create_app(config_name="development"):
     app.register_blueprint(hr_training_bp, url_prefix="/api/v1/hr")
     app.register_blueprint(hr_analytics_bp, url_prefix="/api/v1/hr")
     app.register_blueprint(hr_users_bp, url_prefix="/api/v1/hr")
+    app.register_blueprint(hr_approvals_bp, url_prefix="/api/v1/hr")
     app.register_blueprint(manufacturing_bp, url_prefix="/api/v1/manufacturing")
     app.register_blueprint(bom_api_bp, url_prefix="/api/bom")
     app.register_blueprint(quality_bp, url_prefix="/api/v1/quality")
@@ -263,11 +265,23 @@ def create_app(config_name="development"):
             return redirect('/?access=denied&module=Human+Resources')
         return render_template("hr/analytics.html")
 
+    @app.route("/hr/audit-logs")
+    def hr_audit_logs_page():
+        if not _check_module_access('Human Resources'):
+            return redirect('/?access=denied&module=Human+Resources')
+        return render_template("hr/audit_logs.html")
+
     @app.route("/hr/users")
     def hr_users_page():
         if not _check_module_access('Human Resources'):
             return redirect('/?access=denied&module=Human+Resources')
         return render_template("hr/user_management.html")
+
+    @app.route("/hr/approvals")
+    def hr_approvals_page():
+        if not _check_module_access('Human Resources'):
+            return redirect('/?access=denied&module=Human+Resources')
+        return render_template("hr/approvals.html")
 
     @app.route("/project")
     @app.route("/project/<section>")
