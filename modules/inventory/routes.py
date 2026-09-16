@@ -951,6 +951,75 @@ def location_detail(lid):
         return jsonify({"success": False, "message": str(e)}), 500
 
 
+# ─── MANUAL STOCK ENTRY (from Part Detail) ───
+@inventory_bp.route("/manual-stock-entry", methods=["POST"])
+def manual_stock_entry():
+    """Add or update stock for a part manually from Part Detail page."""
+    tenant_id = _get_tenant()
+    data = request.get_json() or {}
+    part_number = (data.get("part_number") or "").strip()
+    qty = float(data.get("qty") or 0)
+    if not part_number or qty <= 0:
+        return jsonify({"success": False, "message": "part_number and qty > 0 required"}), 400
+
+    warehouse = (data.get("warehouse_code") or "MAIN").strip()
+    bin_code   = (data.get("bin_code") or "A-01-01").strip()
+    zone       = (data.get("zone_code") or "").strip()
+    manufacturer = (data.get("manufacturer") or "").strip()
+    unit       = (data.get("unit") or "pcs").strip()
+    unit_cost  = float(data.get("unit_cost") or 0)
+    notes      = (data.get("notes") or "").strip()
+    performed_by = request.headers.get("X-User-Name") or request.headers.get("X-User-Email") or "Manual Entry"
+
+    # Upsert stock level — match on part_number + warehouse + bin + manufacturer
+    existing = db.session.execute(db.text(
+        "SELECT id, qty_on_hand, unit_cost FROM inventory_stock_levels "
+        "WHERE part_number = :pn AND warehouse_code = :wh AND bin_code = :bin "
+        "AND COALESCE(manufacturer,'') = :mfr AND is_deleted = false "
+        "AND (tenant_id = :tid OR tenant_id = 'TEST' OR tenant_id = 'b424df0e-f766-4e94-b3fd-05777e158958' OR tenant_id = '' OR tenant_id IS NULL) "
+        "LIMIT 1"
+    ), {"pn": part_number, "wh": warehouse, "bin": bin_code, "mfr": manufacturer, "tid": tenant_id}).first()
+
+    if existing:
+        new_qty = float(existing[1] or 0) + qty
+        eff_cost = unit_cost if unit_cost > 0 else float(existing[2] or 0)
+        db.session.execute(db.text(
+            "UPDATE inventory_stock_levels SET qty_on_hand = :nq, qty_available = :nq - qty_reserved, "
+            "unit_cost = :cost, total_value = :nq * :cost, last_movement_at = NOW(), updated_at = NOW() "
+            "WHERE id = :id"
+        ), {"nq": new_qty, "cost": eff_cost, "id": existing[0]})
+    else:
+        new_qty = qty
+        eff_cost = unit_cost
+        db.session.execute(db.text(
+            "INSERT INTO inventory_stock_levels "
+            "(id, part_number, item_type, warehouse_code, zone_code, bin_code, manufacturer, "
+            "qty_on_hand, qty_reserved, qty_available, unit, unit_cost, total_value, "
+            "last_movement_at, tenant_id, created_at, updated_at) "
+            "VALUES (:id, :pn, 'PART', :wh, :zone, :bin, :mfr, :qty, 0, :qty, :unit, :cost, :qty*:cost, NOW(), :tid, NOW(), NOW())"
+        ), {"id": str(uuid.uuid4()), "pn": part_number, "wh": warehouse, "zone": zone,
+            "bin": bin_code, "mfr": manufacturer, "qty": qty, "unit": unit,
+            "cost": eff_cost, "tid": tenant_id})
+
+    # Log movement
+    mov_no = f"MAN-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    try:
+        db.session.execute(db.text(
+            "INSERT INTO inventory_stock_movements "
+            "(id, movement_no, movement_type, part_number, to_warehouse_code, to_bin_code, "
+            "qty, unit, unit_cost, reference_type, reason, performed_by, tenant_id, created_at) "
+            "VALUES (:id, :mno, 'MANUAL_ENTRY', :pn, :wh, :bin, :qty, :unit, :cost, 'MANUAL', :notes, :by, :tid, NOW())"
+        ), {"id": str(uuid.uuid4()), "mno": mov_no, "pn": part_number, "wh": warehouse,
+            "bin": bin_code, "qty": qty, "unit": unit, "cost": eff_cost,
+            "notes": notes or "Manual stock entry", "by": performed_by, "tid": tenant_id})
+    except Exception:
+        db.session.rollback()
+
+    db.session.commit()
+    return jsonify({"success": True, "message": f"Added {qty} {unit} of {part_number} to {warehouse}/{bin_code}",
+                    "data": {"new_qty": new_qty, "movement_no": mov_no}})
+
+
 # ─── HIERARCHICAL LOCATIONS ───
 @inventory_bp.route("/locations", methods=["GET"])
 def list_locations():

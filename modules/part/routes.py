@@ -286,11 +286,21 @@ def _build_description(columns_config, col_values, desc_columns, cat_name, sub_n
         header.append(sname)
     parts.extend(header)
 
+    # Words already covered by the header — skip column values that are substrings of header words
+    header_words = ' '.join(header).lower()
+    header_lower = {h.lower() for h in header}
+
     # Use description_columns if configured, otherwise fall back to category-specific defaults
     if desc_columns:
         for col_name in desc_columns:
-            val = get(col_name) or (get('package') if col_name == 'package_size' else (get('package_size') if col_name == 'package' else ''))
-            if val:
+            val = get(col_name)
+            # Alias fallbacks for common column name mismatches
+            if not val:
+                if col_name in ('package_size', 'package_type', 'package'):
+                    val = get('package_type') or get('package_size') or get('package')
+                elif col_name == 'sub_category':
+                    val = sname if sname and sname != cname else ''
+            if val and val not in parts and val.lower() not in header_lower and val.lower() not in header_words:
                 parts.append(format_val(col_name, val))
     else:
         if 'mosfet' in cat_lower or code == 'MOS':
@@ -314,7 +324,7 @@ def _build_description(columns_config, col_values, desc_columns, cat_name, sub_n
 
         for col_name in default_cols:
             val = get(col_name) or (get('package') if col_name == 'package_size' else (get('package_size') if col_name == 'package' else ''))
-            if val:
+            if val and val not in parts and val.lower() not in header_lower and val.lower() not in header_words:
                 parts.append(format_val(col_name, val))
 
     cleaned = []
@@ -803,13 +813,24 @@ def generate_part():
     dup_cols = cat_columns_config if cat_columns_config else columns_config
 
     # Duplicate check: block if same field values exist anywhere in the category table
+    # Only check columns that actually exist as physical columns in the table (skip sub_category — it's a relation)
+    NON_PHYSICAL_COLS = {'sub_category', 'subcategory', 'category', 'sub_cat'}
     try:
+        # Get actual columns in the table to avoid querying non-existent columns
+        actual_cols_rows = db.session.execute(db.text(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_schema = 'part' AND table_name = :tname"
+        ), {"tname": re.sub(r'[^a-z0-9_]', '', table_name.split('.')[-1].strip('"'))}).fetchall()
+        actual_col_names = {r[0] for r in actual_cols_rows}
+
         dup_wheres = ["LOWER(COALESCE(status,'active')) != 'obsolete'"]
         dup_params = {}
         has_dup_fields = False
         for col in dup_cols:
             col_name = re.sub(r'[^a-z0-9_]', '_', col["name"].lower().strip())
-            if col_name in SYSTEM_COLS:
+            if col_name in SYSTEM_COLS or col_name in NON_PHYSICAL_COLS:
+                continue
+            if col_name not in actual_col_names:
                 continue
             has_dup_fields = True
             val = col_values.get(col["name"]) or col_values.get(col_name)
@@ -2318,6 +2339,81 @@ def notify_procurement_after_mapping(mapping_id):
     return {"success": True, "message": f"Procurement notified for POs: {', '.join(notified_pos) or 'none'}",
             "notified_pos": notified_pos}
 
+# ─── REBUILD DESCRIPTIONS ───
+
+@part_bp.route("/rebuild-descriptions", methods=["POST"])
+def rebuild_descriptions():
+    """Rebuild description column for all parts from their actual DB column values."""
+    tenant_id = request.headers.get("X-Tenant-ID", "")
+    if not tenant_id or tenant_id in ('TEST', ''):
+        tenant_id = 'b424df0e-f766-4e94-b3fd-05777e158958'
+
+    data = request.get_json() or {}
+    dry_run = data.get("dry_run", False)
+
+    cats = db.session.execute(db.text(
+        "SELECT id, name, series_prefix, COALESCE(code, name) as cat_code, description_columns "
+        "FROM part.categories WHERE is_deleted = false"
+    )).fetchall()
+
+    all_subs = db.session.execute(db.text(
+        "SELECT id, name, category_id FROM part.subcategories WHERE is_deleted = false"
+    )).fetchall()
+    sub_lookup = {str(s[0]): s[1] for s in all_subs}
+
+    total_updated = 0
+    total_skipped = 0
+    errors = []
+    preview = []
+
+    for cat in cats:
+        cat_id, cat_name, cat_series, cat_code = str(cat[0]), cat[1], cat[2], cat[3]
+        desc_cols_raw = cat[4]
+        desc_columns = desc_cols_raw if isinstance(desc_cols_raw, list) else (json.loads(desc_cols_raw) if desc_cols_raw else [])
+        table_name = _safe_table_name(cat_name, cat_series)
+
+        try:
+            result = db.session.execute(db.text(f"SELECT * FROM {table_name} ORDER BY part_number"))
+            col_keys = list(result.keys())
+            rows = result.fetchall()
+        except Exception as e:
+            errors.append(f"{table_name}: {str(e)}")
+            db.session.rollback()
+            continue
+
+        for row in rows:
+            row_dict = dict(zip(col_keys, row))
+            part_number = row_dict.get('part_number', '')
+            old_desc = row_dict.get('description', '') or ''
+            sid = str(row_dict.get('subcategory_id', ''))
+            sub_name = sub_lookup.get(sid, cat_name)
+            col_values = {k: (str(v).strip() if v is not None else '') for k, v in row_dict.items()}
+            new_desc = _build_description([], col_values, desc_columns, cat_name, sub_name, cat_code)
+
+            if new_desc == old_desc:
+                total_skipped += 1
+                continue
+
+            preview.append({"part_number": part_number, "old": old_desc, "new": new_desc})
+            total_updated += 1
+            if not dry_run:
+                try:
+                    db.session.execute(db.text(
+                        f"UPDATE {table_name} SET description = :desc WHERE part_number = :pn"
+                    ), {"desc": new_desc, "pn": part_number})
+                except Exception as e:
+                    errors.append(f"{part_number}: {str(e)}")
+                    db.session.rollback()
+
+    if not dry_run:
+        db.session.commit()
+
+    return {"success": True, "data": {
+        "updated": total_updated, "skipped": total_skipped,
+        "errors": errors, "dry_run": dry_run, "changes": preview[:200]
+    }}
+
+
 # ─── MANUFACTURERS (AML) ───
 
 @part_bp.route("/manufacturers/<part_number>", methods=["GET"])
@@ -2350,6 +2446,23 @@ def add_manufacturer():
     _log_audit('CREATE', 'Manufacturer', part_number, details=f"Added MPN: {mpn}, Make: {make}")
     db.session.commit()
     return {"success": True, "data": {"id": str(new_id)}, "message": "Manufacturer combination added"}
+
+@part_bp.route("/manufacturers/<mid>", methods=["PUT"])
+def update_manufacturer(mid):
+    data = request.get_json()
+    mpn = str(data.get("mpn", "")).strip()
+    make = str(data.get("make", "")).strip()
+    if not mpn and not make:
+        return {"success": False, "message": "At least one of MPN or Make is required"}, 400
+    row = db.session.execute(db.text("SELECT part_number FROM part.manufacturers WHERE id = :id"), {"id": mid}).first()
+    if not row:
+        return {"success": False, "message": "Record not found"}, 404
+    db.session.execute(db.text(
+        "UPDATE part.manufacturers SET mpn = :mpn, make = :make WHERE id = :id"
+    ), {"mpn": mpn, "make": make, "id": mid})
+    _log_audit('UPDATE', 'Manufacturer', row[0], details=f"Updated MPN: {mpn}, Make: {make}")
+    db.session.commit()
+    return {"success": True, "message": "Manufacturer updated"}
 
 @part_bp.route("/manufacturers/<mid>", methods=["DELETE"])
 def delete_manufacturer(mid):

@@ -391,6 +391,9 @@
                                 <span class="material-icons-outlined">inventory_2</span>
                                 Stock Inventory
                                 <span id="invTotalBadge" style="margin-left:auto;font-size:12px;font-weight:700;padding:3px 12px;border-radius:10px;background:#e0f2f1;color:#00796B">Total: 0</span>
+                                <button class="pd-edit-btn" onclick="openAddStockModal()" style="margin-left:10px">
+                                    <span class="material-icons-outlined">add</span> Add Stock
+                                </button>
                             </div>
                             <div class="pd-card-body" style="padding:0">
                                 <table class="data-table">
@@ -555,6 +558,62 @@
             </div><!-- /pd-wrapper -->
         </main>
     </div><!-- /part-layout -->
+
+<!-- ADD STOCK MODAL -->
+<div class="modal-overlay" id="addStockModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3><span class="material-icons-outlined">add_box</span> Add Stock Manually</h3>
+            <button class="close-btn" onclick="partCloseModal('addStockModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <form id="addStockForm" onsubmit="saveManualStock(event)">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Quantity <span style="color:red">*</span></label>
+                        <input type="number" id="asQty" min="0.001" step="any" placeholder="e.g. 100" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Unit</label>
+                        <input type="text" id="asUnit" value="pcs" placeholder="pcs">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Warehouse Code <span style="color:red">*</span></label>
+                        <input type="text" id="asWarehouse" placeholder="e.g. MAIN" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Bin Code <span style="color:red">*</span></label>
+                        <input type="text" id="asBin" placeholder="e.g. A-01-01" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Zone Code</label>
+                        <input type="text" id="asZone" placeholder="e.g. Z1">
+                    </div>
+                    <div class="form-group">
+                        <label>Manufacturer (Make)</label>
+                        <input type="text" id="asMfr" placeholder="Optional">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Unit Cost (₹)</label>
+                    <input type="number" id="asUnitCost" min="0" step="any" value="0" placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label>Notes / Reason</label>
+                    <input type="text" id="asNotes" placeholder="e.g. Opening stock, physical count...">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="partCloseModal('addStockModal')">Cancel</button>
+                    <button type="submit" class="btn-primary" id="btnSaveStock">Add Stock</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
     <script src="/static/js/header.js"></script>
     <script>requireAuth();</script>
@@ -1158,10 +1217,17 @@
                 } else {
                     supsHtml = `<span style="color:var(--text-muted); font-size:12px">None mapped</span>`;
                 }
-                
+
+                const mpnCell = editMode
+                    ? `<input class="pd-inline-input" id="mfg-mpn-${m.id}" value="${esc(m.mpn || '')}" style="width:100%;min-width:100px">`
+                    : `<strong>${esc(m.mpn || '—')}</strong>`;
+                const makeCell = editMode
+                    ? `<input class="pd-inline-input" id="mfg-make-${m.id}" value="${esc(m.make || '')}" style="width:100%;min-width:100px">`
+                    : esc(m.make || '—');
+
                 return `<tr>
-                <td style="padding:10px 18px; vertical-align:top"><strong>${esc(m.mpn || '—')}</strong></td>
-                <td style="padding:10px 18px; vertical-align:top">${esc(m.make || '—')}</td>
+                <td style="padding:10px 18px; vertical-align:top">${mpnCell}</td>
+                <td style="padding:10px 18px; vertical-align:top">${makeCell}</td>
                 <td style="padding:10px 18px; vertical-align:top">
                     ${supsHtml}
                     <div style="margin-top:6px">
@@ -1170,11 +1236,27 @@
                         </button>
                     </div>
                 </td>
-                <td class="mfg-edit-col" style="display:${editMode ? '' : 'none'}; text-align:right; padding:10px 18px; vertical-align:top">
-                    <button class="btn-obs" onclick="deleteManufacturer('${m.id}')" title="Delete"><span class="material-icons-outlined">delete</span></button>
+                <td class="mfg-edit-col" style="display:${editMode ? '' : 'none'}; text-align:right; padding:10px 18px; vertical-align:top; white-space:nowrap">
+                    <button class="pd-save-btn" style="padding:4px 8px;font-size:11px" onclick="saveManufacturerEdit('${m.id}')" title="Save"><span class="material-icons-outlined" style="font-size:14px">save</span></button>
+                    <button class="btn-obs" style="margin-left:4px" onclick="deleteManufacturer('${m.id}')" title="Delete"><span class="material-icons-outlined">delete</span></button>
                 </td>
             </tr>`;
             }).join('');
+        }
+
+        async function saveManufacturerEdit(id) {
+            const mpn = document.getElementById(`mfg-mpn-${id}`)?.value.trim() || '';
+            const make = document.getElementById(`mfg-make-${id}`)?.value.trim() || '';
+            if (!mpn && !make) { showToast('At least one of MPN or Make is required', 'error'); return; }
+            try {
+                const res = await fetch(`${API}/manufacturers/${id}`, {
+                    method: 'PUT', headers: getHeaders(),
+                    body: JSON.stringify({ mpn, make })
+                });
+                const data = await res.json();
+                if (data.success) { showToast('Manufacturer updated', 'success'); loadPartDetail(); }
+                else showToast(data.message || 'Update failed', 'error');
+            } catch(e) { showToast('Network error', 'error'); }
         }
 
         function openAddManufacturerModal() {
@@ -1436,6 +1518,55 @@
         }
 
         loadPartDetail();
+
+        function openAddStockModal() {
+            document.getElementById('asQty').value = '';
+            document.getElementById('asUnit').value = 'pcs';
+            document.getElementById('asWarehouse').value = '';
+            document.getElementById('asBin').value = '';
+            document.getElementById('asZone').value = '';
+            document.getElementById('asMfr').value = '';
+            document.getElementById('asUnitCost').value = '0';
+            document.getElementById('asNotes').value = '';
+            const firstMfr = _partData?.manufacturers?.[0]?.make || '';
+            if (firstMfr) document.getElementById('asMfr').value = firstMfr;
+            partOpenModal('addStockModal');
+        }
+
+        async function saveManualStock(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btnSaveStock');
+            btn.disabled = true; btn.textContent = 'Saving...';
+            const payload = {
+                part_number: PART_NUMBER,
+                qty: parseFloat(document.getElementById('asQty').value) || 0,
+                unit: document.getElementById('asUnit').value.trim() || 'pcs',
+                warehouse_code: document.getElementById('asWarehouse').value.trim(),
+                bin_code: document.getElementById('asBin').value.trim(),
+                zone_code: document.getElementById('asZone').value.trim(),
+                manufacturer: document.getElementById('asMfr').value.trim(),
+                unit_cost: parseFloat(document.getElementById('asUnitCost').value) || 0,
+                notes: document.getElementById('asNotes').value.trim()
+            };
+            if (!payload.warehouse_code || !payload.bin_code || payload.qty <= 0) {
+                showToast('Quantity, Warehouse and Bin are required', 'error');
+                btn.disabled = false; btn.textContent = 'Add Stock'; return;
+            }
+            try {
+                const res = await fetch('/api/v1/inventory/manual-stock-entry', {
+                    method: 'POST', headers: getHeaders(), body: JSON.stringify(payload)
+                });
+                const d = await res.json();
+                if (d.success) {
+                    showToast(d.message || 'Stock added', 'success');
+                    partCloseModal('addStockModal');
+                    loadPartDetail();
+                } else {
+                    showToast(d.message || 'Failed to add stock', 'error');
+                }
+            } catch(err) { showToast('Network error', 'error'); }
+            btn.disabled = false; btn.textContent = 'Add Stock';
+        }
 
         function partOpenModal(id) {
             const el = document.getElementById(id);
