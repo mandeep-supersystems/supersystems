@@ -251,6 +251,7 @@
                 <div class="section-actions">
                     <input type="text" id="stockSearchInput" placeholder="Filter by part, bin..." onkeyup="loadStockLevels()" style="padding:7px 12px; border:1px solid var(--border-color); border-radius:6px;">
                     <button class="btn-outline" onclick="openInventoryExportModal()" style="color:#0891b2;border-color:#0891b2;display:inline-flex;align-items:center;gap:4px;"><span class="material-icons-outlined" style="font-size:16px;">download</span>Download</button>
+                    <button class="btn-outline" onclick="document.getElementById('importExcelModal').classList.add('active')" style="color:#7c3aed;border-color:#7c3aed;display:inline-flex;align-items:center;gap:4px;"><span class="material-icons-outlined" style="font-size:16px;">upload_file</span>Import Excel</button>
                     <button class="btn-primary" onclick="openNewStockModal()"><span class="material-icons-outlined">add</span>Add Stock Record</button>
                 </div>
             </div>
@@ -619,6 +620,25 @@
         <div class="modal-footer">
             <button type="button" class="btn-outline" onclick="closeModal('inventoryExportModal')">Cancel</button>
             <button type="button" class="btn-primary" style="background:#0891b2;border-color:#0891b2;" onclick="doInventoryExportCsv()"><span class="material-icons-outlined" style="font-size:15px;vertical-align:middle;">download</span> Download CSV</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="importExcelModal">
+    <div class="modal" style="max-width:420px;">
+        <div class="modal-header">
+            <h3>Import Stock from Excel</h3>
+            <span class="material-icons-outlined modal-close" onclick="closeModal('importExcelModal')">close</span>
+        </div>
+        <div class="modal-body">
+            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">Upload an .xlsx file with columns: <strong>part_number, qty_on_hand, warehouse_code, bin_code, unit, unit_cost, manufacturer, mpn, part_description</strong>. Existing records are updated; new ones are created.</p>
+            <label>Excel File (.xlsx)</label>
+            <input type="file" id="importExcelFile" accept=".xlsx,.xls" style="width:100%;padding:7px 10px;border:1px solid var(--border-color);border-radius:4px;font-size:13px;margin-top:4px;">
+            <div id="importExcelStatus" style="margin-top:10px;font-size:13px;"></div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn-outline" onclick="closeModal('importExcelModal')">Cancel</button>
+            <button type="button" class="btn-primary" style="background:#7c3aed;border-color:#7c3aed;" onclick="doImportExcel()"><span class="material-icons-outlined" style="font-size:15px;vertical-align:middle;">upload_file</span> Import</button>
         </div>
     </div>
 </div>

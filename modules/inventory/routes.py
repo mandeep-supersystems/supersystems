@@ -31,6 +31,22 @@ def _tid_cond():
     return "(tenant_id = :tid OR tenant_id = 'TEST' OR tenant_id = 'b424df0e-f766-4e94-b3fd-05777e158958' OR tenant_id = '' OR tenant_id IS NULL)"
 
 
+
+
+def _log_audit(action, entity_type, entity_id, tenant_id):
+    try:
+        user_name  = request.headers.get("X-User-Name") or request.headers.get("X-User-Email") or "System"
+        user_email = request.headers.get("X-User-Email") or ""
+        ip = request.headers.get("X-Forwarded-For", request.remote_addr or "127.0.0.1").split(",")[0].strip()
+        db.session.execute(db.text(
+            "INSERT INTO audit.logs (id, module, action, entity_type, entity_id, user_name, user_email, ip_address, tenant_id, created_at) "
+            "VALUES (:id, 'Inventory', :action, :etype, :eid, :uname, :uemail, :ip, :tid, NOW())"
+        ), {"id": str(uuid.uuid4()), "action": action, "etype": entity_type, "eid": str(entity_id),
+            "uname": user_name, "uemail": user_email, "ip": ip, "tid": tenant_id})
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
 @inventory_bp.route("/overview-stats", methods=["GET"])
 def overview_stats():
     tenant_id = _get_tenant()
@@ -207,6 +223,7 @@ def create_stock_level():
         "tid": tenant_id
     })
     db.session.commit()
+    _log_audit("STOCK_CREATED", "StockLevel", item_id, tenant_id)
     return jsonify({"success": True, "message": "Stock level record created", "id": item_id})
 
 
@@ -331,6 +348,7 @@ def create_stock_movement():
         ), {"id": new_id, "p": part_number, "desc": data.get("part_description", ""), "itype": data.get("item_type", "PART"), "wh": wh_target, "bin": bin_target, "qty": qty, "tid": tenant_id})
 
     db.session.commit()
+    _log_audit(mtype, "StockMovement", mov_no, tenant_id)
     return jsonify({"success": True, "message": "Movement recorded & stock updated", "movement_no": mov_no})
 
 
@@ -1018,6 +1036,7 @@ def manual_stock_entry():
         db.session.rollback()
 
     db.session.commit()
+    _log_audit("MANUAL_ENTRY", "StockLevel", part_number, tenant_id)
     return jsonify({"success": True, "message": f"Added {qty} {unit} of {part_number} to {warehouse}/{bin_code}",
                     "data": {"new_qty": new_qty, "movement_no": mov_no}})
 
@@ -1216,8 +1235,70 @@ def export_inventory_csv():
     wh_suffix = f"_{warehouse_filter}" if warehouse_filter else ""
     filename = f"Inventory{suffix}{wh_suffix}_{_dt.now().strftime('%Y%m%d')}.csv"
 
+    _log_audit("EXPORT_CSV", "Inventory", filename, tenant_id)
     return Response(
         csv_content,
         mimetype="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'}
     )
+
+
+# EXCEL IMPORT
+@inventory_bp.route("/import-excel", methods=["POST"])
+def import_inventory_excel():
+    tenant_id = _get_tenant()
+    if "file" not in request.files:
+        return jsonify({"success": False, "message": "No file uploaded"}), 400
+    f = request.files["file"]
+    if not f.filename.lower().endswith((".xlsx", ".xls")):
+        return jsonify({"success": False, "message": "Only .xlsx / .xls files accepted"}), 400
+    try:
+        import openpyxl
+        wb = openpyxl.load_workbook(f, data_only=True)
+        ws = wb.active
+        headers = [str(c.value).strip().lower().replace(" ", "_") if c.value else "" for c in next(ws.iter_rows(min_row=1, max_row=1))]
+        created = updated = skipped = 0
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            if not any(row):
+                continue
+            rd = {headers[i]: (row[i] if i < len(row) else None) for i in range(len(headers))}
+            pn = str(rd.get("part_number") or rd.get("part_no") or "").strip()
+            if not pn:
+                skipped += 1
+                continue
+            qty = float(rd.get("qty_on_hand") or rd.get("qty") or 0)
+            wh  = str(rd.get("warehouse_code") or rd.get("warehouse") or "MAIN").strip()
+            bin_c = str(rd.get("bin_code") or rd.get("bin") or "A-01-01").strip()
+            desc  = str(rd.get("part_description") or rd.get("description") or "").strip()
+            unit  = str(rd.get("unit") or "pcs").strip()
+            cost  = float(rd.get("unit_cost") or 0)
+            mfr   = str(rd.get("manufacturer") or "").strip()
+            mpn   = str(rd.get("mpn") or "").strip()
+            existing = db.session.execute(db.text(
+                "SELECT id, qty_on_hand FROM inventory_stock_levels "
+                "WHERE part_number = :pn AND warehouse_code = :wh AND is_deleted = false "
+                "AND (tenant_id = :tid OR tenant_id = 'TEST' OR tenant_id = 'b424df0e-f766-4e94-b3fd-05777e158958' OR tenant_id = '' OR tenant_id IS NULL) LIMIT 1"
+            ), {"pn": pn, "wh": wh, "tid": tenant_id}).first()
+            if existing:
+                db.session.execute(db.text(
+                    "UPDATE inventory_stock_levels SET qty_on_hand=:qty, qty_available=:qty - qty_reserved, "
+                    "unit_cost=:cost, total_value=:qty*:cost, manufacturer=:mfr, mpn=:mpn, "
+                    "part_description=:desc, unit=:unit, updated_at=NOW() WHERE id=:id"
+                ), {"qty": qty, "cost": cost, "mfr": mfr, "mpn": mpn, "desc": desc, "unit": unit, "id": existing[0]})
+                updated += 1
+            else:
+                db.session.execute(db.text(
+                    "INSERT INTO inventory_stock_levels "
+                    "(id, part_number, part_description, item_type, warehouse_code, bin_code, manufacturer, mpn, "
+                    "qty_on_hand, qty_reserved, qty_available, unit, unit_cost, total_value, tenant_id, created_at, updated_at) "
+                    "VALUES (:id, :pn, :desc, 'PART', :wh, :bin, :mfr, :mpn, :qty, 0, :qty, :unit, :cost, :qty*:cost, :tid, NOW(), NOW())"
+                ), {"id": str(uuid.uuid4()), "pn": pn, "desc": desc, "wh": wh, "bin": bin_c,
+                    "mfr": mfr, "mpn": mpn, "qty": qty, "unit": unit, "cost": cost, "tid": tenant_id})
+                created += 1
+        db.session.commit()
+        _log_audit("EXCEL_IMPORT", "Inventory", f.filename, tenant_id)
+        return jsonify({"success": True, "message": f"Import complete: {created} created, {updated} updated, {skipped} skipped",
+                        "created": created, "updated": updated, "skipped": skipped})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": str(e)}), 500

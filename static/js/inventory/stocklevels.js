@@ -186,3 +186,30 @@ function doInventoryExportCsv() {
     window.open(url, '_blank');
     closeModal('inventoryExportModal');
 }
+
+// --- EXCEL IMPORT ---
+async function doImportExcel() {
+    const fileInput = document.getElementById('importExcelFile');
+    const status    = document.getElementById('importExcelStatus');
+    if (!fileInput.files.length) { status.innerHTML = '<span style="color:red;">Please select a file.</span>'; return; }
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+    status.innerHTML = '<span style="color:#7c3aed;">Uploading...</span>';
+    try {
+        const token = localStorage.getItem('access_token') || localStorage.getItem('token') || '';
+        const res  = await fetch(API + '/import-excel', {
+            method: 'POST',
+            headers: token ? { 'Authorization': 'Bearer ' + token } : {},
+            body: formData
+        });
+        const json = await res.json();
+        if (json.success) {
+            status.innerHTML = `<span style="color:#16a34a;">${json.message}</span>`;
+            setTimeout(() => { closeModal('importExcelModal'); loadStockLevels(); }, 1500);
+        } else {
+            status.innerHTML = `<span style="color:red;">${json.message}</span>`;
+        }
+    } catch (e) {
+        status.innerHTML = '<span style="color:red;">Upload failed.</span>';
+    }
+}
