@@ -1,6 +1,8 @@
 import uuid
+import io
+import csv
 from datetime import datetime
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, Response
 from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request
 from extensions import db
 
@@ -1070,3 +1072,152 @@ def create_location():
     return jsonify({"success": True, "message": f"Location {loc_code} created", "location_code": loc_code})
 
 
+
+
+# --- INVENTORY EXPORT CSV ---
+@inventory_bp.route("/export-csv", methods=["GET"])
+def export_inventory_csv():
+    tenant_id = _get_tenant()
+    cond = _tid_cond()
+
+    category_filter = request.args.get("category", "").strip()   # e.g. "101" prefix
+    warehouse_filter = request.args.get("warehouse", "").strip()
+
+    # Build WHERE
+    where = f"is_deleted = false AND {cond}"
+    params = {"tid": tenant_id}
+    if warehouse_filter:
+        where += " AND warehouse_code = :wh"
+        params["wh"] = warehouse_filter
+
+    rows = db.session.execute(db.text(f"""
+        SELECT part_number, part_description, item_type,
+               warehouse_code, zone_code, bin_code, manufacturer, mpn,
+               qty_on_hand, qty_reserved, qty_available,
+               unit, unit_cost, total_value, last_movement_at
+        FROM inventory_stock_levels
+        WHERE {where}
+        ORDER BY part_number ASC
+    """), params).fetchall()
+
+    # Build category/subcategory lookup from part prefix
+    import re as _re
+    cats = db.session.execute(db.text(
+        "SELECT series_prefix, name FROM part.categories WHERE is_deleted = false"
+    )).fetchall()
+    cat_map = {r[0]: r[1] for r in cats}
+
+    subs = db.session.execute(db.text(
+        "SELECT s.series_prefix, s.name, c.series_prefix as cat_prefix "
+        "FROM part.subcategories s JOIN part.categories c ON s.category_id = c.id "
+        "WHERE s.is_deleted = false"
+    )).fetchall()
+    sub_map = {(r[2], r[0]): r[1] for r in subs}
+
+    def get_cat_sub(part_number):
+        for sep in (".", "-"):
+            parts = part_number.split(sep)
+            if len(parts) >= 2:
+                cp = parts[0].strip()
+                sp = parts[1].strip()
+                cn = cat_map.get(cp, "")
+                sn = sub_map.get((cp, sp), "")
+                if cn:
+                    return cp, cn, sn
+        return "", "", ""
+
+    # Apply category filter if given
+    if category_filter:
+        rows = [r for r in rows if r[0].split(".")[0].strip() == category_filter
+                or r[0].split("-")[0].strip() == category_filter]
+
+    # Group rows by category prefix for category-wise sections
+    from collections import defaultdict
+    grouped = defaultdict(list)
+    for r in rows:
+        cp, cn, sn = get_cat_sub(r[0])
+        grouped[(cp, cn)].append((r, sn))
+
+    # Sort groups by category prefix numerically
+    def sort_key(k):
+        try:
+            return int(k[0])
+        except Exception:
+            return k[0]
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # File header
+    writer.writerow([
+        "Category", "Sub Category", "Part Number", "Description",
+        "Item Type", "Warehouse", "Zone", "Bin", "Manufacturer", "MPN",
+        "Qty On Hand", "Qty Reserved", "Qty Available",
+        "Unit", "Unit Cost (Rs.)", "Total Value (Rs.)", "Last Movement"
+    ])
+
+    grand_qty = 0.0
+    grand_value = 0.0
+
+    for (cp, cn) in sorted(grouped.keys(), key=sort_key):
+        group_rows = grouped[(cp, cn)]
+
+        # Category separator row
+        writer.writerow([])
+        writer.writerow([f"=== {cn or cp or 'Uncategorized'} (Prefix: {cp}) ===",
+                         "", "", "", "", "", "", "", "", "",
+                         "", "", "", "", "", "", ""])
+
+        cat_qty = 0.0
+        cat_value = 0.0
+
+        for (r, sn) in group_rows:
+            qoh   = float(r[8] or 0)
+            qres  = float(r[9] or 0)
+            qavail = float(r[10] or 0)
+            cost  = float(r[12] or 0)
+            val   = float(r[13] or 0)
+            cat_qty   += qoh
+            cat_value += val
+            writer.writerow([
+                cn or cp, sn,
+                r[0], r[1] or "",
+                r[2] or "PART",
+                r[3] or "", r[4] or "", r[5] or "",
+                r[6] or "", r[7] or "",
+                qoh, qres, qavail,
+                r[11] or "pcs",
+                round(cost, 4), round(val, 2),
+                str(r[14]).split(".")[0] if r[14] else ""
+            ])
+
+        # Category subtotal
+        writer.writerow([
+            f"  Subtotal: {cn or cp}", "", "", "", "", "", "", "", "", "",
+            round(cat_qty, 2), "", "",
+            "", "", round(cat_value, 2), ""
+        ])
+        grand_qty   += cat_qty
+        grand_value += cat_value
+
+    # Grand total
+    writer.writerow([])
+    writer.writerow([
+        "GRAND TOTAL", "", "", "", "", "", "", "", "", "",
+        round(grand_qty, 2), "", "",
+        "", "", round(grand_value, 2), ""
+    ])
+
+    csv_content = output.getvalue()
+    output.close()
+
+    from datetime import datetime as _dt
+    suffix = f"_{category_filter}" if category_filter else "_ALL"
+    wh_suffix = f"_{warehouse_filter}" if warehouse_filter else ""
+    filename = f"Inventory{suffix}{wh_suffix}_{_dt.now().strftime('%Y%m%d')}.csv"
+
+    return Response(
+        csv_content,
+        mimetype="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )

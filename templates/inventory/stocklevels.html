@@ -123,6 +123,9 @@
                 <h2>Stock Levels</h2>
                 <div class="section-actions">
                     <input type="text" id="stockSearchInput" placeholder="Filter by part, bin..." onkeyup="loadStockLevels()" style="padding:7px 12px; border:1px solid var(--border-color); border-radius:6px;">
+                    <button class="btn-outline" onclick="openInventoryExportModal()" style="color:#0891b2;border-color:#0891b2;display:inline-flex;align-items:center;gap:4px;">
+                        <span class="material-icons-outlined" style="font-size:16px;">download</span>Download
+                    </button>
                     <button class="btn-primary" onclick="openNewStockModal()"><span class="material-icons-outlined">add</span>Add Stock Record</button>
                 </div>
             </div>
@@ -247,6 +250,40 @@
                     <button type="submit" class="btn-primary">Save Changes</button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Inventory Export Modal -->
+<div class="modal-overlay" id="inventoryExportModal">
+    <div class="modal" style="max-width:460px;">
+        <div class="modal-header">
+            <h3>Download Inventory CSV</h3>
+            <span class="material-icons-outlined modal-close" onclick="closeModal('inventoryExportModal')">close</span>
+        </div>
+        <div class="modal-body">
+            <div style="margin-bottom:14px;padding:10px 12px;background:var(--bg-secondary);border-radius:6px;font-size:12px;color:var(--text-secondary);">
+                Exports all stock levels grouped by category with subtotals and grand total.
+                Columns: Category, Sub Category, Part Number, Description, Warehouse, Bin, Manufacturer, MPN, Qty On Hand, Qty Reserved, Qty Available, Unit, Unit Cost, Total Value, Last Movement
+            </div>
+            <div class="form-group">
+                <label>Category Filter</label>
+                <select id="exportInvCategory" style="width:100%;padding:7px 10px;border:1px solid var(--border-color);border-radius:4px;font-size:13px;outline:none;background:var(--bg-primary);color:var(--text-primary);">
+                    <option value="">All Categories</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Warehouse Filter</label>
+                <select id="exportInvWarehouse" style="width:100%;padding:7px 10px;border:1px solid var(--border-color);border-radius:4px;font-size:13px;outline:none;background:var(--bg-primary);color:var(--text-primary);">
+                    <option value="">All Warehouses</option>
+                </select>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn-outline" onclick="closeModal('inventoryExportModal')">Cancel</button>
+                <button type="button" class="btn-primary" style="background:#0891b2;border-color:#0891b2;" onclick="doInventoryExportCsv()">
+                    <span class="material-icons-outlined" style="font-size:15px;vertical-align:middle;">download</span> Download CSV
+                </button>
+            </div>
         </div>
     </div>
 </div>

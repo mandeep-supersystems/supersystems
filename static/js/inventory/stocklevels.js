@@ -123,3 +123,66 @@ function quickTransfer(partNo, wh, bin) {
     document.getElementById('trfFromWh').value = wh;
     document.getElementById('trfFromBin').value = bin;
 }
+
+// --- INVENTORY EXPORT ---
+
+async function openInventoryExportModal() {
+    // Populate category dropdown from stock data
+    const catSel = document.getElementById('exportInvCategory');
+    const whSel  = document.getElementById('exportInvWarehouse');
+    catSel.innerHTML = '<option value="">All Categories</option>';
+    whSel.innerHTML  = '<option value="">All Warehouses</option>';
+
+    try {
+        const res  = await fetch(API + '/stock-levels', { headers: HEADERS });
+        const json = await res.json();
+        if (json.success && json.data) {
+            const cats = new Map();   // prefix -> label
+            const whs  = new Set();
+
+            json.data.forEach(item => {
+                const pn = item.part_number || '';
+                const sep = pn.includes('.') ? '.' : '-';
+                const prefix = pn.split(sep)[0];
+                if (prefix && !cats.has(prefix)) cats.set(prefix, prefix);
+                if (item.warehouse_code) whs.add(item.warehouse_code);
+            });
+
+            // Sort numerically
+            [...cats.keys()].sort((a, b) => {
+                const na = parseInt(a), nb = parseInt(b);
+                return isNaN(na) || isNaN(nb) ? a.localeCompare(b) : na - nb;
+            }).forEach(prefix => {
+                const opt = document.createElement('option');
+                opt.value = prefix;
+                opt.textContent = `Category ${prefix}`;
+                catSel.appendChild(opt);
+            });
+
+            [...whs].sort().forEach(wh => {
+                const opt = document.createElement('option');
+                opt.value = wh;
+                opt.textContent = wh;
+                whSel.appendChild(opt);
+            });
+        }
+    } catch (e) { /* dropdowns stay as All */ }
+
+    document.getElementById('inventoryExportModal').classList.add('active');
+}
+
+function doInventoryExportCsv() {
+    const category  = document.getElementById('exportInvCategory').value;
+    const warehouse = document.getElementById('exportInvWarehouse').value;
+
+    let url = API + '/export-csv';
+    const params = [];
+    if (category)  params.push('category='  + encodeURIComponent(category));
+    if (warehouse) params.push('warehouse=' + encodeURIComponent(warehouse));
+    const token = localStorage.getItem('access_token') || localStorage.getItem('token') || '';
+    if (token) params.push('token=' + token);
+    if (params.length) url += '?' + params.join('&');
+
+    window.open(url, '_blank');
+    closeModal('inventoryExportModal');
+}

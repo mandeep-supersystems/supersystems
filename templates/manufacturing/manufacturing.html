@@ -262,6 +262,7 @@
                                     <div id="toolbar-readonly" style="display:flex; gap:6px;">
                                         <button class="btn-outline" onclick="startEditingBom()" id="btnStartEditBom"><span class="material-icons-outlined" style="font-size:16px;">edit</span> Edit BOM</button>
                                         <button class="btn-primary" onclick="openReleaseBomModal()" id="btnReleaseBom"><span class="material-icons-outlined" style="font-size:16px;">verified</span> Release Version</button>
+                                        <button class="btn-outline" id="btnExportBom" onclick="openExportBomModal()" style="background:#0e7490;border-color:#0e7490;color:#fff;font-size:12px;padding:5px 10px;"><span class="material-icons-outlined" style="font-size:15px;">download</span> Export CSV</button>
                                     </div>
                                     <!-- Edit Mode Toolbar -->
                                     <div id="toolbar-edit" style="display:none; gap:6px;">
@@ -1077,6 +1078,26 @@
 <script>requireAuth();</script>
 <script src="/static/js/manufacturing/common.js?v=2"></script>
 <script src="/static/js/manufacturing/overview.js?v=2"></script>
+<!-- Export BOM Modal -->
+<div class="modal-overlay" id="exportBomModal">
+    <div class="modal" style="max-width:420px;">
+        <div class="modal-header">
+            <h3>Export BOM as CSV</h3>
+            <button class="close-btn" onclick="closeModal('exportBomModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <div style="font-weight:600;margin-bottom:4px;" id="exportBomPartLabel"></div>
+            <div style="color:var(--text-secondary);font-size:12px;margin-bottom:12px;">Exports all levels: Assembly + Sub-Assembly + Components</div>
+            <label>Version to Export</label>
+            <select id="exportVersionSelect" style="width:100%;padding:7px 10px;border:1px solid var(--border-color);border-radius:4px;outline:none;background:var(--bg-primary);margin-top:4px;"></select>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn-outline" onclick="closeModal('exportBomModal')">Cancel</button>
+            <button type="button" class="btn-primary" style="background:#0891b2;border-color:#0891b2;" onclick="doExportBomCsv()"><span class="material-icons-outlined" style="font-size:15px;">download</span> Download CSV</button>
+        </div>
+    </div>
+</div>
+
 <script src="/static/js/manufacturing/bom.js?v=23"></script>
 <script src="/static/js/manufacturing/productionorders.js?v=2"></script>
 <script src="/static/js/manufacturing/workcenters.js?v=2"></script>

@@ -1857,3 +1857,40 @@ async function openBomHistoryModal(bomId, partCode) {
         }
     }
 })();
+
+// --- BOM EXPORT ---
+
+async function openExportBomModal() {
+    if (!currentBomId || !bomData) return;
+    document.getElementById('exportBomPartLabel').innerHTML =
+        '<span style="color:var(--accent);">' + bomData.fg_part_number + '</span> &mdash; ' + (bomData.name || bomData.bom_no);
+    const sel = document.getElementById('exportVersionSelect');
+    sel.innerHTML = '<option value="">Current (' + bomData.current_version + ' - Live)</option>';
+    try {
+        const res = await fetch(API + '/boms/' + currentBomId + '/versions', { headers: HEADERS });
+        const json = await res.json();
+        if (json.success && json.data.length > 0) {
+            json.data.forEach(function(v) {
+                const isCurrent = v.version === bomData.current_version;
+                const opt = document.createElement('option');
+                opt.value = v.version;
+                opt.textContent = v.version + ' - ' + v.status +
+                    (isCurrent ? ' (Current)' : '') +
+                    (v.released_at ? ' | Released ' + v.released_at.split('T')[0] : '');
+                sel.appendChild(opt);
+            });
+        }
+    } catch (e) {}
+    document.getElementById('exportBomModal').classList.add('active');
+}
+
+function doExportBomCsv() {
+    if (!currentBomId) return;
+    const version = document.getElementById('exportVersionSelect').value;
+    let url = API + '/boms/' + currentBomId + '/export-csv';
+    if (version) url += '?version=' + encodeURIComponent(version);
+    const token = localStorage.getItem('access_token') || localStorage.getItem('token') || '';
+    if (token) url += (version ? '&' : '?') + 'token=' + token;
+    window.open(url, '_blank');
+    closeModal('exportBomModal');
+}

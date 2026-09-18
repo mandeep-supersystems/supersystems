@@ -956,7 +956,17 @@ function renderStructureGrid() {
         groupCounts[gkey] = (groupCounts[gkey] || 0) + 1;
     });
 
-    let lastGroupKey = null;
+    // Assign a unique color to each assembly for visual grouping
+    const assemblyColors = ['#6366f1','#0891b2','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6'];
+    const assemblyColorMap = {};
+    let colorIdx = 0;
+    items.forEach(it => {
+        if (it.child_type === 'assembly' && !assemblyColorMap[String(it.id)]) {
+            assemblyColorMap[String(it.id)] = assemblyColors[colorIdx % assemblyColors.length];
+            colorIdx++;
+        }
+    });
+
     const rowsHtml = [];
 
     items.forEach((item) => {
@@ -968,29 +978,13 @@ function renderStructureGrid() {
         const level = item.level || 1;
         const lvlColor = getLevelColor(level);
         const levelBadge = `<span style="display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;color:#fff;background:${lvlColor};min-width:24px;text-align:center;">L${level}</span>`;
-        
-        // Relative indentation from current view
+
         const relLevel = Math.max(0, level - viewBaseDepth);
-        const indent = relLevel * 20;
+        const indent = relLevel * 24;
 
         const badgeStyle = getCategoryBadgeStyle(cat.prefix, cat.name, isAssembly);
-
-        // Section divider row between different categories under the same parent
-        if (groupKey !== lastGroupKey) {
-            lastGroupKey = groupKey;
-            const gCount = groupCounts[groupKey] || 1;
-            rowsHtml.push(`
-                <tr class="bom-cat-divider-row" data-cat-prefix="${cat.prefix}" data-group-key="${groupKey}" style="background:var(--bg-secondary); border-top:1px solid var(--border-color);">
-                    <td colspan="11" style="padding:5px 12px; padding-left:${indent + 12}px; font-size:11px; font-weight:700;">
-                        <span style="display:inline-flex; align-items:center; gap:6px;">
-                            <span class="material-icons-outlined" style="font-size:14px; color:${badgeStyle.color};">${badgeStyle.icon}</span>
-                            <span style="color:var(--text-primary); text-transform:uppercase; letter-spacing:0.4px;">${cat.name} (${cat.prefix})</span>
-                            <span style="background:var(--bg-primary); padding:1px 6px; border-radius:10px; font-size:10px; font-weight:600; color:var(--text-secondary); border:1px solid var(--border-color); margin-left:4px;">${gCount} item${gCount !== 1 ? 's' : ''}</span>
-                        </span>
-                    </td>
-                </tr>
-            `);
-        }
+        const myColor = assemblyColorMap[String(item.id)] || null;
+        const parentColor = item.parent_item_id ? (assemblyColorMap[String(item.parent_item_id)] || null) : null;
 
         const hasKids = isAssembly && bomData.items.some(i => String(i.parent_item_id) === String(item.id));
         const isCollapsed = gridCollapsedItemIds.has(String(item.id));
@@ -1033,18 +1027,23 @@ function renderStructureGrid() {
                </td>`
             : `<td></td>`;
 
+        const asmRowStyle = isAssembly && myColor
+            ? `border-left:3px solid ${myColor};background:${myColor}18;`
+            : parentColor ? `border-left:3px solid ${parentColor}55;` : 'border-left:3px solid transparent;';
+        const asmHoverBg = isAssembly && myColor ? myColor + '28' : 'var(--bg-secondary)';
+
         rowsHtml.push(`
-            <tr class="bom-item-data-row" data-cat-prefix="${cat.prefix}" data-group-key="${groupKey}" style="transition:background 0.12s;" onmouseover="this.style.background='var(--bg-secondary)'" onmouseout="this.style.background=''">
+            <tr class="bom-item-data-row" data-cat-prefix="${cat.prefix}" data-group-key="${groupKey}" style="transition:background 0.12s;${asmRowStyle}" onmouseover="this.style.background='${asmHoverBg}'" onmouseout="this.style.background='${isAssembly && myColor ? myColor+'18' : ''}'">
                 <td style="text-align:center;overflow:hidden;">
                     ${item.isSubAssemblyComponent
-                        ? `<span title="Belongs to sub-assembly BOM — edit there" style="color:var(--text-muted);cursor:default;">
+                        ? `<span title="Belongs to sub-assembly" style="color:var(--text-muted);cursor:default;">
                                <span class="material-icons-outlined" style="font-size:15px;vertical-align:middle;opacity:0.35;">block</span>
                            </span>`
                         : `<input type="checkbox" class="item-selector-cb" data-item-id="${item.id}" onchange="handleCheckboxSelectionChange()">`
                     }
                 </td>
                 <td style="text-align:center;overflow:hidden;">${levelBadge}</td>
-                <td style="overflow:hidden;padding-left:${indent + 8}px;">${partCodeCell}</td>
+                <td style="overflow:hidden;padding-left:${indent + 8}px;">${isAssembly && myColor ? `<span style="display:inline-flex;align-items:center;gap:5px;"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${myColor};flex-shrink:0;margin-top:1px;"></span>${partCodeCell}</span>` : partCodeCell}</td>
                 <td style="overflow:hidden;">${typeBadge}</td>
                 <td style="font-size:12px;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${item.description || ''}">${item.description || '—'}</td>
                 <td style="text-align:right;font-weight:700;overflow:hidden;">${item.quantity}</td>
@@ -2364,3 +2363,38 @@ async function openBomHistoryModal(bomId, partCode) {
         }
     }
 })();
+
+// --- BOM EXPORT ---
+async function openExportBomModal() {
+    if (!currentBomId || !bomData) return;
+    document.getElementById('exportBomPartLabel').innerHTML =
+        '<span style="color:var(--accent);">' + bomData.fg_part_number + '</span> &mdash; ' + (bomData.name || bomData.bom_no);
+    var sel = document.getElementById('exportVersionSelect');
+    sel.innerHTML = '<option value="">Current (' + bomData.current_version + ' - Live)</option>';
+    try {
+        var res = await fetch(API + '/boms/' + currentBomId + '/versions', { headers: HEADERS });
+        var json = await res.json();
+        if (json.success && json.data.length > 0) {
+            json.data.forEach(function(v) {
+                var opt = document.createElement('option');
+                opt.value = v.version;
+                opt.textContent = v.version + ' - ' + v.status +
+                    (v.version === bomData.current_version ? ' (Current)' : '') +
+                    (v.released_at ? ' | Released ' + v.released_at.split('T')[0] : '');
+                sel.appendChild(opt);
+            });
+        }
+    } catch(e) {}
+    document.getElementById('exportBomModal').classList.add('active');
+}
+
+function doExportBomCsv() {
+    if (!currentBomId) return;
+    var version = document.getElementById('exportVersionSelect').value;
+    var url = API + '/boms/' + currentBomId + '/export-csv';
+    if (version) url += '?version=' + encodeURIComponent(version);
+    var token = localStorage.getItem('access_token') || localStorage.getItem('token') || '';
+    if (token) url += (version ? '&' : '?') + 'token=' + token;
+    window.open(url, '_blank');
+    closeModal('exportBomModal');
+}

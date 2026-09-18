@@ -1,7 +1,9 @@
 import uuid
 import json
+import io
+import csv
 from datetime import datetime, timedelta
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, Response
 from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request
 from extensions import db
 
@@ -1898,6 +1900,171 @@ def search_parts():
             db.session.rollback()
     return jsonify({"success": True, "data": results[:30]})
 
+
+
+@manufacturing_bp.route("/boms/<bom_id>/export-csv", methods=["GET"])
+def export_bom_csv(bom_id):
+    tenant_id = _get_tenant()
+    version = request.args.get("version", "").strip()
+
+    bom = db.session.execute(db.text(
+        "SELECT fg_part_number, name, current_version, status FROM manufacturing_boms WHERE id = :id AND is_deleted = false AND tenant_id = :tid"
+    ), {"id": bom_id, "tid": tenant_id}).fetchone()
+    if not bom:
+        return jsonify({"success": False, "message": "BOM not found"}), 404
+
+    fg_part, bom_name, current_ver, bom_status = bom[0], bom[1], bom[2], bom[3]
+    export_version = version or current_ver or "V1"
+
+    # Load items — snapshot if old version, else live
+    if version and version != current_ver:
+        items = _expand_mfg_bom_snapshots_sql(bom_id, version, tenant_id)
+    else:
+        items = _expand_mfg_bom_items_sql(bom_id, tenant_id)
+
+    # Build category/subcategory lookup from part prefix
+    import re as _re
+    cats = db.session.execute(db.text(
+        "SELECT series_prefix, name FROM part.categories WHERE is_deleted = false"
+    )).fetchall()
+    cat_map = {r[0]: r[1] for r in cats}  # prefix -> category name
+
+    # subcategory lookup: part prefix (e.g. "101") -> sub prefix (e.g. "2") -> sub name
+    subs = db.session.execute(db.text(
+        "SELECT s.series_prefix, s.name, c.series_prefix as cat_prefix "
+        "FROM part.subcategories s JOIN part.categories c ON s.category_id = c.id "
+        "WHERE s.is_deleted = false"
+    )).fetchall()
+    # Build: (cat_prefix, sub_prefix) -> sub_name
+    sub_map = {(r[2], r[0]): r[1] for r in subs}
+
+    # Batch-fetch all MPN/Make for all part numbers in this BOM
+    all_part_codes = list({i["child_part_code"] for i in items if i.get("child_part_code")})
+    mpn_map = {}  # part_number -> [(mpn, make), ...]
+    if all_part_codes:
+        placeholders = ",".join([f":p{i}" for i in range(len(all_part_codes))])
+        params = {f"p{i}": v for i, v in enumerate(all_part_codes)}
+        mfg_rows = db.session.execute(db.text(
+            f"SELECT part_number, mpn, make FROM part.manufacturers WHERE part_number IN ({placeholders}) ORDER BY part_number, created_at"
+        ), params).fetchall()
+        for r in mfg_rows:
+            pn = r[0]
+            if pn not in mpn_map:
+                mpn_map[pn] = []
+            mpn_map[pn].append((r[1] or "", r[2] or ""))
+
+    def get_cat_sub(part_code):
+        """Resolve category and subcategory names from part number prefix."""
+        if not part_code:
+            return "", ""
+        # Try dot separator first, then dash
+        for sep in (".", "-"):
+            parts = part_code.split(sep)
+            if len(parts) >= 2:
+                cat_prefix = parts[0].strip()
+                sub_prefix = parts[1].strip()
+                cat_name = cat_map.get(cat_prefix, "")
+                sub_name = sub_map.get((cat_prefix, sub_prefix), "")
+                if cat_name:
+                    return cat_name, sub_name
+        return "", ""
+
+    def format_mpn_make(part_code):
+        """Return (mpn_str, make_str) — multiple values separated by ' | '."""
+        entries = mpn_map.get(part_code, [])
+        if not entries:
+            return "", ""
+        mpns = [e[0] for e in entries if e[0]]
+        makes = [e[1] for e in entries if e[1]]
+        # Deduplicate while preserving order
+        seen_mpn, seen_make = set(), set()
+        unique_mpns, unique_makes = [], []
+        for m in mpns:
+            if m not in seen_mpn:
+                unique_mpns.append(m)
+                seen_mpn.add(m)
+        for m in makes:
+            if m not in seen_make:
+                unique_makes.append(m)
+                seen_make.add(m)
+        mpn_str = " | ".join(unique_mpns) if len(unique_mpns) <= 1 else "[" + "] [" .join(unique_mpns) + "]"
+        make_str = " | ".join(unique_makes) if len(unique_makes) <= 1 else "[" + "] [".join(unique_makes) + "]"
+        return mpn_str, make_str
+
+    # Build tree-ordered list: pre-order traversal (parent immediately followed by its children)
+    def build_tree_order(all_items):
+        id_to_item = {str(it["id"]): it for it in all_items}
+        children_map = {}
+        roots = []
+        for it in all_items:
+            pid = str(it.get("parent_item_id") or "")
+            if pid and pid in id_to_item:
+                children_map.setdefault(pid, []).append(it)
+            else:
+                roots.append(it)
+        result = []
+        def walk(item):
+            result.append(item)
+            for child in children_map.get(str(item["id"]), []):
+                walk(child)
+        for r in roots:
+            walk(r)
+        return result
+
+    sorted_items = build_tree_order(items)
+    max_level = max((item.get("level", 1) for item in sorted_items), default=1)
+    num_levels = max_level + 1  # 0 = FG assembly, 1..N = BOM levels
+
+    # Build CSV in memory
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Dynamic header: one column per level, then fixed columns
+    level_headers = [f"Level {i}" for i in range(num_levels)]
+    writer.writerow(
+        level_headers +
+        ["Type", "Category", "Sub Category", "Description", "Ref Des", "Qty", "Unit", "MPN", "Make"]
+    )
+
+    def level_cols(part_code, level):
+        cols = [""] * num_levels
+        if 0 <= level < num_levels:
+            cols[level] = part_code
+        return cols
+
+    # FG Assembly at Level 0
+    fg_cat, fg_sub = get_cat_sub(fg_part)
+    fg_desc = _lookup_part_description(fg_part, tenant_id)
+    fg_mpn, fg_make = format_mpn_make(fg_part)
+    writer.writerow(
+        level_cols(fg_part, 0) +
+        ["Assembly", fg_cat or "Assembly", fg_sub, fg_desc or bom_name, "", "1", "pcs", fg_mpn, fg_make]
+    )
+
+    for item in sorted_items:
+        part_code = item.get("child_part_code", "")
+        level = item.get("level", 1)
+        item_type = "Assembly" if item.get("child_type") == "assembly" else "Component"
+        cat_name, sub_name = get_cat_sub(part_code)
+        description = item.get("description") or _lookup_part_description(part_code, tenant_id)
+        ref_des = item.get("reference") or ""
+        qty = item.get("quantity", 1)
+        unit = item.get("unit", "Nos")
+        mpn_str, make_str = format_mpn_make(part_code)
+        writer.writerow(
+            level_cols(part_code, level) +
+            [item_type, cat_name, sub_name, description, ref_des, qty, unit, mpn_str, make_str]
+        )
+
+    csv_content = output.getvalue()
+    output.close()
+
+    filename = f"BOM_{fg_part}_{export_version}_{datetime.now().strftime('%Y%m%d')}.csv"
+    return Response(
+        csv_content,
+        mimetype="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
 
 
 def debug_assembly_parts():
