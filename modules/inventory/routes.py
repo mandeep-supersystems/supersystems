@@ -1119,6 +1119,30 @@ def export_inventory_csv():
         ORDER BY part_number ASC
     """), params).fetchall()
 
+    # Fallback: look up descriptions from part tables for rows missing part_description
+    import re as _re2
+    _part_desc_fallback = {}
+    try:
+        _all_cats = db.session.execute(db.text(
+            "SELECT name, series_prefix FROM part.categories WHERE is_deleted = false"
+        )).fetchall()
+        for _cat in _all_cats:
+            _tbl = 'part."{}"'.format(
+                _re2.sub(r'[^a-z0-9]', '_', _cat[0].lower().strip()).strip('_') + '_' + str(_cat[1])
+            )
+            try:
+                _prows = db.session.execute(db.text(
+                    f"SELECT part_number, description FROM {_tbl} "
+                    "WHERE description IS NOT NULL AND TRIM(description) != ''"
+                )).fetchall()
+                for _pr in _prows:
+                    if _pr[0] and _pr[1]:
+                        _part_desc_fallback[_pr[0]] = _pr[1]
+            except Exception:
+                db.session.rollback()
+    except Exception:
+        pass
+
     # Build category/subcategory lookup from part prefix
     import re as _re
     cats = db.session.execute(db.text(
@@ -1200,7 +1224,7 @@ def export_inventory_csv():
             cat_value += val
             writer.writerow([
                 cn or cp, sn,
-                r[0], r[1] or "",
+                r[0], r[1] or _part_desc_fallback.get(r[0], "") or "",
                 r[2] or "PART",
                 r[3] or "", r[4] or "", r[5] or "",
                 r[6] or "", r[7] or "",
