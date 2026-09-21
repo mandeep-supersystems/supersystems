@@ -2035,6 +2035,8 @@ def export_bom_csv(bom_id):
     # FG Assembly at Level 0
     fg_cat, fg_sub = get_cat_sub(fg_part)
     fg_desc = _lookup_part_description(fg_part, tenant_id)
+    if fg_sub and fg_desc.startswith(fg_sub):
+        fg_desc = fg_desc[len(fg_sub):].lstrip(", ").strip()
     fg_mpn, fg_make = format_mpn_make(fg_part)
     writer.writerow(
         level_cols(fg_part, 0) +
@@ -2047,6 +2049,8 @@ def export_bom_csv(bom_id):
         item_type = "Assembly" if item.get("child_type") == "assembly" else "Component"
         cat_name, sub_name = get_cat_sub(part_code)
         description = item.get("description") or _lookup_part_description(part_code, tenant_id)
+        if sub_name and description.startswith(sub_name):
+            description = description[len(sub_name):].lstrip(", ").strip()
         ref_des = item.get("reference") or ""
         qty = item.get("quantity", 1)
         unit = item.get("unit", "Nos")
