@@ -164,6 +164,144 @@ def part_audit_logs():
     return {"success": True, "data": {"items": logs, "total": total, "page": page}}
 
 
+
+# ─── PHASE SYSTEM ────────────────────────────────────────────────────────────
+
+PHASE_LABELS = {
+    1: 'Phase 1 — Description Pending',
+    2: 'Phase 2 — MPN / Make Pending',
+    3: 'Phase 3 — Price / Vendor Pending',
+    4: 'Phase 4 — Pending Release',
+    5: 'Phase 5 — Mature',
+}
+PHASE_COLORS = {
+    1: '#ef4444',
+    2: '#3b82f6',
+    3: '#8b5cf6',
+    4: '#06b6d4',
+    5: '#10b981',
+}
+PHASE_BG = {
+    1: '#fee2e2',
+    2: '#dbeafe',
+    3: '#ede9fe',
+    4: '#cffafe',
+    5: '#d1fae5',
+}
+
+def _is_empty(v):
+    return not v or str(v).strip().lower() in ('', 'nan', 'none', 'null')
+
+def _calc_phase(part_number, row):
+    """Calculate phase (1-5) for a part. row is a dict of the part's DB columns."""
+    # Phase 1 — Description
+    if _is_empty(row.get('description')):
+        return 1
+
+    # Phase 2 — MPN / Make
+    try:
+        mpn_rows = db.session.execute(db.text(
+            "SELECT mpn, make FROM part.manufacturers WHERE part_number = :pn LIMIT 1"
+        ), {"pn": part_number}).fetchall()
+        if not mpn_rows or any(_is_empty(r[0]) or _is_empty(r[1]) for r in mpn_rows):
+            return 2
+    except Exception:
+        db.session.rollback()
+        return 2
+
+    # Phase 3 — Vendor price
+    try:
+        price_rows = db.session.execute(db.text(
+            "SELECT moq_price, spq_price FROM supplier.parts WHERE part_code = :pn AND is_deleted = false LIMIT 5"
+        ), {"pn": part_number}).fetchall()
+        if not price_rows or all(_is_empty(r[0]) and _is_empty(r[1]) for r in price_rows):
+            return 3
+    except Exception:
+        db.session.rollback()
+        return 3
+
+    # Phase 4 — Release status
+    status = str(row.get('company_part_status') or '').strip().lower()
+    if status != 'released':
+        return 4
+
+    # Phase 5 — Mature
+    return 5
+
+
+@part_bp.route("/phase-summary", methods=["GET"])
+def part_phase_summary():
+    """Count of parts per phase across all category tables."""
+    tenant_id = request.headers.get("X-Tenant-ID", "")
+    if not tenant_id or tenant_id in ('TEST', ''):
+        tenant_id = 'b424df0e-f766-4e94-b3fd-05777e158958'
+
+    counts = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+    cats = db.session.execute(db.text(
+        "SELECT s.name, s.series_prefix, c.name as cat_name, c.series_prefix as cat_series "
+        "FROM part.subcategories s JOIN part.categories c ON s.category_id = c.id "
+        "WHERE s.tenant_id = :tid AND s.is_deleted = false"
+    ), {"tid": tenant_id}).fetchall()
+
+    seen = set()
+    for sub in cats:
+        tbl = _safe_table_name(sub[2], sub[3])
+        if tbl in seen:
+            continue
+        seen.add(tbl)
+        try:
+            rows = db.session.execute(db.text(f"SELECT part_number, description, company_part_status FROM {tbl} WHERE (status IS NULL OR status != 'obsolete')")).fetchall()
+            for r in rows:
+                pn = r[0]
+                row_dict = {"description": r[1], "company_part_status": r[2] if len(r) > 2 else None}
+                ph = _calc_phase(pn, row_dict)
+                counts[ph] = counts.get(ph, 0) + 1
+        except Exception:
+            db.session.rollback()
+            try:
+                rows = db.session.execute(db.text(f"SELECT part_number, description FROM {tbl}")).fetchall()
+                for r in rows:
+                    row_dict = {"description": r[1], "company_part_status": None}
+                    ph = _calc_phase(r[0], row_dict)
+                    counts[ph] = counts.get(ph, 0) + 1
+            except Exception:
+                db.session.rollback()
+
+    result = []
+    for ph in range(1, 6):
+        result.append({
+            "phase": ph,
+            "count": counts.get(ph, 0),
+            "label": PHASE_LABELS[ph],
+            "color": PHASE_COLORS[ph],
+            "bg": PHASE_BG[ph],
+        })
+    return {"success": True, "data": result}
+
+
+@part_bp.route("/part-phase/<part_number>", methods=["GET"])
+def get_part_phase(part_number):
+    """Return phase for a single part."""
+    tenant_id = request.headers.get("X-Tenant-ID", "")
+    if not tenant_id or tenant_id in ('TEST', ''):
+        tenant_id = 'b424df0e-f766-4e94-b3fd-05777e158958'
+    cats = db.session.execute(db.text(
+        "SELECT c.name, c.series_prefix FROM part.categories c WHERE c.is_deleted = false"
+    )).fetchall()
+    for cat in cats:
+        tbl = _safe_table_name(cat[0], cat[1])
+        try:
+            row = db.session.execute(db.text(
+                f"SELECT part_number, description, company_part_status FROM {tbl} WHERE part_number = :pn LIMIT 1"
+            ), {"pn": part_number}).fetchone()
+            if row:
+                row_dict = {"description": row[1], "company_part_status": row[2] if len(row) > 2 else None}
+                ph = _calc_phase(part_number, row_dict)
+                return {"success": True, "data": {"phase": ph, "label": PHASE_LABELS[ph], "color": PHASE_COLORS[ph], "bg": PHASE_BG[ph]}}
+        except Exception:
+            db.session.rollback()
+    return {"success": False, "message": "Part not found"}, 404
+
 def _safe_table_name(category_name, cat_series):
     """Generate safe table name: part."{category}_{cat_series}\""""
     def clean(s):
@@ -1020,6 +1158,16 @@ def list_all_parts():
                     "created_by": r[4] or '', "category": cat_name, "subcategory": sub_name,
                     "value": r[6] or ''
                 })
+                # Attach phase
+                try:
+                    _row_d = {"description": r[1], "company_part_status": None}
+                    _ph = _calc_phase(r[0], _row_d)
+                    all_parts[-1]["phase"] = _ph
+                    all_parts[-1]["phase_label"] = PHASE_LABELS.get(_ph, "")
+                    all_parts[-1]["phase_color"] = PHASE_COLORS.get(_ph, "#6b7280")
+                    all_parts[-1]["phase_bg"] = PHASE_BG.get(_ph, "#f3f4f6")
+                except Exception:
+                    pass
         except Exception:
             db.session.rollback()
             continue
@@ -1089,6 +1237,16 @@ def list_parts_in_subcategory(subcategory_id):
                     item[k] = str(v)
             if not has_status:
                 item['status'] = 'active'
+            # Attach phase
+            for item in items:
+                try:
+                    _ph = _calc_phase(item.get("part_number",""), item)
+                    item["phase"] = _ph
+                    item["phase_label"] = PHASE_LABELS.get(_ph, "")
+                    item["phase_color"] = PHASE_COLORS.get(_ph, "#6b7280")
+                    item["phase_bg"] = PHASE_BG.get(_ph, "#f3f4f6")
+                except Exception:
+                    pass
         return {"success": True, "data": items}
     except Exception as e:
         return {"success": False, "message": f"Table error: {str(e)}"}, 500
@@ -2148,6 +2306,16 @@ def get_part_detail(part_number):
             db.session.rollback()
             inventory_items = []
     total_inventory_qty = sum(i["qty"] for i in inventory_items)
+
+    # Attach phase to part_data
+    try:
+        _ph = _calc_phase(part_number, part_data)
+        part_data["phase"] = _ph
+        part_data["phase_label"] = PHASE_LABELS.get(_ph, "")
+        part_data["phase_color"] = PHASE_COLORS.get(_ph, "#6b7280")
+        part_data["phase_bg"] = PHASE_BG.get(_ph, "#f3f4f6")
+    except Exception:
+        pass
 
     return {"success": True, "data": {
         "part": part_data,

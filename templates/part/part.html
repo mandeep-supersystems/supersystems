@@ -249,6 +249,18 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Phase Distribution -->
+            <div style="margin-top:20px;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+                    <span class="material-icons-outlined" style="color:var(--primary);">flag</span>
+                    <h3 style="margin:0;font-size:15px;font-weight:600;">Part Phase Distribution</h3>
+                    <span style="font-size:12px;color:var(--text-secondary);margin-left:4px;">Click a phase to filter All Parts</span>
+                </div>
+                <div id="ovPhaseGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">
+                    <div class="ov-empty">Loading phases...</div>
+                </div>
+            </div>
         </section>
 
         <!-- CATEGORIES SECTION -->
@@ -432,6 +444,17 @@
                 </div>
             </div>
             <div class="allparts-filter">
+                <div class="form-group" style="min-width:160px;">
+                    <label>Phase</label>
+                    <select id="apPhaseFilter" onchange="filterAllParts()" style="width:100%;padding:7px 10px;border:1px solid var(--border-color);border-radius:4px;font-size:13px;background:var(--bg-primary);color:var(--text-primary);">
+                        <option value="">All Phases</option>
+                        <option value="1">Phase 1 — Description Pending</option>
+                        <option value="2">Phase 2 — MPN / Make Pending</option>
+                        <option value="3">Phase 3 — Price / Vendor Pending</option>
+                        <option value="4">Phase 4 — Pending Release</option>
+                        <option value="5">Phase 5 — Mature</option>
+                    </select>
+                </div>
                 <div class="form-group">
                     <label>Category</label>
                     <div class="gsd-wrap" id="apCatWrap">

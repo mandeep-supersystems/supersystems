@@ -273,7 +273,7 @@ async function loadGeneratedParts(subId) {
                 : '<span style="font-size:10px;background:#e3f2fd;color:#1565c0;padding:1px 7px;border-radius:8px;font-weight:700;margin-left:4px">BO</span>';
             const meta = Object.entries(p).filter(([k]) => !['id','part_number','created_at','status','obsoleted_at','obsolete_reason','part_type'].includes(k)).filter(([,v]) => v).map(([k,v]) => `<span class="meta-tag">${k}: ${v}</span>`).join('');
             return `<div class="part-item ${isObs ? 'obsolete' : ''}" style="cursor:pointer" onclick="window.location='/part/detail/${encodeURIComponent(p.part_number)}'">
-                <div class="part-item-left"><a class="part-item-number part-link" href="/part/detail/${encodeURIComponent(p.part_number)}" onclick="event.stopPropagation()">${p.part_number}</a>${typeBadge}<div class="part-item-meta">${meta}</div></div>
+                <div class="part-item-left"><a class="part-item-number part-link" href="/part/detail/${encodeURIComponent(p.part_number)}" onclick="event.stopPropagation()">${p.part_number}</a>${typeBadge}${p.phase ? `<span style="font-size:10px;font-weight:700;padding:1px 8px;border-radius:10px;color:${p.phase_color};background:${p.phase_bg};border:1px solid ${p.phase_color}55;margin-left:4px;">${p.phase_label}</span>` : ""}<div class="part-item-meta">${meta}</div></div>
                 <div class="part-item-actions">${isObs ? '<span class="obs-badge">Obsolete</span>' : `<button class="btn-obs" onclick="event.stopPropagation();obsoletePart('${subId}','${p.part_number}')" title="Mark Obsolete"><span class="material-icons-outlined">block</span></button>`}</div>
             </div>`;
         }).join('');

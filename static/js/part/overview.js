@@ -156,6 +156,7 @@ async function loadOverview() {
         }
 
         // ── Quick Actions ───────────────────────────────────────────────────
+        loadPhaseSummary();
         _renderQuickActions();
 
     } catch (e) { console.error('Overview error:', e); }
@@ -186,4 +187,36 @@ function _renderQuickActions() {
             <span>${a.label}</span>
         </button>`;
     }).join('');
+}
+
+// ─── PHASE SUMMARY ───────────────────────────────────────────────────────────
+async function loadPhaseSummary() {
+    const el = document.getElementById('ovPhaseGrid');
+    if (!el) return;
+    try {
+        const res  = await fetch(API + '/phase-summary', { headers: HEADERS });
+        const json = await res.json();
+        if (!json.success) return;
+        el.innerHTML = json.data.map(p => `
+            <div class="ov-phase-card" onclick="filterAllPartsByPhase(${p.phase})"
+                 style="border-left:4px solid ${p.color};cursor:pointer;background:var(--bg-primary);border-radius:8px;padding:14px 16px;display:flex;align-items:center;gap:14px;box-shadow:0 1px 4px rgba(0,0,0,.06);transition:box-shadow .15s;">
+                <div style="width:38px;height:38px;border-radius:50%;background:${p.bg};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <span style="font-size:16px;font-weight:800;color:${p.color};">${p.phase}</span>
+                </div>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:11px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.label}</div>
+                    <div style="font-size:22px;font-weight:700;color:${p.color};line-height:1.2;">${p.count.toLocaleString()}</div>
+                </div>
+                <span class="material-icons-outlined" style="color:${p.color};opacity:.5;font-size:18px;">arrow_forward</span>
+            </div>
+        `).join('');
+    } catch(e) { if (el) el.innerHTML = '<div class="ov-empty">Could not load phase data</div>'; }
+}
+
+function filterAllPartsByPhase(phase) {
+    showSection('allparts');
+    setTimeout(() => {
+        const inp = document.getElementById('apPhaseFilter');
+        if (inp) { inp.value = phase; filterAllParts(); }
+    }, 200);
 }

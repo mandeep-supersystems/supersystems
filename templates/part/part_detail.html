@@ -195,6 +195,8 @@
                                     <span class="pd-status-badge" id="pdStatusBadge">-</span>
                                     <span id="pdTypeBadge"
                                         style="font-size:11px;padding:2px 10px;border-radius:10px;font-weight:700">-</span>
+                                    <span id="pdPhaseBadge"
+                                        style="font-size:11px;padding:2px 10px;border-radius:10px;font-weight:700;border:1px solid transparent;display:none;"></span>
                                 </div>
                             </div>
                         </div>
@@ -998,6 +1000,16 @@
             const tp = _typeBadgeProps(bo, mfg);
             const typeBadgeEl = document.getElementById('pdTypeBadge');
             if (typeBadgeEl) { typeBadgeEl.textContent = tp.label; typeBadgeEl.style.background = tp.bg; typeBadgeEl.style.color = tp.color; }
+
+            // Phase badge
+            const phaseBadge = document.getElementById('pdPhaseBadge');
+            if (phaseBadge && part.phase) {
+                phaseBadge.textContent = part.phase_label || ('Phase ' + part.phase);
+                phaseBadge.style.color = part.phase_color || '#6b7280';
+                phaseBadge.style.background = (part.phase_bg || '#f3f4f6');
+                phaseBadge.style.borderColor = (part.phase_color || '#6b7280') + '55';
+                phaseBadge.style.display = 'inline-block';
+            }
 
             // Usage checkboxes (disabled until Edit clicked)
             const boChk = document.getElementById('editBoughtOut');

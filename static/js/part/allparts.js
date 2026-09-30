@@ -198,6 +198,7 @@ function renderAllPartsTable() {
         <td><span class="desc-cell">${esc(p.value || '-')}</span></td>
         <td><span class="desc-cell">${esc(p.description || '-')}</span></td>
         <td><span class="status-badge ${p.status === 'obsolete' ? 'status-obsolete' : 'status-active'}">${esc(p.status || 'active')}</span></td>
+        <td>${p.phase ? `<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;color:${p.phase_color};background:${p.phase_bg};border:1px solid ${p.phase_color}55;white-space:nowrap;">Ph${p.phase}</span>` : '-'}</td>
     </tr>`).join('');
 }
 
