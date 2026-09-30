@@ -168,65 +168,72 @@ def part_audit_logs():
 # ─── PHASE SYSTEM ────────────────────────────────────────────────────────────
 
 PHASE_LABELS = {
-    1: 'Phase 1 — Description Pending',
-    2: 'Phase 2 — MPN / Make Pending',
-    3: 'Phase 3 — Price / Vendor Pending',
-    4: 'Phase 4 — Pending Release',
-    5: 'Phase 5 — Mature',
+    1: 'Description Pending',
+    2: 'Footprint / 3D Pending',
+    3: 'MPN / Make Pending',
+    4: 'Price / Supplier Pending',
+    5: 'Pending Release',
+    6: 'Mature',
 }
 PHASE_COLORS = {
     1: '#ef4444',
-    2: '#3b82f6',
-    3: '#8b5cf6',
-    4: '#06b6d4',
-    5: '#10b981',
+    2: '#f59e0b',
+    3: '#3b82f6',
+    4: '#8b5cf6',
+    5: '#06b6d4',
+    6: '#10b981',
 }
 PHASE_BG = {
     1: '#fee2e2',
-    2: '#dbeafe',
-    3: '#ede9fe',
-    4: '#cffafe',
-    5: '#d1fae5',
+    2: '#fef3c7',
+    3: '#dbeafe',
+    4: '#ede9fe',
+    5: '#cffafe',
+    6: '#d1fae5',
 }
 
 def _is_empty(v):
     return not v or str(v).strip().lower() in ('', 'nan', 'none', 'null')
 
 def _calc_phase(part_number, row):
-    """Calculate phase (1-5) for a part. row is a dict of the part's DB columns."""
+    """Calculate phase (1-6) for a part. row is a dict of the part's DB columns."""
     # Phase 1 — Description
     if _is_empty(row.get('description')):
         return 1
 
-    # Phase 2 — MPN / Make
+    # Phase 2 — Footprint / 3D (no footprint table in this system — auto-pass for now)
+
+    # Phase 3 — MPN / Make
     try:
         mpn_rows = db.session.execute(db.text(
             "SELECT mpn, make FROM part.manufacturers WHERE part_number = :pn LIMIT 1"
         ), {"pn": part_number}).fetchall()
         if not mpn_rows or any(_is_empty(r[0]) or _is_empty(r[1]) for r in mpn_rows):
-            return 2
-    except Exception:
-        db.session.rollback()
-        return 2
-
-    # Phase 3 — Vendor price
-    try:
-        price_rows = db.session.execute(db.text(
-            "SELECT moq_price, spq_price FROM supplier.parts WHERE part_code = :pn AND is_deleted = false LIMIT 5"
-        ), {"pn": part_number}).fetchall()
-        if not price_rows or all(_is_empty(r[0]) and _is_empty(r[1]) for r in price_rows):
             return 3
     except Exception:
         db.session.rollback()
         return 3
 
-    # Phase 4 — Release status
-    status = str(row.get('company_part_status') or '').strip().lower()
-    if status != 'released':
+    # Phase 4 — Price / Supplier
+    try:
+        price_rows = db.session.execute(db.text(
+            "SELECT moq_price, spq_price FROM supplier.parts WHERE part_code = :pn AND is_deleted = false LIMIT 5"
+        ), {"pn": part_number}).fetchall()
+        if not price_rows or all(_is_empty(r[0]) and _is_empty(r[1]) for r in price_rows):
+            return 4
+    except Exception:
+        db.session.rollback()
         return 4
 
-    # Phase 5 — Mature
-    return 5
+    # Phase 5 — Pending Release
+    status = str(row.get('company_part_status') or '').strip().lower()
+    if status != 'released':
+        return 5
+
+    # Phase 6 — Mature
+    return 6
+
+
 
 
 @part_bp.route("/phase-summary", methods=["GET"])
@@ -268,7 +275,7 @@ def part_phase_summary():
                 db.session.rollback()
 
     result = []
-    for ph in range(1, 6):
+    for ph in range(1, 7):
         result.append({
             "phase": ph,
             "count": counts.get(ph, 0),

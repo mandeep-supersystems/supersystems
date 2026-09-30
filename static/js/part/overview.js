@@ -189,7 +189,8 @@ function _renderQuickActions() {
     }).join('');
 }
 
-// ─── PHASE SUMMARY ───────────────────────────────────────────────────────────
+
+// ─── PHASE SUMMARY (6 phases) ────────────────────────────────────────────────
 async function loadPhaseSummary() {
     const el = document.getElementById('ovPhaseGrid');
     if (!el) return;
@@ -198,16 +199,16 @@ async function loadPhaseSummary() {
         const json = await res.json();
         if (!json.success) return;
         el.innerHTML = json.data.map(p => `
-            <div class="ov-phase-card" onclick="filterAllPartsByPhase(${p.phase})"
-                 style="border-left:4px solid ${p.color};cursor:pointer;background:var(--bg-primary);border-radius:8px;padding:14px 16px;display:flex;align-items:center;gap:14px;box-shadow:0 1px 4px rgba(0,0,0,.06);transition:box-shadow .15s;">
-                <div style="width:38px;height:38px;border-radius:50%;background:${p.bg};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                    <span style="font-size:16px;font-weight:800;color:${p.color};">${p.phase}</span>
-                </div>
+            <div onclick="filterAllPartsByPhase(${p.phase})"
+                 style="border-left:4px solid ${p.color};cursor:pointer;background:var(--bg-primary);border-radius:8px;padding:12px 14px;display:flex;align-items:center;gap:12px;box-shadow:0 1px 4px rgba(0,0,0,.06);transition:box-shadow .15s,transform .15s;"
+                 onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,.12)';this.style.transform='translateY(-1px)'"
+                 onmouseout="this.style.boxShadow='0 1px 4px rgba(0,0,0,.06)';this.style.transform='none'">
+                <div style="width:36px;height:36px;border-radius:50%;background:${p.bg};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px;font-weight:800;color:${p.color};">${p.phase}</div>
                 <div style="flex:1;min-width:0;">
                     <div style="font-size:11px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.label}</div>
-                    <div style="font-size:22px;font-weight:700;color:${p.color};line-height:1.2;">${p.count.toLocaleString()}</div>
+                    <div style="font-size:20px;font-weight:700;color:${p.color};line-height:1.3;">${p.count.toLocaleString()}</div>
                 </div>
-                <span class="material-icons-outlined" style="color:${p.color};opacity:.5;font-size:18px;">arrow_forward</span>
+                <span class="material-icons-outlined" style="color:${p.color};opacity:.4;font-size:16px;">arrow_forward_ios</span>
             </div>
         `).join('');
     } catch(e) { if (el) el.innerHTML = '<div class="ov-empty">Could not load phase data</div>'; }
