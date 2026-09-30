@@ -2773,3 +2773,58 @@ def caddb_status():
             "categories": categories,
         }
     }
+
+
+# ─── PART SUPPLIERS (flat view for part detail Suppliers tab) ─────────────────
+
+@part_bp.route("/part-suppliers/<path:part_number>", methods=["GET"])
+def get_part_suppliers(part_number):
+    from extensions import db as _db
+    rows = _db.session.execute(_db.text(
+        "SELECT s.id, s.supplier_code, s.brand_name, s.status, s.rating, s.currency, "
+        "       sp.id as item_id, sp.mpn, sp.make, sp.unit, "
+        "       sp.moq, sp.moq_price, sp.spq, sp.spq_price, sp.sample_qty, sp.sample_price, "
+        "       sp.notes, sp.created_at "
+        "FROM supplier.parts sp "
+        "JOIN supplier.suppliers s ON sp.supplier_id = s.id "
+        "WHERE sp.part_code = :pn AND sp.is_deleted = false AND s.is_deleted = false "
+        "ORDER BY s.brand_name, sp.mpn"
+    ), {"pn": part_number}).fetchall()
+
+    suppliers = []
+    for r in rows:
+        moq = float(r[10] or 0)
+        moq_p = float(r[11] or 0)
+        spq = float(r[12] or 0)
+        spq_p = float(r[13] or 0)
+        smp = float(r[14] or 0)
+        smp_p = float(r[15] or 0)
+        suppliers.append({
+            "supplier_id":   str(r[0]),
+            "supplier_code": r[1] or "",
+            "brand_name":    r[2] or "",
+            "status":        r[3] or "active",
+            "rating":        float(r[4] or 0),
+            "currency":      r[5] or "INR",
+            "item_id":       str(r[6]),
+            "mpn":           r[7] or "",
+            "make":          r[8] or "",
+            "unit":          r[9] or "",
+            "moq":           moq,
+            "moq_price":     moq_p,
+            "moq_ppu":       moq_p,
+            "spq":           spq,
+            "spq_price":     spq_p,
+            "spq_ppu":       spq_p,
+            "sample_qty":    smp,
+            "sample_price":  smp_p,
+            "sample_ppu":    smp_p,
+            "notes":         r[16] or "",
+            "created_at":    str(r[17]) if r[17] else None,
+        })
+
+    return {"success": True, "data": {
+        "part_number": part_number,
+        "supplier_count": len(set(r["supplier_id"] for r in suppliers)),
+        "suppliers": suppliers,
+    }}
