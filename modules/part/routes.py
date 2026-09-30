@@ -2649,3 +2649,127 @@ def delete_manufacturer(mid):
     _log_audit('DELETE', 'Manufacturer', row[0], details=f"Deleted manufacturer record {mid}")
     db.session.commit()
     return {"success": True, "message": "Manufacturer combination deleted"}
+
+
+# ─── CADDB STATUS ─────────────────────────────────────────────────────────────
+
+CADDB_CATEGORY_MAP = {
+    "resistor":       "Resistor",
+    "capacitor":      "Capacitor",
+    "diode":          "Diode",
+    "transistor":     "Transistor",
+    "mosfet":         "Mosfet",
+    "ic":             "Ic",
+    "inductor":       "Inductor",
+    "transformer":    "Transformer",
+    "connector":      "Connector",
+    "header":         "Header",
+    "terminal":       "Terminal",
+    "relay":          "Relay",
+    "switch":         "Switch",
+    "led":            "Led",
+    "sensors":        "Sensors",
+    "buzzer":         "Buzzer",
+    "heat_sinks":     "Heat Sinks",
+    "screw":          "Screw",
+    "washers":        "Washers",
+    "thermals":       "Thermals",
+    "stickers":       "Stickers",
+    "bare_pcb":       "Bare Pcb",
+    "non_bom":        "Non Bom",
+    "protection":     "Protection",
+    "lcd_module":     "Lcd Module",
+    "mechanical":     "Mechanical",
+    "thermal_pad":    "Thermal Pad",
+    "fan":            "Fan",
+    "crimping_pin":   "Crimping Pin",
+    "cable":          "Cable",
+    "mcb":            "Mcb",
+    "spd":            "Spd",
+    "chemicals":      "Chemicals",
+}
+
+@part_bp.route("/caddb-status", methods=["GET"])
+def caddb_status():
+    tid = request.headers.get("X-Tenant-ID", "")
+    from extensions import db as _db
+
+    # Gather per-category part counts from part_categories + subcategories
+    cat_rows = _db.session.execute(_db.text(
+        "SELECT c.name, c.series_prefix FROM part.categories c WHERE c.is_deleted = false ORDER BY c.name"
+    )).fetchall()
+
+    categories = []
+    total_parts = 0
+    total_with_mpn = 0
+
+    for cat_name, series_prefix in cat_rows:
+        if not series_prefix:
+            continue
+        table_name = f'part."{cat_name.lower().replace(" ", "_")}_{series_prefix}"'
+        try:
+            cnt = _db.session.execute(_db.text(
+                f"SELECT COUNT(*) FROM {table_name} WHERE part_number IS NOT NULL AND part_number != '' AND (status IS NULL OR status != 'obsolete')"
+            )).scalar() or 0
+        except Exception:
+            cnt = 0
+
+        # Count parts with MPN/Make in part.manufacturers
+        try:
+            mpn_cnt = _db.session.execute(_db.text(
+                f"SELECT COUNT(DISTINCT t.part_number) FROM {table_name} t "
+                f"JOIN part.manufacturers m ON m.part_number = t.part_number "
+                f"WHERE t.part_number IS NOT NULL AND t.part_number != ''"
+            )).scalar() or 0
+        except Exception:
+            mpn_cnt = 0
+
+        caddb_name = CADDB_CATEGORY_MAP.get(cat_name.lower().replace(" ", "_"), cat_name.title())
+        categories.append({
+            "category": cat_name,
+            "caddb_table": caddb_name,
+            "series_prefix": series_prefix,
+            "part_count": cnt,
+            "mpn_count": mpn_cnt,
+            "mpn_pct": round((mpn_cnt / cnt * 100) if cnt > 0 else 0, 1),
+        })
+        total_parts += cnt
+        total_with_mpn += mpn_cnt
+
+    # Count supplier pricing coverage
+    try:
+        priced_cnt = _db.session.execute(_db.text(
+            "SELECT COUNT(DISTINCT part_code) FROM supplier.parts WHERE is_deleted = false AND part_code != ''"
+        )).scalar() or 0
+    except Exception:
+        priced_cnt = 0
+
+    # Count parts with footprint (schematic_part column in any table)
+    footprint_cnt = 0
+    for cat_name, series_prefix in cat_rows:
+        if not series_prefix:
+            continue
+        table_name = f'part."{cat_name.lower().replace(" ", "_")}_{series_prefix}"'
+        try:
+            has_col = _db.session.execute(_db.text(
+                "SELECT 1 FROM information_schema.columns WHERE table_schema='part' "
+                "AND table_name=:tn AND column_name='schematic_part'"
+            ), {"tn": f"{cat_name.lower().replace(' ', '_')}_{series_prefix}"}).scalar()
+            if has_col:
+                fc = _db.session.execute(_db.text(
+                    f"SELECT COUNT(*) FROM {table_name} WHERE schematic_part IS NOT NULL AND schematic_part != ''"
+                )).scalar() or 0
+                footprint_cnt += fc
+        except Exception:
+            pass
+
+    return {
+        "success": True,
+        "data": {
+            "total_parts": total_parts,
+            "total_with_mpn": total_with_mpn,
+            "total_priced": priced_cnt,
+            "total_with_footprint": footprint_cnt,
+            "categories": categories,
+        }
+    }

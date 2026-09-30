@@ -114,6 +114,10 @@
             <a class="sidebar-link" data-section="moduleusers" onclick="showSection('moduleusers')">
                 <span class="material-icons-outlined">manage_accounts</span>User Management
             </a>
+            <div class="sidebar-divider"></div>
+            <a class="sidebar-link" data-section="caddb" onclick="showSection('caddb');loadCadDB()">
+                <span class="material-icons-outlined">storage</span>CadDB
+            </a>
         </nav>
     </aside>
 
@@ -262,10 +266,6 @@
                 </div>
             </div>
 
-                <div id="ovPhaseGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">
-                    <div class="ov-empty">Loading phases...</div>
-                </div>
-            </div>
         </section>
 
         <!-- CATEGORIES SECTION -->
@@ -691,6 +691,19 @@
             </div>
         </section>
 
+        <!-- CADDB SECTION -->
+        <section class="content-section" id="sec-caddb">
+            <div class="ov-banner banner-part" style="margin-bottom:20px;">
+                <div class="ov-banner-text">
+                    <h2><span class="material-icons-outlined">storage</span> CadDB &#8212; Cadence Component Library</h2>
+                    <p>Microsoft Access database (.accdb) for Cadence OrCAD / Allegro. Auto-built from PostgreSQL part tables.</p>
+                </div>
+            </div>
+            <div id="caddbContent">
+                <div class="ov-empty">Click CadDB in the sidebar to load status.</div>
+            </div>
+        </section>
+
     </main>
 </div>
 
@@ -1094,5 +1107,6 @@
 <script src="/static/js/part/partmapping.js"></script>
 <script src="/static/js/part/auditlogs.js"></script>
 <script src="/static/js/part/moduleusers.js"></script>
+<script src="/static/js/part/caddb.js"></script>
 </body>
 </html>
