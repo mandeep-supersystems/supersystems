@@ -240,6 +240,30 @@ function _ppu(qty, price) {
     return fmtNum(price / qty);
 }
 
+// Convert raw numeric part code (e.g. 10110001) to dot-format (101.1.0001)
+// Pattern: first 3 digits = category, next 1 digit = subcategory series, last 4 digits = sequence
+function fmtPartCode(raw) {
+    if (!raw) return '';
+    const s = String(raw).trim();
+    // Already formatted (contains dot or dash)
+    if (s.includes('.') || s.includes('-')) return s;
+    // Must be 8 digits: CCC.S.NNNN
+    if (/^\d{8}$/.test(s)) return s.slice(0,3) + '.' + s.slice(3,4) + '.' + s.slice(4);
+    // 9 digits: CCCC.S.NNNN
+    if (/^\d{9}$/.test(s)) return s.slice(0,4) + '.' + s.slice(4,5) + '.' + s.slice(5);
+    return s;
+}
+
+function partCodeLink(raw) {
+    const fmt = fmtPartCode(raw);
+    if (!fmt) return '—';
+    return `<a href="/part/detail/${encodeURIComponent(fmt)}" target="_blank"
+               style="color:var(--primary);font-weight:600;font-family:monospace;font-size:12px;text-decoration:none;"
+               onmouseover="this.style.textDecoration='underline'"
+               onmouseout="this.style.textDecoration='none'"
+               onclick="event.stopPropagation()">${esc(fmt)}</a>`;
+}
+
 function renderParts(list) {
     const tbody = document.getElementById('partsBody');
     const thead = document.getElementById('partsTableHead');
@@ -292,7 +316,7 @@ function renderParts(list) {
             <td>${esc((latest.item_type || 'part').toUpperCase())}</td>
             <td>
                 <div style="display:flex; align-items:center; gap:4px">
-                    <span class="sup-code">${esc(latest.part_code || '—')}</span>
+                    ${partCodeLink(latest.part_code)}
                     ${hasHistory ? `<span id="icon-${groupId}" class="material-icons-outlined" style="font-size:16px; color:var(--primary); transition:transform 0.2s">expand_more</span> <span style="font-size:11px; color:var(--text-muted)">(${history.length} old)</span>` : ''}
                 </div>
             </td>
@@ -314,7 +338,7 @@ function renderParts(list) {
             </td>
             <td class="actions-cell" onclick="event.stopPropagation()">
                 <button class="btn-action" onclick="editPart(${JSON.stringify(latest).replace(/"/g,'&quot;')})"><span class="material-icons-outlined">edit</span></button>
-                <button class="btn-action btn-danger" onclick="deleteItem('part','${latest.id}','${esc(latest.part_code || 'this item')}')"><span class="material-icons-outlined">delete</span></button>
+                <button class="btn-action btn-danger" onclick="deleteItem('part','${latest.id}','${esc(fmtPartCode(latest.part_code) || 'this item')}')"><span class="material-icons-outlined">delete</span></button>
             </td>
         </tr>`;
         
@@ -355,7 +379,7 @@ function renderHistory(list) {
         const c = typeColor[h.event_type] || '#555';
         return `<tr>
             <td style="font-size:12px">${fmtDate(h.event_date || h.created_at)}</td>
-            <td><span class="sup-code">${esc(h.part_code || '—')}</span></td>
+            <td>${partCodeLink(h.part_code)}</td>
             <td><span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:${c}22;color:${c}">${esc(h.event_type)}</span></td>
             <td style="font-size:12px;max-width:200px">${esc(h.description || '—')}</td>
             <td>${h.quantity ? fmtNum(h.quantity) + ' ' + esc(h.unit) : '—'}</td>
@@ -1129,7 +1153,7 @@ function renderPurchaseOrders(list) {
         return `<tr style="cursor:pointer;" onclick="openSupPODetail(${idx})">
             <td><span style="color:var(--primary);font-weight:600;text-decoration:underline;">${esc(po.po_no)}</span>${lines.length > 1 ? `<span style="font-size:10px;color:var(--text-muted);margin-left:4px;">(${lines.length} lines)</span>` : ''}</td>
             <td>${esc(po.pr_no || '\u2014')}</td>
-            <td><code>${esc(po.item_code || '\u2014')}</code>${lines.length > 1 ? `<span style="font-size:10px;color:var(--text-muted);margin-left:4px;">(+${lines.length - 1} more)</span>` : ''}</td>
+            <td>${partCodeLink(po.item_code)}${lines.length > 1 ? `<span style="font-size:10px;color:var(--text-muted);margin-left:4px;">(+${lines.length - 1} more)</span>` : ''}</td>
             <td>${po.order_qty.toLocaleString()}</td>
             <td><strong>\u20b9${po.total_amount.toLocaleString()}</strong></td>
             <td>${po.promised_date || '\u2014'}</td>
@@ -1154,7 +1178,7 @@ function openSupPODetail(idx) {
             ? validAml.map(m => `<span class="aml-chip-group"><span class="aml-chip aml-chip-mpn">${esc(m.mpn)}</span><span class="aml-chip aml-chip-make">${esc(m.make || '\u2014')}</span></span>`).join(' ')
             : '<span style="color:var(--text-muted);font-size:11px;">\u2014</span>';
         return `<tr>
-            <td style="padding:8px 12px;font-size:12px;"><code>${esc(l.item_code || '\u2014')}</code></td>
+            <td style="padding:8px 12px;font-size:12px;">${partCodeLink(l.item_code) || '\u2014'}</td>
             <td style="padding:8px 12px;font-size:12px;">${esc(l.item_description || '\u2014')}</td>
             <td style="padding:8px 12px;font-size:12px;text-align:right;">${(l.order_qty||0).toLocaleString()} ${esc(l.uom||'')}</td>
             <td style="padding:8px 12px;font-size:12px;text-align:right;">\u20b9${(l.unit_price||0).toLocaleString()}</td>
