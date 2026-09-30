@@ -165,6 +165,7 @@ async function loadOverview() {
 function _renderQuickActions() {
     const container = document.getElementById('quickActionsGrid');
     if (!container) return;
+    if (container.querySelector('.ov-quick-btn')) return; // already rendered
     
     // Check module permissions if needed. Part module has all users capable of standard views.
     const allActions = [
