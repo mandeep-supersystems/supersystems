@@ -206,9 +206,9 @@ def _calc_phase(part_number, row):
     # Phase 3 — MPN / Make
     try:
         mpn_rows = db.session.execute(db.text(
-            "SELECT mpn, make FROM part.manufacturers WHERE part_number = :pn LIMIT 1"
+            "SELECT mpn, make FROM part.manufacturers WHERE part_number = :pn LIMIT 5"
         ), {"pn": part_number}).fetchall()
-        if not mpn_rows or any(_is_empty(r[0]) or _is_empty(r[1]) for r in mpn_rows):
+        if not mpn_rows or all(_is_empty(r[0]) and _is_empty(r[1]) for r in mpn_rows):
             return 3
     except Exception:
         db.session.rollback()
@@ -1519,7 +1519,7 @@ def get_my_access():
     user_email = request.headers.get("X-User-Email", "")
 
     # All sections available
-    all_sections = ['overview', 'categories', 'subcategories', 'generate', 'allparts', 'partmapping', 'auditlogs', 'obsolete', 'moduleusers']
+    all_sections = ['overview', 'categories', 'subcategories', 'generate', 'allparts', 'partmapping', 'auditlogs', 'obsolete', 'moduleusers', 'caddb']
 
     if not user_email:
         return {"success": True, "data": {"role": "module_admin", "sections": all_sections}}
@@ -2787,9 +2787,9 @@ def get_part_suppliers(part_number):
         "       sp.notes, sp.created_at "
         "FROM supplier.parts sp "
         "JOIN supplier.suppliers s ON sp.supplier_id = s.id "
-        "WHERE sp.part_code = :pn AND sp.is_deleted = false AND s.is_deleted = false "
+        "WHERE (sp.part_code = :pn OR sp.part_code = :pn_raw) AND sp.is_deleted = false AND s.is_deleted = false "
         "ORDER BY s.brand_name, sp.mpn"
-    ), {"pn": part_number}).fetchall()
+    ), {"pn": part_number, "pn_raw": part_number.replace(".", "")}).fetchall()
 
     suppliers = []
     for r in rows:
