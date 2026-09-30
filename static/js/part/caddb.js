@@ -76,10 +76,13 @@ async function loadCadDB() {
         </div>
 
         <!-- Per-category table -->
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
             <span class="material-icons-outlined" style="color:var(--primary);">table_chart</span>
             <h3 style="margin:0;font-size:15px;font-weight:600;">Category → CadDB Table Mapping</h3>
             <span style="font-size:12px;color:var(--text-secondary);margin-left:4px;">${cats.length} categories</span>
+            <div style="margin-left:auto;">
+                <button onclick="caddbDownloadAll()" style="display:flex;align-items:center;gap:6px;padding:6px 14px;background:var(--primary);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;"><span class="material-icons-outlined" style="font-size:15px;">download</span>Download All CSV</button>
+            </div>
         </div>
         <div class="table-container">
             <table class="data-table">
@@ -91,6 +94,7 @@ async function loadCadDB() {
                         <th>Parts</th>
                         <th>MPN / Make</th>
                         <th>MPN Coverage</th>
+                        <th>Download</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -110,6 +114,7 @@ async function loadCadDB() {
                                     <span style="font-size:11px;color:var(--text-secondary);min-width:32px;">${c.mpn_pct}%</span>
                                 </div>
                             </td>
+                            <td><button onclick="caddbDownloadCategory(${JSON.stringify(c)})" title="Download CSV" style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:5px;font-size:11px;cursor:pointer;color:var(--text-primary);"><span class="material-icons-outlined" style="font-size:13px;">download</span>CSV</button></td>
                         </tr>
                     `).join('')}
                 </tbody>
@@ -140,4 +145,40 @@ function _cadGuideCard(icon, title, subtitle, body) {
         <p style="margin:0 0 10px;font-size:11px;color:var(--text-secondary);">${subtitle}</p>
         ${body}
     </div>`;
+}
+
+async function caddbDownloadCategory(cat) {
+    try {
+        const res = await fetch(API + '/all-parts', { headers: HEADERS });
+        const d = await res.json();
+        if (!d.success) { showToast('Failed to fetch parts', 'error'); return; }
+        const parts = (d.data || []).filter(p => p.category === cat.category);
+        if (!parts.length) { showToast('No parts found for ' + cat.category, 'error'); return; }
+        _caddbExportCSV(parts, cat.caddb_table);
+        showToast('Downloaded ' + cat.caddb_table + '.csv');
+    } catch(e) { showToast('Download failed', 'error'); }
+}
+
+async function caddbDownloadAll() {
+    try {
+        const res = await fetch(API + '/all-parts', { headers: HEADERS });
+        const d = await res.json();
+        if (!d.success || !d.data || !d.data.length) { showToast('No parts to export', 'error'); return; }
+        _caddbExportCSV(d.data, 'CadDB_All');
+        showToast('Downloaded CadDB_All.csv (' + d.data.length + ' parts)');
+    } catch(e) { showToast('Download failed', 'error'); }
+}
+
+function _caddbExportCSV(parts, filename) {
+    if (!parts.length) return;
+    const cols = ['part_number', 'description', 'category', 'subcategory', 'value', 'status', 'created_at'];
+    const rows = [cols.join(','), ...parts.map(p =>
+        cols.map(c => '"' + String(p[c] || '').replace(/"/g, '""') + '"').join(',')
+    )];
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename.replace(/\s+/g, '_') + '.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
 }
