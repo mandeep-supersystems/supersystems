@@ -129,6 +129,11 @@
                     <span id="sbRmMapCount"
                         style="margin-left:auto;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;background:#e65100;color:#fff;min-width:18px;text-align:center">0</span>
                 </button>
+                <button class="sidebar-link" onclick="switchTab('footprints')" id="sb-footprints">
+                    <span class="material-icons-outlined">developer_board</span>Footprints
+                    <span id="sbFpCount"
+                        style="margin-left:auto;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;background:#7b1fa2;color:#fff;min-width:18px;text-align:center">0</span>
+                </button>
                 <button class="sidebar-link" onclick="switchTab('suppliers')" id="sb-suppliers">
                     <span class="material-icons-outlined">storefront</span>Suppliers
                     <span id="sbSupCount"
@@ -268,6 +273,10 @@
                         <button class="pd-tab" data-tab="suppliers" onclick="switchTab('suppliers');loadPartSuppliers()">
                             <span class="material-icons-outlined">storefront</span> Suppliers
                             <span class="pd-tab-count" id="tabSupCount" style="background:#0288d1">0</span>
+                        </button>
+                        <button class="pd-tab" data-tab="footprints" onclick="switchTab('footprints')">
+                            <span class="material-icons-outlined">developer_board</span> Footprints
+                            <span class="pd-tab-count" id="tabFpCount" style="background:#7b1fa2">0</span>
                         </button>
                     </div>
 
@@ -576,6 +585,34 @@
                         </div>
                     </div>
 
+                    <!-- TAB: FOOTPRINTS -->
+                    <div class="pd-tab-content" id="tab-footprints">
+                        <div class="pd-card">
+                            <div class="pd-card-header">
+                                <span class="material-icons-outlined">developer_board</span>
+                                PCB Footprints &amp; 3D Step Files
+                                <button class="pd-edit-btn" onclick="openAddFootprintModal()" style="margin-left:auto">
+                                    <span class="material-icons-outlined">add</span> Add
+                                </button>
+                            </div>
+                            <div class="pd-card-body" style="padding:0">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>PCB Footprint</th>
+                                            <th>3D Step File</th>
+                                            <th>Added</th>
+                                            <th style="text-align:right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="pdFootprintsBody">
+                                        <tr><td colspan="4" class="empty">No footprints added.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
                 </div><!-- /pdContent -->
             </div><!-- /pd-wrapper -->
         </main>
@@ -637,6 +674,34 @@
     </div>
 </div>
 
+<!-- ADD / EDIT FOOTPRINT MODAL -->
+<div class="modal-overlay" id="footprintModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3><span class="material-icons-outlined">developer_board</span> <span id="fpModalTitle">Add Footprint</span></h3>
+            <button class="close-btn" onclick="partCloseModal('footprintModal')"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <div class="modal-body">
+            <form id="footprintForm" onsubmit="saveFootprint(event)">
+                <input type="hidden" id="fpId">
+                <div class="form-group">
+                    <label>PCB Footprint</label>
+                    <input type="text" id="fpPcb" placeholder="e.g. Resistor_SMD:R_0402_1005Metric">
+                </div>
+                <div class="form-group">
+                    <label>3D Step File</label>
+                    <input type="text" id="fpStep" placeholder="e.g. Resistor_SMD.3dshapes:R_0402_1005Metric.step">
+                </div>
+                <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px">At least one field is required.</div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="partCloseModal('footprintModal')">Cancel</button>
+                    <button type="submit" class="btn-primary" id="btnSaveFootprint">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
     <script src="/static/js/header.js"></script>
     <script>requireAuth();</script>
     <script>
@@ -676,7 +741,7 @@
         function switchTab(tab) {
             document.querySelectorAll('.pd-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
             document.querySelectorAll('.pd-tab-content').forEach(c => c.classList.toggle('active', c.id === 'tab-' + tab));
-            ['details', 'pos', 'custpos', 'mappings', 'inventory', 'rmmappings', 'suppliers', 'assembly-bom', 'assembly-where-used'].forEach(t => {
+            ['details', 'pos', 'custpos', 'mappings', 'inventory', 'rmmappings', 'suppliers', 'footprints', 'assembly-bom', 'assembly-where-used'].forEach(t => {
                 const el = document.getElementById('sb-' + t);
                 if (el) el.classList.toggle('active', t === tab);
             });
@@ -1386,7 +1451,89 @@
                 if (data.success) {
                     showToast('Supplier mapped successfully');
                     partCloseModal('mapSupplierModal');
-                    loadPartDetail(); // Reload to show the new supplier in the table
+            
+        // ── FOOTPRINTS ──
+        function renderFootprints(list) {
+            const tbody = document.getElementById('pdFootprintsBody');
+            const cnt = list ? list.length : 0;
+            ['tabFpCount','sbFpCount'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=cnt; });
+            if (!list || cnt === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="empty">No footprints added yet.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = list.map(fp => `<tr>
+                <td><code style="font-size:12px">${esc(fp.pcb_footprint || '—')}</code></td>
+                <td><code style="font-size:12px">${esc(fp.step_3d_file || '—')}</code></td>
+                <td style="font-size:12px;color:var(--text-muted)">${formatDate(fp.created_at)}</td>
+                <td style="text-align:right;white-space:nowrap">
+                    <button class="pd-edit-btn" style="padding:3px 8px;font-size:11px" onclick="openEditFootprintModal('${fp.id}','${esc(fp.pcb_footprint||'')}','${esc(fp.step_3d_file||'')}')">
+                        <span class="material-icons-outlined" style="font-size:14px">edit</span>
+                    </button>
+                    <button class="btn-obs" style="margin-left:4px" onclick="deleteFootprint('${fp.id}')">
+                        <span class="material-icons-outlined">delete</span>
+                    </button>
+                </td>
+            </tr>`).join('');
+        }
+
+        function openAddFootprintModal() {
+            document.getElementById('fpModalTitle').textContent = 'Add Footprint';
+            document.getElementById('fpId').value = '';
+            document.getElementById('fpPcb').value = '';
+            document.getElementById('fpStep').value = '';
+            partOpenModal('footprintModal');
+        }
+
+        function openEditFootprintModal(id, pcb, step) {
+            document.getElementById('fpModalTitle').textContent = 'Edit Footprint';
+            document.getElementById('fpId').value = id;
+            document.getElementById('fpPcb').value = pcb;
+            document.getElementById('fpStep').value = step;
+            partOpenModal('footprintModal');
+        }
+
+        async function saveFootprint(e) {
+            e.preventDefault();
+            const id = document.getElementById('fpId').value;
+            const pcb = document.getElementById('fpPcb').value.trim();
+            const step = document.getElementById('fpStep').value.trim();
+            if (!pcb && !step) { showToast('Enter at least PCB Footprint or 3D Step File', 'error'); return; }
+            const btn = document.getElementById('btnSaveFootprint');
+            btn.disabled = true; btn.textContent = 'Saving...';
+            try {
+                let res;
+                if (id) {
+                    res = await fetch(`${API}/part-footprints/${id}`, {
+                        method: 'PUT', headers: getHeaders(),
+                        body: JSON.stringify({ pcb_footprint: pcb, step_3d_file: step })
+                    });
+                } else {
+                    res = await fetch(`${API}/part-footprints`, {
+                        method: 'POST', headers: getHeaders(),
+                        body: JSON.stringify({ part_number: PART_NUMBER, pcb_footprint: pcb, step_3d_file: step })
+                    });
+                }
+                const d = await res.json();
+                if (d.success) {
+                    showToast(id ? 'Footprint updated' : 'Footprint added');
+                    partCloseModal('footprintModal');
+                    loadPartDetail();
+                } else { showToast(d.message || 'Failed', 'error'); }
+            } catch(err) { showToast('Network error', 'error'); }
+            btn.disabled = false; btn.textContent = 'Save';
+        }
+
+        async function deleteFootprint(id) {
+            if (!confirm('Delete this footprint?')) return;
+            try {
+                const res = await fetch(`${API}/part-footprints/${id}`, { method: 'DELETE', headers: getHeaders() });
+                const d = await res.json();
+                if (d.success) { showToast('Footprint deleted'); loadPartDetail(); }
+                else showToast(d.message || 'Failed', 'error');
+            } catch(e) { showToast('Network error', 'error'); }
+        }
+
+        loadPartDetail(); // Reload to show the new supplier in the table
                 } else {
                     showToast(data.message || 'Error mapping supplier', 'error');
                 }
@@ -1542,6 +1689,7 @@
                 renderRmMappings(data.data.rm_mappings);
                 renderManufacturers(data.data.manufacturers);
                 renderInventory(data.data.inventory, data.data.total_inventory_qty);
+                renderFootprints(data.data.footprints || []);
                 await loadPermissions();
             } catch (e) {
                 document.getElementById('pdLoading').style.display = 'none';

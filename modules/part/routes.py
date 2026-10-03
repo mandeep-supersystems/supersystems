@@ -2324,6 +2324,14 @@ def get_part_detail(part_number):
     except Exception:
         pass
 
+    # Footprints
+    fp_rows = db.session.execute(db.text(
+        "SELECT id, pcb_footprint, step_3d_file, created_at FROM part.parts_footprints "
+        "WHERE part_number = :pn ORDER BY created_at ASC"
+    ), {"pn": part_number}).fetchall()
+    footprints = [{"id": str(r[0]), "pcb_footprint": r[1] or "", "step_3d_file": r[2] or "",
+                   "created_at": str(r[3]) if r[3] else None} for r in fp_rows]
+
     return {"success": True, "data": {
         "part": part_data,
         "manufacturers": aml_list,
@@ -2334,7 +2342,8 @@ def get_part_detail(part_number):
         "total_ordered_qty": total_ordered_qty,
         "po_count": len(po_appearances),
         "inventory": inventory_items,
-        "total_inventory_qty": total_inventory_qty
+        "total_inventory_qty": total_inventory_qty,
+        "footprints": footprints
     }}
 
 
@@ -2828,3 +2837,66 @@ def get_part_suppliers(part_number):
         "supplier_count": len(set(r["supplier_id"] for r in suppliers)),
         "suppliers": suppliers,
     }}
+
+# ─── PART FOOTPRINTS ──────────────────────────────────────────────────────────
+
+@part_bp.route("/part-footprints/<path:part_number>", methods=["GET"])
+def get_part_footprints(part_number):
+    rows = db.session.execute(db.text(
+        "SELECT id, pcb_footprint, step_3d_file, created_at FROM part.parts_footprints "
+        "WHERE part_number = :pn ORDER BY created_at ASC"
+    ), {"pn": part_number}).fetchall()
+    return {"success": True, "data": [
+        {"id": str(r[0]), "pcb_footprint": r[1] or "", "step_3d_file": r[2] or "",
+         "created_at": str(r[3]) if r[3] else None} for r in rows
+    ]}
+
+
+@part_bp.route("/part-footprints", methods=["POST"])
+def add_part_footprint():
+    data = request.get_json()
+    pn = data.get("part_number", "").strip()
+    pcb = data.get("pcb_footprint", "").strip()
+    step = data.get("step_3d_file", "").strip()
+    if not pn:
+        return {"success": False, "message": "part_number required"}, 400
+    if not pcb and not step:
+        return {"success": False, "message": "At least PCB Footprint or 3D Step File is required"}, 400
+    new_id = db.session.execute(db.text(
+        "INSERT INTO part.parts_footprints (part_number, pcb_footprint, step_3d_file) "
+        "VALUES (:pn, :pcb, :step) RETURNING id"
+    ), {"pn": pn, "pcb": pcb, "step": step}).scalar()
+    _log_audit("CREATE", "Footprint", pn, details=f"Footprint added: PCB={pcb}, 3D={step}")
+    db.session.commit()
+    return {"success": True, "data": {"id": str(new_id)}, "message": "Footprint added"}, 201
+
+
+@part_bp.route("/part-footprints/<fp_id>", methods=["PUT"])
+def update_part_footprint(fp_id):
+    data = request.get_json()
+    pcb = data.get("pcb_footprint", "").strip()
+    step = data.get("step_3d_file", "").strip()
+    row = db.session.execute(db.text(
+        "SELECT part_number FROM part.parts_footprints WHERE id = :id"
+    ), {"id": fp_id}).first()
+    if not row:
+        return {"success": False, "message": "Not found"}, 404
+    db.session.execute(db.text(
+        "UPDATE part.parts_footprints SET pcb_footprint=:pcb, step_3d_file=:step, updated_at=NOW() WHERE id=:id"
+    ), {"pcb": pcb, "step": step, "id": fp_id})
+    _log_audit("UPDATE", "Footprint", row[0], details=f"Footprint updated: PCB={pcb}, 3D={step}")
+    db.session.commit()
+    return {"success": True, "message": "Footprint updated"}
+
+
+@part_bp.route("/part-footprints/<fp_id>", methods=["DELETE"])
+def delete_part_footprint(fp_id):
+    row = db.session.execute(db.text(
+        "SELECT part_number FROM part.parts_footprints WHERE id = :id"
+    ), {"id": fp_id}).first()
+    if not row:
+        return {"success": False, "message": "Not found"}, 404
+    db.session.execute(db.text("DELETE FROM part.parts_footprints WHERE id = :id"), {"id": fp_id})
+    _log_audit("DELETE", "Footprint", row[0], details=f"Footprint {fp_id} deleted")
+    db.session.commit()
+    return {"success": True, "message": "Footprint deleted"}
