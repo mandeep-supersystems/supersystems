@@ -1451,7 +1451,19 @@
                 if (data.success) {
                     showToast('Supplier mapped successfully');
                     partCloseModal('mapSupplierModal');
-            
+                    loadPartDetail();
+                } else {
+                    showToast(data.message || 'Error mapping supplier', 'error');
+                }
+            } catch(err) {
+                console.error(err);
+                showToast('Network error', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Map Supplier';
+            }
+        }
+
         // ── FOOTPRINTS ──
         function renderFootprints(list) {
             const tbody = document.getElementById('pdFootprintsBody');
@@ -1531,19 +1543,6 @@
                 if (d.success) { showToast('Footprint deleted'); loadPartDetail(); }
                 else showToast(d.message || 'Failed', 'error');
             } catch(e) { showToast('Network error', 'error'); }
-        }
-
-        loadPartDetail(); // Reload to show the new supplier in the table
-                } else {
-                    showToast(data.message || 'Error mapping supplier', 'error');
-                }
-            } catch(err) {
-                console.error(err);
-                showToast('Network error', 'error');
-            } finally {
-                btn.disabled = false;
-                btn.textContent = 'Map Supplier';
-            }
         }
 
         async function saveManufacturer(e) {
