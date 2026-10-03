@@ -129,11 +129,6 @@
                     <span id="sbRmMapCount"
                         style="margin-left:auto;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;background:#e65100;color:#fff;min-width:18px;text-align:center">0</span>
                 </button>
-                <button class="sidebar-link" onclick="switchTab('footprints')" id="sb-footprints">
-                    <span class="material-icons-outlined">developer_board</span>Footprints
-                    <span id="sbFpCount"
-                        style="margin-left:auto;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;background:#7b1fa2;color:#fff;min-width:18px;text-align:center">0</span>
-                </button>
                 <button class="sidebar-link" onclick="switchTab('suppliers')" id="sb-suppliers">
                     <span class="material-icons-outlined">storefront</span>Suppliers
                     <span id="sbSupCount"
@@ -274,10 +269,6 @@
                             <span class="material-icons-outlined">storefront</span> Suppliers
                             <span class="pd-tab-count" id="tabSupCount" style="background:#0288d1">0</span>
                         </button>
-                        <button class="pd-tab" data-tab="footprints" onclick="switchTab('footprints')">
-                            <span class="material-icons-outlined">developer_board</span> Footprints
-                            <span class="pd-tab-count" id="tabFpCount" style="background:#7b1fa2">0</span>
-                        </button>
                     </div>
 
                     <!-- TAB: DETAILS -->
@@ -357,7 +348,31 @@
                                 </div>
                             </div>
                             </div>
-
+                            <!-- FOOTPRINTS (below MPN/Make) -->
+                            <div class="pd-card" id="pdFootprintsCard">
+                                <div class="pd-card-header">
+                                    <span class="material-icons-outlined">developer_board</span>
+                                    PCB Footprints &amp; 3D Step Files
+                                    <button class="pd-edit-btn" onclick="openAddFootprintModal()" style="margin-left:auto">
+                                        <span class="material-icons-outlined">add</span> Add
+                                    </button>
+                                </div>
+                                <div class="pd-card-body" style="padding:0">
+                                    <table class="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>PCB Footprint</th>
+                                                <th>3D Step File</th>
+                                                <th>Added</th>
+                                                <th style="text-align:right">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="pdFootprintsBody">
+                                            <tr><td colspan="4" class="empty">No footprints added.</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                             <div class="pd-card" style="grid-column:1/-1">
                                 <div class="pd-card-header">
                                     <span class="material-icons-outlined">info</span>
@@ -584,35 +599,6 @@
                             <div class="empty" style="padding:40px;text-align:center">Loading suppliers...</div>
                         </div>
                     </div>
-
-                    <!-- TAB: FOOTPRINTS -->
-                    <div class="pd-tab-content" id="tab-footprints">
-                        <div class="pd-card">
-                            <div class="pd-card-header">
-                                <span class="material-icons-outlined">developer_board</span>
-                                PCB Footprints &amp; 3D Step Files
-                                <button class="pd-edit-btn" onclick="openAddFootprintModal()" style="margin-left:auto">
-                                    <span class="material-icons-outlined">add</span> Add
-                                </button>
-                            </div>
-                            <div class="pd-card-body" style="padding:0">
-                                <table class="data-table">
-                                    <thead>
-                                        <tr>
-                                            <th>PCB Footprint</th>
-                                            <th>3D Step File</th>
-                                            <th>Added</th>
-                                            <th style="text-align:right">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="pdFootprintsBody">
-                                        <tr><td colspan="4" class="empty">No footprints added.</td></tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
                 </div><!-- /pdContent -->
             </div><!-- /pd-wrapper -->
         </main>
@@ -741,7 +727,7 @@
         function switchTab(tab) {
             document.querySelectorAll('.pd-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
             document.querySelectorAll('.pd-tab-content').forEach(c => c.classList.toggle('active', c.id === 'tab-' + tab));
-            ['details', 'pos', 'custpos', 'mappings', 'inventory', 'rmmappings', 'suppliers', 'footprints', 'assembly-bom', 'assembly-where-used'].forEach(t => {
+            ['details', 'pos', 'custpos', 'mappings', 'inventory', 'rmmappings', 'suppliers', 'assembly-bom', 'assembly-where-used'].forEach(t => {
                 const el = document.getElementById('sb-' + t);
                 if (el) el.classList.toggle('active', t === tab);
             });
@@ -1468,7 +1454,6 @@
         function renderFootprints(list) {
             const tbody = document.getElementById('pdFootprintsBody');
             const cnt = list ? list.length : 0;
-            ['tabFpCount','sbFpCount'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=cnt; });
             if (!list || cnt === 0) {
                 tbody.innerHTML = '<tr><td colspan="4" class="empty">No footprints added yet.</td></tr>';
                 return;
