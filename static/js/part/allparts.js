@@ -189,7 +189,8 @@ async function loadAllParts() {
 
 function renderAllPartsTable() {
     const tbody = document.getElementById('allPartsBody');
-    const rows = _allPartsCache;
+    const phaseFilter = (document.getElementById('apPhaseFilter') || {}).value || '';
+    const rows = phaseFilter ? _allPartsCache.filter(p => String(p.phase) === phaseFilter) : _allPartsCache;
     if (!rows.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">No parts found</td></tr>'; return; }
     tbody.innerHTML = rows.map(p => `<tr style="cursor:pointer" onclick="window.location='/part/detail/${encodeURIComponent(p.part_number)}'">
         <td><a class="part-number-cell part-link" href="/part/detail/${encodeURIComponent(p.part_number)}" onclick="event.stopPropagation()">${esc(p.part_number)}</a></td>
@@ -203,6 +204,14 @@ function renderAllPartsTable() {
 }
 
 function filterAllParts() {
+    const phaseEl = document.getElementById('apPhaseFilter');
+    const searchEl = document.getElementById('allPartsSearch');
+    const catChanged = event && event.target && (event.target.id === 'apPhaseFilter');
+    // Phase-only change: just re-render from cache, no API call needed
+    if (catChanged) {
+        renderAllPartsTable();
+        return;
+    }
     clearTimeout(apSearchTimeout);
     apSearchTimeout = setTimeout(() => {
         loadAllParts();
