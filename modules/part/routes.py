@@ -252,7 +252,45 @@ def part_phase_summary():
     if not tenant_id or tenant_id in ('TEST', ''):
         tenant_id = 'b424df0e-f766-4e94-b3fd-05777e158958'
 
-    counts = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+    # Bulk-fetch all footprint, manufacturer, and supplier part numbers once
+    try:
+        fp_pns = {r[0] for r in db.session.execute(db.text(
+            "SELECT DISTINCT part_number FROM part.parts_footprints"
+        )).fetchall()}
+    except Exception:
+        db.session.rollback()
+        fp_pns = set()
+
+    try:
+        mpn_pns = {r[0] for r in db.session.execute(db.text(
+            "SELECT DISTINCT part_number FROM part.manufacturers WHERE (mpn IS NOT NULL AND mpn != '') OR (make IS NOT NULL AND make != '')"
+        )).fetchall()}
+    except Exception:
+        db.session.rollback()
+        mpn_pns = set()
+
+    try:
+        price_pns = {r[0] for r in db.session.execute(db.text(
+            "SELECT DISTINCT part_code FROM supplier.parts WHERE is_deleted = false AND (moq_price IS NOT NULL OR spq_price IS NOT NULL)"
+        )).fetchall()}
+    except Exception:
+        db.session.rollback()
+        price_pns = set()
+
+    def _calc_phase_bulk(part_number, row):
+        if _is_empty(row.get('description')):
+            return 1
+        if part_number not in fp_pns:
+            return 2
+        if part_number not in mpn_pns:
+            return 3
+        if part_number not in price_pns:
+            return 4
+        if str(row.get('company_part_status') or '').strip().lower() != 'released':
+            return 5
+        return 6
+
+    counts = {}
     cats = db.session.execute(db.text(
         "SELECT s.name, s.series_prefix, c.name as cat_name, c.series_prefix as cat_series "
         "FROM part.subcategories s JOIN part.categories c ON s.category_id = c.id "
@@ -266,33 +304,29 @@ def part_phase_summary():
             continue
         seen.add(tbl)
         try:
-            rows = db.session.execute(db.text(f"SELECT part_number, description, company_part_status FROM {tbl} WHERE (status IS NULL OR status != 'obsolete')")).fetchall()
+            rows = db.session.execute(db.text(
+                f"SELECT part_number, description, company_part_status FROM {tbl} "
+                f"WHERE (status IS NULL OR status != 'obsolete')"
+            )).fetchall()
             for r in rows:
-                pn = r[0]
                 row_dict = {"description": r[1], "company_part_status": r[2] if len(r) > 2 else None}
-                ph = _calc_phase(pn, row_dict)
+                ph = _calc_phase_bulk(r[0], row_dict)
                 counts[ph] = counts.get(ph, 0) + 1
         except Exception:
             db.session.rollback()
             try:
                 rows = db.session.execute(db.text(f"SELECT part_number, description FROM {tbl}")).fetchall()
                 for r in rows:
-                    row_dict = {"description": r[1], "company_part_status": None}
-                    ph = _calc_phase(r[0], row_dict)
+                    ph = _calc_phase_bulk(r[0], {"description": r[1], "company_part_status": None})
                     counts[ph] = counts.get(ph, 0) + 1
             except Exception:
                 db.session.rollback()
 
-    result = []
-    for ph in range(1, 7):
-        result.append({
-            "phase": ph,
-            "count": counts.get(ph, 0),
-            "label": PHASE_LABELS[ph],
-            "color": PHASE_COLORS[ph],
-            "bg": PHASE_BG[ph],
-        })
-    return {"success": True, "data": result}
+    return {"success": True, "data": [
+        {"phase": ph, "count": counts.get(ph, 0), "label": PHASE_LABELS[ph],
+         "color": PHASE_COLORS[ph], "bg": PHASE_BG[ph]}
+        for ph in range(1, 7)
+    ]}
 
 
 @part_bp.route("/part-phase/<part_number>", methods=["GET"])
