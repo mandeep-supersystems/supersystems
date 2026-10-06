@@ -41,7 +41,7 @@ def _clean(v):
     s = str(v).strip()
     if s.lower() in ('none', 'null', 'nan'):
         return ''
-    return s[:255]
+    return s[:127]
 
 
 def _acc_table_name(cat_name):
