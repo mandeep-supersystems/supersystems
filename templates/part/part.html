@@ -115,7 +115,7 @@
                 <span class="material-icons-outlined">manage_accounts</span>User Management
             </a>
             <div class="sidebar-divider"></div>
-            <a class="sidebar-link" data-section="caddb" onclick="showSection('caddb');loadCadDB()">
+            <a class="sidebar-link" onclick="downloadCadDB()" style="cursor:pointer;">
                 <span class="material-icons-outlined">storage</span>CadDB
             </a>
         </nav>
@@ -688,19 +688,6 @@
                         <tr><td colspan="6" class="empty">Loading...</td></tr>
                     </tbody>
                 </table>
-            </div>
-        </section>
-
-        <!-- CADDB SECTION -->
-        <section class="content-section" id="sec-caddb">
-            <div class="ov-banner banner-part" style="margin-bottom:20px;">
-                <div class="ov-banner-text">
-                    <h2><span class="material-icons-outlined">storage</span> CadDB &#8212; Cadence Component Library</h2>
-                    <p>Microsoft Access database (.accdb) for Cadence OrCAD / Allegro. Auto-built from PostgreSQL part tables.</p>
-                </div>
-            </div>
-            <div id="caddbContent">
-                <div class="ov-empty">Click CadDB in the sidebar to load status.</div>
             </div>
         </section>
 

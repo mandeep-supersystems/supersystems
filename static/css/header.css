@@ -342,24 +342,63 @@ body {
     background: var(--bg-primary);
     border: 1px solid var(--border-color);
     border-radius: 8px;
-    box-shadow: var(--shadow-lg);
-    min-width: 180px;
-    z-index: 1001;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    min-width: 220px;
+    z-index: 10001;
+    overflow: hidden;
 }
 
 .user-dropdown.active {
-    display: block;
+    display: block !important;
+}
+
+.user-dropdown-header {
+    padding: 12px 16px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.user-dropdown-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-dropdown-email {
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 2px;
+}
+
+.user-dropdown-role {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--accent-light, rgba(25, 118, 210, 0.1));
+    color: var(--accent, #1976d2);
+    margin-top: 6px;
 }
 
 .user-dropdown a {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     padding: 10px 16px;
     color: var(--text-primary);
     text-decoration: none;
     font-size: 13px;
     transition: background 0.15s;
+    cursor: pointer;
 }
 
 .user-dropdown a .material-icons-outlined {
@@ -375,10 +414,6 @@ body {
     height: 1px;
     background: var(--border-color);
     margin: 4px 0;
-}
-
-.user-menu:hover .user-dropdown {
-    display: none;
 }
 
 /* SERVICES PANEL */

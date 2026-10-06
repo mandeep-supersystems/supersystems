@@ -22,7 +22,15 @@
     <div class="header-center"><div class="search-box"><span class="material-icons-outlined">search</span><input type="text" placeholder="Search..." id="globalSearch" oninput="handleSearch(this.value)"><div class="search-results" id="searchResults"></div></div></div>
     <div class="header-right">
         <button class="header-icon-btn theme-toggle" onclick="toggleTheme()"><span class="material-icons-outlined icon-light">dark_mode</span><span class="material-icons-outlined icon-dark">light_mode</span></button>
-        <div class="user-menu" id="userMenu"><div class="user-avatar" onclick="toggleUserMenu()"><span class="material-icons-outlined">person</span></div><div class="user-dropdown" id="userDropdown"><a href="#" onclick="logout()"><span class="material-icons-outlined">logout</span>Logout</a></div></div>
+        <div class="user-menu" id="userMenu">
+            <div class="user-avatar" onclick="toggleUserMenu()" title="User Profile"><span class="material-icons-outlined">person</span></div>
+            <div class="user-dropdown" id="userDropdown">
+                <a href="#" onclick="openProfile()"><span class="material-icons-outlined">person</span>Profile</a>
+                <a href="#" onclick="openAccount()"><span class="material-icons-outlined">manage_accounts</span>Account</a>
+                <div class="dropdown-divider"></div>
+                <a href="#" onclick="logout()"><span class="material-icons-outlined">logout</span>Logout</a>
+            </div>
+        </div>
     </div>
 </header>
 <div class="services-panel" id="servicesPanel"><div class="services-panel-header"><h3>All Services</h3><button class="close-btn" onclick="toggleServices()"><span class="material-icons-outlined">close</span></button></div><div class="services-grid" id="servicesGrid"></div></div>

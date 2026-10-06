@@ -42,8 +42,8 @@ function showSection(sec) {
     if (sec === 'employees' && typeof loadEmployees === 'function') loadEmployees();
 }
 
-function openModal(id) { document.getElementById(id).classList.add('active'); }
-function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+function openModal(id) { const el = document.getElementById(id); if (el) el.classList.add('active'); }
+function closeModal(id) { const el = document.getElementById(id); if (el) el.classList.remove('active'); }
 
 function buildPreview(prefix, psep, num, ssep, suffix) {
     let code = String(num);

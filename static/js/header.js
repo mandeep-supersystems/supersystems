@@ -587,17 +587,149 @@ function toggleTheme() {
     localStorage.setItem('theme', next);
 }
 
-// ─── USER MENU ───
-function toggleUserMenu() {
+// ─── USER MENU & DROPDOWN ───
+function _ensureUserModals() {
+    if (!document.getElementById('profileModal')) {
+        const pModal = document.createElement('div');
+        pModal.className = 'modal-overlay';
+        pModal.id = 'profileModal';
+        pModal.innerHTML = `
+            <div class="modal">
+                <div class="modal-header">
+                    <h3>User Profile</h3>
+                    <button class="close-btn" onclick="closeModal('profileModal')">
+                        <span class="material-icons-outlined">close</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="profile-info">
+                        <div class="profile-avatar"><span class="material-icons-outlined">person</span></div>
+                        <div class="profile-fields">
+                            <p><strong>Name:</strong> <span id="profileName">-</span></p>
+                            <p><strong>Email:</strong> <span id="profileEmail">-</span></p>
+                            <p><strong>Role:</strong> <span id="profileRole">-</span></p>
+                            <p><strong>Organization:</strong> <span id="profileOrg">-</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(pModal);
+    }
+
+    if (!document.getElementById('accountModal')) {
+        const aModal = document.createElement('div');
+        aModal.className = 'modal-overlay';
+        aModal.id = 'accountModal';
+        aModal.innerHTML = `
+            <div class="modal">
+                <div class="modal-header">
+                    <h3>Account Settings</h3>
+                    <button class="close-btn" onclick="closeModal('accountModal')">
+                        <span class="material-icons-outlined">close</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="accountForm" onsubmit="updateAccount(event)">
+                        <div class="form-group">
+                            <label>First Name</label>
+                            <input type="text" id="accFirstName" placeholder="First Name">
+                        </div>
+                        <div class="form-group">
+                            <label>Last Name</label>
+                            <input type="text" id="accLastName" placeholder="Last Name">
+                        </div>
+                        <div class="form-group">
+                            <label>Phone</label>
+                            <input type="tel" id="accPhone" placeholder="Phone">
+                        </div>
+                        <hr>
+                        <h4>Change Password</h4>
+                        <div class="form-group">
+                            <label>Current Password</label>
+                            <input type="password" id="accCurrentPwd" placeholder="Current password">
+                        </div>
+                        <div class="form-group">
+                            <label>New Password</label>
+                            <input type="password" id="accNewPwd" placeholder="New password">
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn-secondary" onclick="closeModal('accountModal')">Cancel</button>
+                            <button type="submit" class="btn-primary">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(aModal);
+    }
+}
+
+function _getUserDisplayData() {
+    let user = {};
+    let tenant = {};
+    try { user = JSON.parse(localStorage.getItem('user') || '{}'); } catch(e){}
+    try { tenant = JSON.parse(localStorage.getItem('tenant') || '{}'); } catch(e){}
+    const isSuperAdmin = localStorage.getItem('user_type') === 'super_admin' || !!localStorage.getItem('sa_token');
+    const name = ((user.first_name || '') + ' ' + (user.last_name || '')).trim() || localStorage.getItem('user_name') || user.name || user.email || 'User';
+    const email = user.email || localStorage.getItem('user_email') || localStorage.getItem('sa_email') || '';
+    const role = isSuperAdmin ? 'Super Admin' : (tenant.name ? `${tenant.name} User` : 'Organization User');
+    const org = tenant.name || (isSuperAdmin ? 'Platform' : '-');
+    return { user, tenant, isSuperAdmin, name, email, role, org };
+}
+
+function _ensureUserDropdown() {
+    const menu = document.getElementById('userMenu');
+    if (!menu) return;
+
+    let dropdown = document.getElementById('userDropdown');
+    const data = _getUserDisplayData();
+
+    if (!dropdown) {
+        dropdown = document.createElement('div');
+        dropdown.className = 'user-dropdown';
+        dropdown.id = 'userDropdown';
+        menu.appendChild(dropdown);
+    }
+
+    // Ensure dropdown has all options (User Info, Profile, Account, Logout)
+    dropdown.innerHTML = `
+        <div class="user-dropdown-header">
+            <div class="user-dropdown-name" id="dropdownUserName">${data.name}</div>
+            <div class="user-dropdown-email" id="dropdownUserEmail">${data.email || 'user@supersystems.com'}</div>
+            <span class="user-dropdown-role" id="dropdownUserRole">${data.role}</span>
+        </div>
+        <a href="javascript:void(0)" onclick="openProfile()"><span class="material-icons-outlined">person</span>Profile</a>
+        <a href="javascript:void(0)" onclick="openAccount()"><span class="material-icons-outlined">manage_accounts</span>Account</a>
+        <div class="dropdown-divider"></div>
+        <a href="javascript:void(0)" onclick="logout()"><span class="material-icons-outlined">logout</span>Logout</a>
+    `;
+}
+
+function toggleUserMenu(e) {
+    if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+    _ensureUserDropdown();
+    _ensureUserModals();
     const d = document.getElementById('userDropdown');
-    if (d) d.classList.toggle('active');
+    if (d) {
+        d.classList.toggle('active');
+        if (d.classList.contains('active')) {
+            const data = _getUserDisplayData();
+            const nameEl = document.getElementById('dropdownUserName');
+            if (nameEl) nameEl.textContent = data.name;
+            const emailEl = document.getElementById('dropdownUserEmail');
+            if (emailEl) emailEl.textContent = data.email;
+            const roleEl = document.getElementById('dropdownUserRole');
+            if (roleEl) roleEl.textContent = data.role;
+        }
+    }
 }
 
 // Close dropdown on outside click
 document.addEventListener('click', function(e) {
     const menu = document.getElementById('userMenu');
     const dropdown = document.getElementById('userDropdown');
-    if (menu && !menu.contains(e.target) && dropdown) {
+    if (menu && dropdown && !menu.contains(e.target)) {
         dropdown.classList.remove('active');
     }
 });
@@ -608,22 +740,35 @@ function closeModal(id) { const el = document.getElementById(id); if (el) el.cla
 
 // ─── PROFILE ───
 function openProfile() {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const tenant = JSON.parse(localStorage.getItem('tenant') || '{}');
-    document.getElementById('profileName').textContent = (user.first_name || '') + ' ' + (user.last_name || '') || user.email || '-';
-    document.getElementById('profileEmail').textContent = user.email || '-';
-    document.getElementById('profileRole').textContent = localStorage.getItem('user_type') === 'super_admin' ? 'Super Admin' : 'Organization User';
-    document.getElementById('profileOrg').textContent = tenant.name || '-';
+    _ensureUserModals();
+    const data = _getUserDisplayData();
+    const pName = document.getElementById('profileName');
+    if (pName) pName.textContent = data.name;
+    const pEmail = document.getElementById('profileEmail');
+    if (pEmail) pEmail.textContent = data.email || '-';
+    const pRole = document.getElementById('profileRole');
+    if (pRole) pRole.textContent = data.role;
+    const pOrg = document.getElementById('profileOrg');
+    if (pOrg) pOrg.textContent = data.org;
     closeUserDropdown();
     openModal('profileModal');
 }
 
 // ─── ACCOUNT ───
 function openAccount() {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    document.getElementById('accFirstName').value = user.first_name || '';
-    document.getElementById('accLastName').value = user.last_name || '';
-    document.getElementById('accPhone').value = user.phone || '';
+    _ensureUserModals();
+    const data = _getUserDisplayData();
+    const user = data.user;
+    const fn = document.getElementById('accFirstName');
+    if (fn) fn.value = user.first_name || '';
+    const ln = document.getElementById('accLastName');
+    if (ln) ln.value = user.last_name || '';
+    const ph = document.getElementById('accPhone');
+    if (ph) ph.value = user.phone || '';
+    const cp = document.getElementById('accCurrentPwd');
+    if (cp) cp.value = '';
+    const np = document.getElementById('accNewPwd');
+    if (np) np.value = '';
     closeUserDropdown();
     openModal('accountModal');
 }
@@ -656,7 +801,9 @@ async function updateAccount(e) {
             user.last_name = data.last_name;
             user.phone = data.phone;
             localStorage.setItem('user', JSON.stringify(user));
+            localStorage.setItem('user_name', ((data.first_name || '') + ' ' + (data.last_name || '')).trim());
             closeModal('accountModal');
+            _ensureUserDropdown();
             alert('Account updated successfully');
         } else {
             alert(result.message || 'Update failed');
@@ -668,13 +815,18 @@ async function updateAccount(e) {
 
 // ─── LOGOUT ───
 async function logout() {
+    closeUserDropdown();
     const token = localStorage.getItem('access_token');
     const userEmail = localStorage.getItem('user_email');
     const tenantId = localStorage.getItem('tenant_id');
 
+    // Notify backend session termination with 1.2s timeout so logout never hangs
     try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 1200);
         await fetch('/api/v1/auth/logout', {
             method: 'POST',
+            signal: controller.signal,
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': token ? 'Bearer ' + token : '',
@@ -682,19 +834,23 @@ async function logout() {
                 'X-Tenant-ID': tenantId || ''
             }
         });
+        clearTimeout(timeoutId);
     } catch(e) {}
 
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('tenant');
-    localStorage.removeItem('tenant_id');
-    localStorage.removeItem('user_type');
-    localStorage.removeItem('user_email');
-    localStorage.removeItem('user_name');
-    sessionStorage.clear();
-    document.cookie = 'access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-    window.location.href = '/login';
+    // Clear all client auth state
+    const keysToRemove = [
+        'access_token', 'refresh_token', 'user', 'tenant', 'tenant_id',
+        'user_type', 'user_email', 'user_name', 'sa_token', 'sa_email'
+    ];
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+    try { sessionStorage.clear(); } catch(e) {}
+
+    // Expire cookies cleanly across domain
+    document.cookie = 'access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; SameSite=Lax';
+    document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; SameSite=Lax';
+
+    // Immediate redirect to login
+    window.location.replace('/login');
 }
 
 function closeUserDropdown() {
@@ -837,6 +993,16 @@ async function silentRefreshToken() {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const nameEl = document.getElementById('headerUserName');
     if (nameEl) nameEl.textContent = (user.first_name || user.email || 'User');
+
+    function _initUserUi() {
+        _ensureUserDropdown();
+        _ensureUserModals();
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', _initUserUi);
+    } else {
+        _initUserUi();
+    }
 
     // Start silent token refresh — checks every 5 minutes
     silentRefreshToken();

@@ -34,7 +34,8 @@ const PART_SECTIONS = [
     { id: 'partmapping', label: 'Part Mapping', icon: 'swap_horiz' },
     { id: 'auditlogs', label: 'Audit Logs', icon: 'history' },
     { id: 'obsolete', label: 'Obsolete Parts', icon: 'block' },
-    { id: 'moduleusers', label: 'User Management', icon: 'manage_accounts' }
+    { id: 'moduleusers', label: 'User Management', icon: 'manage_accounts' },
+    { id: 'caddb', label: 'CadDB', icon: 'storage' }
 ];
 
 let myAllowedSections = PART_SECTIONS.map(s => s.id);

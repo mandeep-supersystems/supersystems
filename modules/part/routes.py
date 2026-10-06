@@ -201,7 +201,16 @@ def _calc_phase(part_number, row):
     if _is_empty(row.get('description')):
         return 1
 
-    # Phase 2 — Footprint / 3D (no footprint table in this system — auto-pass for now)
+    # Phase 2 — Footprint / 3D
+    try:
+        fp_row = db.session.execute(db.text(
+            "SELECT 1 FROM part.parts_footprints WHERE part_number = :pn LIMIT 1"
+        ), {"pn": part_number}).first()
+        if not fp_row:
+            return 2
+    except Exception:
+        db.session.rollback()
+        return 2
 
     # Phase 3 — MPN / Make
     try:
@@ -2837,6 +2846,27 @@ def get_part_suppliers(part_number):
         "supplier_count": len(set(r["supplier_id"] for r in suppliers)),
         "suppliers": suppliers,
     }}
+
+# ─── CADDB DOWNLOAD (.accdb) ─────────────────────────────────────────────────
+
+@part_bp.route("/caddb-download", methods=["GET"])
+def caddb_download():
+    """Build and stream CadDB.accdb via sync_accdb (Windows: ADOX+pyodbc / Linux: Java+Jackcess)."""
+    import io
+    from flask import send_file
+    from modules.part.sync_accdb import sync_accdb
+
+    data, err = sync_accdb(db)
+    if err:
+        return {"success": False, "message": err}, 500
+
+    return send_file(
+        io.BytesIO(data),
+        as_attachment=True,
+        download_name='CadDB.accdb',
+        mimetype='application/msaccess'
+    )
+
 
 # ─── PART FOOTPRINTS ──────────────────────────────────────────────────────────
 
