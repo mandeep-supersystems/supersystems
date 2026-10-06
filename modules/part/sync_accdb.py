@@ -232,7 +232,7 @@ def _build_linux(tables, accdb_path):
         json.dump(tables, tmp_json, ensure_ascii=False)
         tmp_json.close()
 
-        java_bin = subprocess.run(['which', 'java'], capture_output=True, text=True).stdout.strip() or 'java'
+        import shutil; java_bin = shutil.which('java') or 'java'
         result = subprocess.run(
             [java_bin, '-jar', jar_path, tmp_json.name, accdb_path],
             capture_output=True, text=True, timeout=120
