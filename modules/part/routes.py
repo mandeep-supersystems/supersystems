@@ -352,16 +352,6 @@ def get_part_phase(part_number):
             db.session.rollback()
     return {"success": False, "message": "Part not found"}, 404
 
-# ─── FOOTPRINT AUTO-MAP ──────────────────────────────────────────────────────
-# Key: (category_name_lower, subcategory_name_lower) → (pcb_footprint, step_3d_file, schematic_part)
-FOOTPRINT_MAP = {
-    ('resistor', 'smt 0603'): ('SMD_RES_0603', 'SMD_RES_0603', 'RESISTOR_2P'),
-    ('resistor', 'smt 0805'): ('SMD_RES_0805', 'SMD_RES_0805', 'RESISTOR_2P'),
-    ('resistor', 'smt 1206'): ('SMD_RES_1206', 'SMD_RES_1206', 'RESISTOR_2P'),
-    ('resistor', 'smt 2512'): ('SMD_RES_2512', 'SMD_RES_2512', 'RESISTOR_2P'),
-}
-
-
 def _safe_table_name(category_name, cat_series):
     """Generate safe table name: part."{category}_{cat_series}\""""
     def clean(s):
@@ -1114,14 +1104,13 @@ def generate_part():
 
     _log_audit('GENERATE', 'Part', part_number, details=f"Part {part_number} generated", new_values={"part_number": part_number, "description": description, "is_bought_out": is_bought_out, "is_manufactured": is_manufactured, "attributes": col_values})
 
-    # Auto-insert footprint if a mapping exists for this category + subcategory
-    fp_key = (cat_name.strip().lower(), sub_name.strip().lower())
-    if fp_key in FOOTPRINT_MAP:
-        pcb_fp, step_fp, sch_part = FOOTPRINT_MAP[fp_key]
-        try:
-            db.session.execute(db.text(
-                "ALTER TABLE part.parts_footprints ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255) DEFAULT ''"
-            ))
+    # Auto-insert footprint from part.footprint_defaults if a match exists
+    try:
+        fp_default = db.session.execute(db.text(
+            "SELECT pcb_footprint, step_3d_file, schematic_part FROM part.footprint_defaults "
+            "WHERE LOWER(category_name) = LOWER(:cat) AND LOWER(subcategory_name) = LOWER(:sub) LIMIT 1"
+        ), {"cat": cat_name.strip(), "sub": sub_name.strip()}).first()
+        if fp_default:
             existing_fp = db.session.execute(db.text(
                 "SELECT 1 FROM part.parts_footprints WHERE part_number = :pn LIMIT 1"
             ), {"pn": part_number}).first()
@@ -1129,10 +1118,9 @@ def generate_part():
                 db.session.execute(db.text(
                     "INSERT INTO part.parts_footprints (part_number, pcb_footprint, step_3d_file, schematic_part) "
                     "VALUES (:pn, :pcb, :step, :sch)"
-                ), {"pn": part_number, "pcb": pcb_fp, "step": step_fp, "sch": sch_part})
-        except Exception:
-            db.session.rollback()
-
+                ), {"pn": part_number, "pcb": fp_default[0] or "", "step": fp_default[1] or "", "sch": fp_default[2] or ""})
+    except Exception:
+        db.session.rollback()
     db.session.commit()
     return {"success": True, "data": {"part_number": part_number, "description": description,
             "is_bought_out": is_bought_out, "is_manufactured": is_manufactured, "table": table_name}}
