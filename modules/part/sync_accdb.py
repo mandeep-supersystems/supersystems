@@ -64,6 +64,7 @@ def _extract_data(db, cats):
     from modules.part.routes import _safe_table_name
 
     tables = []
+    seen_tables = set()
 
     for cat in cats:
         cat_name   = cat[1]
@@ -129,8 +130,13 @@ def _extract_data(db, cats):
             rd['step_3d_file']  = step
             rows_out.append([_clean(rd.get(c)) for c in include])
 
+        acc_table = _acc_table_name(cat_name)
+        if acc_table in seen_tables:
+            continue
+        seen_tables.add(acc_table)
+
         tables.append({
-            'acc_table': _acc_table_name(cat_name),
+            'acc_table': acc_table,
             'columns':   include,
             'rows':      rows_out,
         })
