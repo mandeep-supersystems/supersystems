@@ -98,9 +98,10 @@ def _extract_data(db, cats):
             re.sub(r'[^a-z0-9_]', '_', c['name'].lower().strip())
             for c in cols_cfg
         ]
+        seen = {'part_number', 'description'}
         include = (
             ['part_number', 'description']
-            + [c for c in custom if c in pg_cols and c not in SYSTEM_COLS]
+            + [c for c in custom if c in pg_cols and c not in SYSTEM_COLS and c not in seen and not seen.add(c)]
             + ['pcb_footprint', 'step_3d_file']
         )
 
