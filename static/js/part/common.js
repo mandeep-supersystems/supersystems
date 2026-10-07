@@ -145,7 +145,7 @@ function _downloadBlob(content, filename) {
     URL.revokeObjectURL(a.href);
 }
 
-function exportData(section) {
+async function exportData(section) {
     if (section === 'categories') {
         if (!categories.length) { showToast('No categories to export', 'error'); return; }
         const rows = [['Name', 'Code', 'Series Prefix', 'Separator', 'Description'],
@@ -169,11 +169,36 @@ function exportData(section) {
         showToast('Subcategories exported');
 
     } else if (section === 'allparts') {
-        if (!_allPartsCache || !_allPartsCache.length) { showToast('No parts to export. Load parts first.', 'error'); return; }
-        const rows = [['Part Number', 'Description', 'Subcategory', 'Created By', 'Status', 'Created'],
-        ..._allPartsCache.map(p => [p.part_number, p.description || '', p.subcategory, p.created_by || '', p.status || 'active', p.created_at || ''])];
-        _downloadBlob(rows.map(_csvRow).join('\n'), 'all_parts_export.csv');
-        showToast('Parts exported');
+        showToast('Preparing export...');
+        try {
+            const res = await fetch(API + '/all-parts-export', { headers: HEADERS });
+            const json = await res.json();
+            if (!json.success) { showToast('Export failed: ' + (json.message || 'unknown error'), 'error'); return; }
+            const wb = XLSX.utils.book_new();
+            const catData = json.data; // { catName: [rowObj, ...] }
+            const catNames = Object.keys(catData);
+            if (!catNames.length) { showToast('No parts to export', 'error'); return; }
+            catNames.forEach(cat => {
+                const rows = catData[cat];
+                if (!rows.length) return;
+                // Build header order: fixed cols first, then dynamic, then MPN/Make
+                const fixedCols = ['Part Number', 'Category', 'Subcategory', 'Description', 'Status', 'Created By', 'Created At'];
+                const dynamicCols = Object.keys(rows[0]).filter(k => !fixedCols.includes(k) && k !== 'MPN' && k !== 'Make');
+                const headers = [...fixedCols, ...dynamicCols, 'MPN', 'Make'];
+                const sheetRows = [headers, ...rows.map(r => headers.map(h => r[h] ?? ''))];
+                const ws = XLSX.utils.aoa_to_sheet(sheetRows);
+                // Bold header row
+                const range = XLSX.utils.decode_range(ws['!ref']);
+                for (let c = range.s.c; c <= range.e.c; c++) {
+                    const cell = ws[XLSX.utils.encode_cell({r:0, c})];
+                    if (cell) { cell.s = { font: { bold: true } }; }
+                }
+                XLSX.utils.book_append_sheet(wb, ws, cat.substring(0, 31));
+            });
+            const fname = 'all_parts_export_' + new Date().toISOString().slice(0,10) + '.xlsx';
+            XLSX.writeFile(wb, fname);
+            showToast('Exported ' + catNames.length + ' category sheet(s)');
+        } catch(e) { showToast('Export error: ' + e.message, 'error'); return; }
 
     } else if (section === 'auditlogs') {
         const tbody = document.getElementById('auditLogsBody');

@@ -2982,3 +2982,216 @@ def delete_part_footprint(fp_id):
     _log_audit("DELETE", "Footprint", row[0], details=f"Footprint {fp_id} deleted")
     db.session.commit()
     return {"success": True, "message": "Footprint deleted"}
+
+
+# --- FOOTPRINT DEFAULTS CRUD ---
+
+@part_bp.route("/footprint-defaults", methods=["GET"])
+def list_footprint_defaults():
+    rows = db.session.execute(db.text(
+        "SELECT id, category_name, subcategory_name, pcb_footprint, step_3d_file, schematic_part "
+        "FROM part.footprint_defaults ORDER BY category_name, subcategory_name"
+    )).fetchall()
+    return {"success": True, "data": [
+        {"id": r[0], "category_name": r[1], "subcategory_name": r[2],
+         "pcb_footprint": r[3] or "", "step_3d_file": r[4] or "", "schematic_part": r[5] or ""}
+        for r in rows
+    ]}
+
+
+@part_bp.route("/footprint-defaults", methods=["POST"])
+def create_footprint_default():
+    data = request.get_json() or {}
+    cat = (data.get("category_name") or "").strip()
+    sub = (data.get("subcategory_name") or "").strip()
+    if not cat or not sub:
+        return {"success": False, "message": "category_name and subcategory_name are required"}, 400
+    try:
+        db.session.execute(db.text(
+            "INSERT INTO part.footprint_defaults (category_name, subcategory_name, pcb_footprint, step_3d_file, schematic_part) "
+            "VALUES (:cat, :sub, :pcb, :step, :sch)"
+        ), {"cat": cat, "sub": sub,
+            "pcb": data.get("pcb_footprint", "").strip(),
+            "step": data.get("step_3d_file", "").strip(),
+            "sch": data.get("schematic_part", "").strip()})
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return {"success": False, "message": str(e)}, 400
+    return {"success": True, "message": "Default created"}
+
+
+@part_bp.route("/footprint-defaults/<int:row_id>", methods=["PUT"])
+def update_footprint_default(row_id):
+    data = request.get_json() or {}
+    cat = (data.get("category_name") or "").strip()
+    sub = (data.get("subcategory_name") or "").strip()
+    if not cat or not sub:
+        return {"success": False, "message": "category_name and subcategory_name are required"}, 400
+    try:
+        db.session.execute(db.text(
+            "UPDATE part.footprint_defaults SET category_name=:cat, subcategory_name=:sub, "
+            "pcb_footprint=:pcb, step_3d_file=:step, schematic_part=:sch WHERE id=:id"
+        ), {"cat": cat, "sub": sub,
+            "pcb": data.get("pcb_footprint", "").strip(),
+            "step": data.get("step_3d_file", "").strip(),
+            "sch": data.get("schematic_part", "").strip(),
+            "id": row_id})
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return {"success": False, "message": str(e)}, 400
+    return {"success": True, "message": "Default updated"}
+
+
+@part_bp.route("/footprint-defaults/<int:row_id>", methods=["DELETE"])
+def delete_footprint_default(row_id):
+    db.session.execute(db.text(
+        "DELETE FROM part.footprint_defaults WHERE id = :id"
+    ), {"id": row_id})
+    db.session.commit()
+    return {"success": True, "message": "Default deleted"}
+
+
+# --- ALL PARTS EXPORT (multi-category, with all columns + MPN/Make) ---
+
+@part_bp.route("/all-parts-export", methods=["GET"])
+def all_parts_export():
+    """
+    Returns all parts grouped by category, with every dynamic column
+    plus MPN/Make (one row per MPN/Make combination, or one row if none).
+    Used by the frontend to build a multi-sheet Excel export.
+    """
+    tenant_id = request.headers.get("X-Tenant-ID", "")
+    if not tenant_id or tenant_id in ("TEST", ""):
+        tenant_id = "b424df0e-f766-4e94-b3fd-05777e158958"
+
+    # Load all subcategories with category info
+    subs = db.session.execute(db.text(
+        "SELECT s.id, s.name, s.series_prefix, s.columns_config, "
+        "c.id as cat_id, c.name as cat_name, c.series_prefix as cat_series "
+        "FROM part.subcategories s "
+        "JOIN part.categories c ON s.category_id = c.id "
+        "WHERE s.tenant_id = :tid AND s.is_deleted = false "
+        "ORDER BY c.name, s.name"
+    ), {"tid": tenant_id}).fetchall()
+
+    # Load all MPN/Make keyed by part_number
+    mpn_rows = db.session.execute(db.text(
+        "SELECT part_number, mpn, make FROM part.manufacturers ORDER BY part_number, id"
+    )).fetchall()
+    mpn_map = {}
+    for r in mpn_rows:
+        mpn_map.setdefault(r[0], []).append({"mpn": r[1] or "", "make": r[2] or ""})
+
+    # Group subcategories by (cat_name, table_name)
+    import json as _json
+    cat_tables = {}  # cat_name -> list of (sub_id, sub_name, columns_config, table_name)
+    for s in subs:
+        sub_id, sub_name, sub_series, cols_cfg, cat_id, cat_name, cat_series = s
+        tname = _safe_table_name(cat_name, cat_series)
+        cat_tables.setdefault(cat_name, []).append((sub_id, sub_name, cols_cfg, tname))
+
+    result = {}  # cat_name -> list of row dicts
+
+    for cat_name, sub_list in cat_tables.items():
+        # Collect all column names across all subcategories in this category
+        all_col_names = []
+        seen_cols = set()
+        for _, _, cols_cfg, _ in sub_list:
+            try:
+                cols = _json.loads(cols_cfg) if isinstance(cols_cfg, str) else (cols_cfg or [])
+            except Exception:
+                cols = []
+            for c in cols:
+                cname = re.sub(r"[^a-z0-9_]", "_", (c.get("name") or "").lower().strip())
+                if cname and cname not in seen_cols:
+                    seen_cols.add(cname)
+                    all_col_names.append({"name": cname, "label": c.get("label") or cname})
+
+        rows_out = []
+
+        # Group sub_list by table_name
+        by_table = {}
+        for sub_id, sub_name, cols_cfg, tname in sub_list:
+            by_table.setdefault(tname, []).append((sub_id, sub_name))
+
+        for tname, subs_in_table in by_table.items():
+            sub_ids = [s[0] for s in subs_in_table]
+            sub_lookup = {s[0]: s[1] for s in subs_in_table}
+            placeholders = ",".join([f":sid_{i}" for i in range(len(sub_ids))])
+            params = {f"sid_{i}": sid for i, sid in enumerate(sub_ids)}
+
+            try:
+                # Get actual columns in this table
+                actual = {r[0] for r in db.session.execute(db.text(
+                    "SELECT column_name FROM information_schema.columns "
+                    "WHERE table_schema='part' AND table_name=:t"
+                ), {"t": tname.split(".")[-1].strip('"')}).fetchall()}
+
+                # Build SELECT for dynamic columns that exist
+                dyn_selects = []
+                for col in all_col_names:
+                    if col["name"] in actual:
+                        dyn_selects.append(f'COALESCE(CAST("{col["name"]}" AS TEXT),'') as "{col["name"]}"')
+                    else:
+                        dyn_selects.append(f"'' as "{col['name']}"")
+
+                dyn_sql = (", " + ", ".join(dyn_selects)) if dyn_selects else ""
+
+                rows = db.session.execute(db.text(
+                    f"SELECT part_number, subcategory_id, "
+                    f"COALESCE(description,'') as description, "
+                    f"COALESCE(status,'active') as status, "
+                    f"COALESCE(created_by,'') as created_by, "
+                    f"created_at{dyn_sql} "
+                    f"FROM {tname} WHERE subcategory_id IN ({placeholders}) "
+                    f"ORDER BY part_number"
+                ), params).fetchall()
+
+                col_keys = ["part_number", "subcategory_id", "description", "status",
+                            "created_by", "created_at"] + [c["name"] for c in all_col_names]
+
+                for r in rows:
+                    base = dict(zip(col_keys, r))
+                    pn = base["part_number"]
+                    sub_name = sub_lookup.get(base["subcategory_id"], "")
+                    mpns = mpn_map.get(pn, [])
+
+                    common = {
+                        "Part Number": pn,
+                        "Category": cat_name,
+                        "Subcategory": sub_name,
+                        "Description": base.get("description", ""),
+                        "Status": base.get("status", "active"),
+                        "Created By": base.get("created_by", ""),
+                        "Created At": str(base.get("created_at", "") or ""),
+                    }
+                    # Add dynamic columns
+                    for col in all_col_names:
+                        common[col["label"]] = base.get(col["name"], "")
+
+                    if mpns:
+                        for idx, m in enumerate(mpns):
+                            row = dict(common)
+                            row["MPN"] = m["mpn"]
+                            row["Make"] = m["make"]
+                            row["_mpn_idx"] = idx  # internal, stripped before send
+                            rows_out.append(row)
+                    else:
+                        row = dict(common)
+                        row["MPN"] = ""
+                        row["Make"] = ""
+                        rows_out.append(row)
+
+            except Exception as e:
+                db.session.rollback()
+                continue
+
+        # Strip internal keys
+        for row in rows_out:
+            row.pop("_mpn_idx", None)
+
+        result[cat_name] = rows_out
+
+    return {"success": True, "data": result}
