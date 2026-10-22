@@ -239,22 +239,36 @@ def _build_linux(tables, accdb_path):
         tmp_json.close()
 
         import shutil
-        java_bin = shutil.which('java')
-        if not java_bin:
-            # systemctl services have restricted PATH — check common locations
-            # real JVM paths first, /usr/local/bin/java may be a broken wrapper
-            for candidate in [
+
+        def _find_java():
+            # Check PATH first, but validate it actually works
+            candidate = shutil.which('java')
+            if candidate:
+                try:
+                    r = subprocess.run([candidate, '-version'], capture_output=True, timeout=10)
+                    if r.returncode == 0:
+                        return candidate
+                except Exception:
+                    pass
+            # Fall back to known real JVM locations
+            for path in [
                 '/usr/lib/jvm/java-21-openjdk-amd64/bin/java',
                 '/usr/lib/jvm/openjdk-21/bin/java',
                 '/usr/lib/jvm/default-java/bin/java',
                 '/usr/lib/jvm/java-17-openjdk-amd64/bin/java',
                 '/usr/lib/jvm/java-11-openjdk-amd64/bin/java',
                 '/usr/bin/java',
-                '/usr/local/bin/java',
             ]:
-                if os.path.isfile(candidate):
-                    java_bin = candidate
-                    break
+                if os.path.isfile(path):
+                    try:
+                        r = subprocess.run([path, '-version'], capture_output=True, timeout=10)
+                        if r.returncode == 0:
+                            return path
+                    except Exception:
+                        continue
+            return None
+
+        java_bin = _find_java()
         if not java_bin:
             return (
                 "Java is not installed on this server. "
