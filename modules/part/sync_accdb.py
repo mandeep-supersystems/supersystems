@@ -241,6 +241,19 @@ def _build_linux(tables, accdb_path):
         import shutil
         java_bin = shutil.which('java')
         if not java_bin:
+            # systemctl services have restricted PATH — check common locations
+            for candidate in [
+                '/usr/local/bin/java',
+                '/usr/bin/java',
+                '/usr/lib/jvm/default-java/bin/java',
+                '/usr/lib/jvm/java-21-openjdk-amd64/bin/java',
+                '/usr/lib/jvm/java-17-openjdk-amd64/bin/java',
+                '/usr/lib/jvm/java-11-openjdk-amd64/bin/java',
+            ]:
+                if os.path.isfile(candidate):
+                    java_bin = candidate
+                    break
+        if not java_bin:
             return (
                 "Java is not installed on this server. "
                 "Install it with: sudo apt-get install -y default-jre"
