@@ -242,13 +242,15 @@ def _build_linux(tables, accdb_path):
         java_bin = shutil.which('java')
         if not java_bin:
             # systemctl services have restricted PATH — check common locations
+            # real JVM paths first, /usr/local/bin/java may be a broken wrapper
             for candidate in [
-                '/usr/local/bin/java',
-                '/usr/bin/java',
-                '/usr/lib/jvm/default-java/bin/java',
                 '/usr/lib/jvm/java-21-openjdk-amd64/bin/java',
+                '/usr/lib/jvm/openjdk-21/bin/java',
+                '/usr/lib/jvm/default-java/bin/java',
                 '/usr/lib/jvm/java-17-openjdk-amd64/bin/java',
                 '/usr/lib/jvm/java-11-openjdk-amd64/bin/java',
+                '/usr/bin/java',
+                '/usr/local/bin/java',
             ]:
                 if os.path.isfile(candidate):
                     java_bin = candidate
