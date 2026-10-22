@@ -1,7 +1,9 @@
 import os
 from datetime import timedelta
 from dotenv import load_dotenv
-load_dotenv()
+
+_here = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(_here, "..", ".env"), override=True)
 
 
 class BaseConfig:
@@ -18,7 +20,7 @@ class BaseConfig:
 class DevelopmentConfig(BaseConfig):
     DEBUG = True
     SQLALCHEMY_DATABASE_URI = os.getenv(
-        "DATABASE_URL", "postgresql://postgres:Manesar123@localhost:5432/supersystem"
+        "DATABASE_URL", "postgresql+psycopg2://postgres:Manesar123@localhost:5432/supersystem"
     )
     CACHE_TYPE = "SimpleCache"
     RATELIMIT_STORAGE_URI = "memory://"
@@ -27,13 +29,13 @@ class DevelopmentConfig(BaseConfig):
 class TestingConfig(BaseConfig):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = os.getenv(
-        "TEST_DATABASE_URL", "postgresql://postgres:Rewari%40123@localhost:5432/SUPERSYSTEM_test"
+        "TEST_DATABASE_URL", "postgresql+psycopg2://postgres:Rewari%40123@localhost:5432/SUPERSYSTEM_test"
     )
 
 
 class UATConfig(BaseConfig):
     SQLALCHEMY_DATABASE_URI = os.getenv(
-        "UAT_DATABASE_URL", "postgresql://postgres:Rewari%40123@localhost:5432/SUPERSYSTEM_uat"
+        "UAT_DATABASE_URL", "postgresql+psycopg2://postgres:Rewari%40123@localhost:5432/SUPERSYSTEM_uat"
     )
 
 

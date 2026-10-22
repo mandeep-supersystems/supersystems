@@ -238,7 +238,13 @@ def _build_linux(tables, accdb_path):
         json.dump(tables, tmp_json, ensure_ascii=False)
         tmp_json.close()
 
-        import shutil; java_bin = shutil.which('java') or 'java'
+        import shutil
+        java_bin = shutil.which('java')
+        if not java_bin:
+            return (
+                "Java is not installed on this server. "
+                "Install it with: sudo apt-get install -y default-jre"
+            )
         result = subprocess.run(
             [java_bin, '-jar', jar_path, tmp_json.name, accdb_path],
             capture_output=True, text=True, timeout=120

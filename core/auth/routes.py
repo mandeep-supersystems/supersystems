@@ -56,26 +56,34 @@ def org_login():
     if not email or not password:
         return error_response("Email and password required", 400)
 
-    user = User.query.filter(db.func.lower(User.email) == email, User.is_deleted == False).first()
-    
+    try:
+        user = User.query.filter(db.func.lower(User.email) == email, User.is_deleted == False).first()
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f"Database error: {str(e)}", 500)
+
     # If not found in org users, try super admin
     if not user:
-        from core.super_admin.models import SuperAdmin
-        admin = SuperAdmin.query.filter(db.func.lower(SuperAdmin.email) == email, SuperAdmin.is_active == True).first()
-        if admin and bcrypt.checkpw(password.encode(), admin.password_hash.encode()):
-            admin.last_login = datetime.utcnow()
-            db.session.execute(db.text(
-                "INSERT INTO audit.login_history (user_id, email, tenant_id, ip_address, user_agent, login_type, login_at) "
-                "VALUES (:uid, :email, 'platform', :ip, :ua, 'super_admin', NOW())"
-            ), {"uid": admin.id, "email": admin.email, "ip": request.remote_addr, "ua": request.headers.get('User-Agent', '')[:500]})
-            db.session.commit()
-            identity = {"user_id": admin.id, "email": admin.email, "is_super_admin": True, "role": "super_admin"}
-            access_token = create_access_token(identity=identity)
-            refresh_token = create_refresh_token(identity=identity)
-            return success_response({
-                "access_token": access_token, "refresh_token": refresh_token,
-                "user_type": "super_admin", "user": admin.to_dict()
-            })
+        try:
+            from core.super_admin.models import SuperAdmin
+            admin = SuperAdmin.query.filter(db.func.lower(SuperAdmin.email) == email, SuperAdmin.is_active == True).first()
+            if admin and bcrypt.checkpw(password.encode(), admin.password_hash.encode()):
+                admin.last_login = datetime.utcnow()
+                db.session.execute(db.text(
+                    "INSERT INTO audit.login_history (user_id, email, tenant_id, ip_address, user_agent, login_type, login_at) "
+                    "VALUES (:uid, :email, 'platform', :ip, :ua, 'super_admin', NOW())"
+                ), {"uid": admin.id, "email": admin.email, "ip": request.remote_addr, "ua": request.headers.get('User-Agent', '')[:500]})
+                db.session.commit()
+                identity = {"user_id": admin.id, "email": admin.email, "is_super_admin": True, "role": "super_admin"}
+                access_token = create_access_token(identity=identity)
+                refresh_token = create_refresh_token(identity=identity)
+                return success_response({
+                    "access_token": access_token, "refresh_token": refresh_token,
+                    "user_type": "super_admin", "user": admin.to_dict()
+                })
+        except Exception as e:
+            db.session.rollback()
+            return error_response(f"Database error: {str(e)}", 500)
         return error_response("Invalid credentials", 401)
 
     if not bcrypt.checkpw(password.encode(), user.password_hash.encode()):

@@ -3133,9 +3133,9 @@ def all_parts_export():
                 dyn_selects = []
                 for col in all_col_names:
                     if col["name"] in actual:
-                        dyn_selects.append(f'COALESCE(CAST("{col["name"]}" AS TEXT),'') as "{col["name"]}"')
+                        dyn_selects.append(f'COALESCE(CAST("{col["name"]}" AS TEXT), \'\') as "{col["name"]}"')
                     else:
-                        dyn_selects.append(f"'' as "{col['name']}"")
+                        dyn_selects.append(f"'' as \"{col['name']}\"")
 
                 dyn_sql = (", " + ", ".join(dyn_selects)) if dyn_selects else ""
 
