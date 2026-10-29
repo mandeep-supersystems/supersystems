@@ -41,7 +41,7 @@ public class AccdbBuilder {
         File dbFile = new File(accdbPath);
         if (dbFile.exists()) dbFile.delete();
 
-        Database db = DatabaseBuilder.create(Database.FileFormat.V2016, dbFile);
+        Database db = DatabaseBuilder.create(Database.FileFormat.V2010, dbFile);
 
         for (int t = 0; t < tables.length(); t++) {
             JSONObject tbl      = tables.getJSONObject(t);
