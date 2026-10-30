@@ -33,6 +33,10 @@ SYSTEM_COLS = {
     'is_bought_out', 'is_manufactured',
 }
 
+COLUMN_RENAMES = {
+    'mounting_type': 'Part Type',
+}
+
 
 def _clean(v):
     """Coerce any value to a clean string for Access (max 255 chars)."""
@@ -105,6 +109,7 @@ def _extract_data(db, cats):
             + [c for c in custom if c in pg_cols and c not in SYSTEM_COLS and c not in seen and not seen.add(c)]
             + ['pcb_footprint', 'step_3d_file']
         )
+        include_display = [COLUMN_RENAMES.get(c, c) for c in include]
 
         # Footprint lookup
         pns = [str(r[pg_cols.index('part_number')]) for r in pg_rows]
@@ -137,7 +142,7 @@ def _extract_data(db, cats):
 
         tables.append({
             'acc_table': acc_table,
-            'columns':   include,
+            'columns':   include_display,
             'rows':      rows_out,
         })
 
