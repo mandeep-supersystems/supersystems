@@ -293,6 +293,51 @@ def _build_linux(tables, accdb_path):
     return ''
 
 
+# ── CIS Manufacturer Parts table ─────────────────────────────────────────────
+
+def _extract_cis_manufacturer_parts(db):
+    """
+    Builds the cis_manufacturer_parts table — all parts with MPN/make data.
+    Columns: Part Number, Manufacturer, Manufacturer PN, Manufacturer PN Status, Datasheet
+    """
+    try:
+        rows = db.session.execute(db.text(
+            "SELECT m.part_number, m.make, m.mpn, "
+            "COALESCE(m.mpn_status, '') as mpn_status, "
+            "COALESCE(m.datasheet, '') as datasheet "
+            "FROM part.manufacturers m "
+            "WHERE (m.mpn IS NOT NULL AND m.mpn != '') "
+            "   OR (m.make IS NOT NULL AND m.make != '') "
+            "ORDER BY m.part_number, m.mpn"
+        )).fetchall()
+    except Exception:
+        db.session.rollback()
+        # Fallback if mpn_status/datasheet columns don't exist yet
+        try:
+            rows = db.session.execute(db.text(
+                "SELECT part_number, make, mpn, '' as mpn_status, '' as datasheet "
+                "FROM part.manufacturers "
+                "WHERE (mpn IS NOT NULL AND mpn != '') OR (make IS NOT NULL AND make != '') "
+                "ORDER BY part_number, mpn"
+            )).fetchall()
+        except Exception:
+            db.session.rollback()
+            return None
+
+    if not rows:
+        return None
+
+    return {
+        'acc_table': 'cis_manufacturer_parts',
+        'columns':   ['Part Number', 'Manufacturer', 'Manufacturer PN',
+                      'Manufacturer PN Status', 'Datasheet'],
+        'rows': [
+            [_clean(r[0]), _clean(r[1]), _clean(r[2]), _clean(r[3]), _clean(r[4])]
+            for r in rows
+        ]
+    }
+
+
 # ── public entry point ────────────────────────────────────────────────────────
 
 def sync_accdb(db):
@@ -314,6 +359,11 @@ def sync_accdb(db):
     )).fetchall()
 
     tables = _extract_data(db, cats)
+
+    # Append fixed CIS manufacturer parts table
+    cis_table = _extract_cis_manufacturer_parts(db)
+    if cis_table:
+        tables.append(cis_table)
 
     if not tables:
         return None, "No part data found to export"
