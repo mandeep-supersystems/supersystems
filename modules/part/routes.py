@@ -2393,6 +2393,9 @@ def get_part_detail(part_number):
     footprints = [{"id": str(r[0]), "pcb_footprint": r[1] or "", "step_3d_file": r[2] or "",
                    "schematic_part": r[3] or "", "created_at": str(r[4]) if r[4] else None} for r in fp_rows]
 
+    # Attach schematic_part to part_data from parts_footprints (first entry)
+    part_data["schematic_part"] = fp_rows[0][3] or "" if fp_rows else ""
+
     return {"success": True, "data": {
         "part": part_data,
         "manufacturers": aml_list,
@@ -2942,8 +2945,8 @@ def add_part_footprint():
     step = data.get("step_3d_file", "").strip()
     if not pn:
         return {"success": False, "message": "part_number required"}, 400
-    if not pcb and not step:
-        return {"success": False, "message": "At least PCB Footprint or 3D Step File is required"}, 400
+    if not pcb and not step and not data.get("schematic_part", "").strip():
+        return {"success": False, "message": "At least one field is required"}, 400
     sch = data.get("schematic_part", "").strip()
     new_id = db.session.execute(db.text(
         "INSERT INTO part.parts_footprints (part_number, pcb_footprint, step_3d_file, schematic_part) "
