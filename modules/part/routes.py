@@ -2394,7 +2394,7 @@ def get_part_detail(part_number):
                    "schematic_part": r[3] or "", "created_at": str(r[4]) if r[4] else None} for r in fp_rows]
 
     # Attach schematic_part to part_data from parts_footprints (first entry)
-    part_data["schematic_part"] = fp_rows[0][3] or "" if fp_rows else ""
+    part_data["schematic_part"] = (fp_rows[0][3] or "") if fp_rows else ""
 
     return {"success": True, "data": {
         "part": part_data,
