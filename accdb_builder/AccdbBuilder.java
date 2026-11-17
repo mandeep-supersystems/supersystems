@@ -49,16 +49,18 @@ public class AccdbBuilder {
             JSONArray  cols     = tbl.getJSONArray("columns");
             JSONArray  rows     = tbl.getJSONArray("rows");
 
-            // Build column list — all TEXT
+            // Build column list — all TEXT, deduplicating names (case-insensitive)
             TableBuilder tb = new TableBuilder(accTable);
+            List<String> colNames = new ArrayList<>();
+            Set<String> seenCols = new LinkedHashSet<>();
             for (int c = 0; c < cols.length(); c++) {
-                tb.addColumn(new ColumnBuilder(cols.getString(c), DataType.TEXT).setLength((short) 255).toColumn());
+                String colName = cols.getString(c);
+                if (seenCols.add(colName.toLowerCase())) {
+                    tb.addColumn(new ColumnBuilder(colName, DataType.TEXT).setLength((short) 255).toColumn());
+                    colNames.add(colName);
+                }
             }
             Table table = tb.toTable(db);
-
-            // Insert rows
-            List<String> colNames = new ArrayList<>();
-            for (int c = 0; c < cols.length(); c++) colNames.add(cols.getString(c));
 
             for (int r = 0; r < rows.length(); r++) {
                 JSONArray row = rows.getJSONArray(r);
