@@ -14,6 +14,11 @@ CREATE TABLE IF NOT EXISTS part.cis_manufacturer_parts (
 
 CREATE INDEX IF NOT EXISTS idx_cis_mfr_parts_pn ON part.cis_manufacturer_parts(part_number);
 
+-- Ensure mpn_status and datasheet exist on part.manufacturers
+ALTER TABLE part.manufacturers
+    ADD COLUMN IF NOT EXISTS mpn_status TEXT DEFAULT 'Active',
+    ADD COLUMN IF NOT EXISTS datasheet  TEXT DEFAULT '';
+
 -- Populate from existing part.manufacturers data
 INSERT INTO part.cis_manufacturer_parts (part_number, manufacturer, manufacturer_pn, manufacturer_pn_status, datasheet)
 SELECT
