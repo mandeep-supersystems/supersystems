@@ -150,7 +150,17 @@ def _extract_data(db, cats):
             if c not in _seen_inc:
                 _seen_inc.add(c)
                 include.append(c)
-        include_display = [COLUMN_RENAMES.get(c, c) for c in include]
+        # Deduplicate display names (what Java sees) — final safety net
+        _seen_disp = set()
+        include_final = []
+        include_display = []
+        for c in include:
+            d = COLUMN_RENAMES.get(c, c)
+            if d not in _seen_disp:
+                _seen_disp.add(d)
+                include_final.append(c)
+                include_display.append(d)
+        include = include_final
 
         rows_out = []
         for row in pg_rows:
