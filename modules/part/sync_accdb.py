@@ -130,8 +130,8 @@ def _extract_data(db, cats):
         seen = {'part_number', 'description'}
         custom_cols = [c for c in custom if c in pg_cols and c not in SYSTEM_COLS and c not in seen and not seen.add(c)]
 
-        # schematic_part comes from category table; add it after custom_cols if not already included
-        has_sch = 'schematic_part' in pg_cols
+        # schematic_part comes from category table; add it after custom_cols only if not already in custom_cols
+        has_sch = 'schematic_part' in pg_cols and 'schematic_part' not in custom_cols
         fp_cols = (['schematic_part'] if has_sch else []) + ['pcb_footprint', 'step_3d_file']
 
         # pcb_footprint and step_3d_file still come from parts_footprints
