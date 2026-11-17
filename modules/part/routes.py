@@ -2393,8 +2393,9 @@ def get_part_detail(part_number):
     footprints = [{"id": str(r[0]), "pcb_footprint": r[1] or "", "step_3d_file": r[2] or "",
                    "schematic_part": r[3] or "", "created_at": str(r[4]) if r[4] else None} for r in fp_rows]
 
-    # Attach schematic_part: prefer category table column, fall back to parts_footprints
-    if "schematic_part" not in part_data or part_data.get("schematic_part") is None:
+    # Attach schematic_part: prefer category table column if non-empty, fall back to parts_footprints
+    cat_sch = part_data.get("schematic_part")
+    if not cat_sch or str(cat_sch).strip() == "":
         part_data["schematic_part"] = (fp_rows[0][3] or "") if fp_rows else ""
 
     return {"success": True, "data": {
