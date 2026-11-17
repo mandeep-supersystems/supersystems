@@ -34,7 +34,13 @@ SYSTEM_COLS = {
 }
 
 COLUMN_RENAMES = {
-    'mounting_type': 'Part Type',
+    'mounting_type':  'Part Type',
+    'connector_type': 'Part Type',
+    'antenna_type':   'Part Type',
+    'bobbin_type':    'Part Type',
+    'core_type':      'Part Type',
+    'adhesive_type':  'Part Type',
+    'type':           'Part Type',
 }
 
 
@@ -49,8 +55,8 @@ def _clean(v):
 
 
 def _acc_table_name(cat_name):
-    """Safe Access table name — alphanumeric + underscore, max 60 chars."""
-    return re.sub(r'[^A-Za-z0-9_]', '_', cat_name)[:60]
+    """Safe Access table name — alphanumeric + space + underscore, max 60 chars."""
+    return re.sub(r'[^A-Za-z0-9_ ]', '_', cat_name).strip()[:60]
 
 
 # ── data extraction from PostgreSQL ──────────────────────────────────────────
