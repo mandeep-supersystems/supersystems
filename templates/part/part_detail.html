@@ -361,6 +361,7 @@
                                     <table class="data-table">
                                         <thead>
                                             <tr>
+                                                <th>Schematic Part</th>
                                                 <th>PCB Footprint</th>
                                                 <th>3D Step File</th>
                                                 <th>Added</th>
@@ -368,7 +369,7 @@
                                             </tr>
                                         </thead>
                                         <tbody id="pdFootprintsBody">
-                                            <tr><td colspan="4" class="empty">No footprints added.</td></tr>
+                                            <tr><td colspan="5" class="empty">No footprints added.</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
@@ -671,12 +672,16 @@
             <form id="footprintForm" onsubmit="saveFootprint(event)">
                 <input type="hidden" id="fpId">
                 <div class="form-group">
+                    <label>Schematic Part</label>
+                    <input type="text" id="fpSch" placeholder="e.g. CAP_CER">
+                </div>
+                <div class="form-group">
                     <label>PCB Footprint</label>
-                    <input type="text" id="fpPcb" placeholder="e.g. Resistor_SMD:R_0402_1005Metric">
+                    <input type="text" id="fpPcb" placeholder="e.g. SMD_CAP_0603">
                 </div>
                 <div class="form-group">
                     <label>3D Step File</label>
-                    <input type="text" id="fpStep" placeholder="e.g. Resistor_SMD.3dshapes:R_0402_1005Metric.step">
+                    <input type="text" id="fpStep" placeholder="e.g. SMD_CAP_0603">
                 </div>
                 <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px">At least one field is required.</div>
                 <div class="modal-actions">
@@ -1455,15 +1460,16 @@
             const tbody = document.getElementById('pdFootprintsBody');
             const cnt = list ? list.length : 0;
             if (!list || cnt === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" class="empty">No footprints added yet.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" class="empty">No footprints added yet.</td></tr>';
                 return;
             }
             tbody.innerHTML = list.map(fp => `<tr>
+                <td><code style="font-size:12px">${esc(fp.schematic_part || '—')}</code></td>
                 <td><code style="font-size:12px">${esc(fp.pcb_footprint || '—')}</code></td>
                 <td><code style="font-size:12px">${esc(fp.step_3d_file || '—')}</code></td>
                 <td style="font-size:12px;color:var(--text-muted)">${formatDate(fp.created_at)}</td>
                 <td style="text-align:right;white-space:nowrap">
-                    <button class="pd-edit-btn" style="padding:3px 8px;font-size:11px" onclick="openEditFootprintModal('${fp.id}','${esc(fp.pcb_footprint||'')}','${esc(fp.step_3d_file||'')}')">
+                    <button class="pd-edit-btn" style="padding:3px 8px;font-size:11px" onclick="openEditFootprintModal('${fp.id}','${esc(fp.schematic_part||'')}','${esc(fp.pcb_footprint||'')}','${esc(fp.step_3d_file||'')}')">
                         <span class="material-icons-outlined" style="font-size:14px">edit</span>
                     </button>
                     <button class="btn-obs" style="margin-left:4px" onclick="deleteFootprint('${fp.id}')">
@@ -1476,14 +1482,16 @@
         function openAddFootprintModal() {
             document.getElementById('fpModalTitle').textContent = 'Add Footprint';
             document.getElementById('fpId').value = '';
+            document.getElementById('fpSch').value = '';
             document.getElementById('fpPcb').value = '';
             document.getElementById('fpStep').value = '';
             partOpenModal('footprintModal');
         }
 
-        function openEditFootprintModal(id, pcb, step) {
+        function openEditFootprintModal(id, sch, pcb, step) {
             document.getElementById('fpModalTitle').textContent = 'Edit Footprint';
             document.getElementById('fpId').value = id;
+            document.getElementById('fpSch').value = sch;
             document.getElementById('fpPcb').value = pcb;
             document.getElementById('fpStep').value = step;
             partOpenModal('footprintModal');
@@ -1492,9 +1500,10 @@
         async function saveFootprint(e) {
             e.preventDefault();
             const id = document.getElementById('fpId').value;
+            const sch = document.getElementById('fpSch').value.trim();
             const pcb = document.getElementById('fpPcb').value.trim();
             const step = document.getElementById('fpStep').value.trim();
-            if (!pcb && !step) { showToast('Enter at least PCB Footprint or 3D Step File', 'error'); return; }
+            if (!sch && !pcb && !step) { showToast('Enter at least one field', 'error'); return; }
             const btn = document.getElementById('btnSaveFootprint');
             btn.disabled = true; btn.textContent = 'Saving...';
             try {
@@ -1502,12 +1511,12 @@
                 if (id) {
                     res = await fetch(`${API}/part-footprints/${id}`, {
                         method: 'PUT', headers: getHeaders(),
-                        body: JSON.stringify({ pcb_footprint: pcb, step_3d_file: step })
+                        body: JSON.stringify({ schematic_part: sch, pcb_footprint: pcb, step_3d_file: step })
                     });
                 } else {
                     res = await fetch(`${API}/part-footprints`, {
                         method: 'POST', headers: getHeaders(),
-                        body: JSON.stringify({ part_number: PART_NUMBER, pcb_footprint: pcb, step_3d_file: step })
+                        body: JSON.stringify({ part_number: PART_NUMBER, schematic_part: sch, pcb_footprint: pcb, step_3d_file: step })
                     });
                 }
                 const d = await res.json();
