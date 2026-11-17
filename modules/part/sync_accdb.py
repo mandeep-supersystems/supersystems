@@ -321,6 +321,10 @@ def _build_linux(tables, accdb_path):
                 "Java is not installed on this server. "
                 "Install it with: sudo apt-get install -y default-jre"
             )
+        # Debug: print table names being sent to Java
+        import sys
+        for _t in tables:
+            print(f"[accdb] table: {_t['acc_table']!r}", file=sys.stderr)
         result = subprocess.run(
             [java_bin, '-jar', jar_path, tmp_json.name, accdb_path],
             capture_output=True, text=True, timeout=120
