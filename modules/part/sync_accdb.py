@@ -83,6 +83,24 @@ def _extract_data(db, cats):
 
         pg_table = _safe_table_name(cat_name, cat_series)
 
+        # Ensure all configured columns physically exist in the table
+        type_map = {
+            'varchar': 'VARCHAR(255)', 'numeric': 'NUMERIC(14,4)',
+            'boolean': 'BOOLEAN', 'date': 'DATE', 'text': 'TEXT',
+        }
+        for col in cols_cfg:
+            cname = re.sub(r'[^a-z0-9_]', '_', col['name'].lower().strip())
+            if not cname or cname in SYSTEM_COLS:
+                continue
+            ctype = type_map.get(col.get('type', 'varchar'), 'VARCHAR(255)')
+            try:
+                db.session.execute(db.text(
+                    f'ALTER TABLE {pg_table} ADD COLUMN IF NOT EXISTS "{cname}" {ctype}'
+                ))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
         try:
             result  = db.session.execute(db.text(
                 f"SELECT * FROM {pg_table} "
