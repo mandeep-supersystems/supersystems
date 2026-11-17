@@ -810,8 +810,10 @@
             const inputs = document.querySelectorAll('#pdAttributes .pd-inline-input');
             const headers = getHeaders();
             const fields = {};
-            inputs.forEach(inp => { if (inp.dataset.field && inp.dataset.field !== 'schematic_part') fields[inp.dataset.field] = inp.value.trim(); });
-            const newSch = (document.getElementById('attrSchematicPart')?.value || '').trim();
+            inputs.forEach(inp => { if (inp.dataset.field) fields[inp.dataset.field] = inp.value.trim(); });
+            // If schematic_part is not in colsConfig inputs, pick it from the standalone input
+            const schInput = document.getElementById('attrSchematicPart');
+            if (schInput && !fields.hasOwnProperty('schematic_part')) fields['schematic_part'] = schInput.value.trim();
             try {
                 const res = await fetch(`${API}/part-attributes-update`, {
                     method: 'POST', headers,
@@ -825,20 +827,6 @@
                     document.getElementById('pdPartDesc').textContent = d.data.description || 'No description';
                     document.getElementById('sbPartDesc').textContent = d.data.description || '';
                 }
-                // Save schematic_part to parts_footprints (never to category table)
-                const fps = _partData.footprints || [];
-                if (fps.length > 0) {
-                    await fetch(`${API}/part-footprints/${fps[0].id}`, {
-                        method: 'PUT', headers,
-                        body: JSON.stringify({ schematic_part: newSch, pcb_footprint: fps[0].pcb_footprint || '', step_3d_file: fps[0].step_3d_file || '' })
-                    });
-                } else if (newSch) {
-                    await fetch(`${API}/part-footprints`, {
-                        method: 'POST', headers,
-                        body: JSON.stringify({ part_number: PART_NUMBER, schematic_part: newSch, pcb_footprint: '', step_3d_file: '' })
-                    });
-                }
-                _partData.part.schematic_part = newSch;
                 showToast('Attributes saved', 'success');
                 _attrEditMode = false;
                 const btn = document.getElementById('attrEditBtn');

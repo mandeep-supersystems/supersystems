@@ -1946,7 +1946,7 @@ def update_part_attributes():
         params = {"pn": part_number}
         for field, value in fields.items():
             safe_field = re.sub(r'[^a-z0-9_]', '_', field.lower().strip())
-            if safe_field in ('id', 'part_number', 'created_at', 'status', 'description'):
+            if safe_field in ('id', 'part_number', 'created_at', 'status', 'description', 'subcategory_id'):
                 continue
             set_clauses.append(f'"{safe_field}" = :{safe_field}')
             params[safe_field] = value if value != "" else None
@@ -2393,8 +2393,9 @@ def get_part_detail(part_number):
     footprints = [{"id": str(r[0]), "pcb_footprint": r[1] or "", "step_3d_file": r[2] or "",
                    "schematic_part": r[3] or "", "created_at": str(r[4]) if r[4] else None} for r in fp_rows]
 
-    # Attach schematic_part to part_data from parts_footprints (first entry)
-    part_data["schematic_part"] = (fp_rows[0][3] or "") if fp_rows else ""
+    # Attach schematic_part: prefer category table column, fall back to parts_footprints
+    if "schematic_part" not in part_data or part_data.get("schematic_part") is None:
+        part_data["schematic_part"] = (fp_rows[0][3] or "") if fp_rows else ""
 
     return {"success": True, "data": {
         "part": part_data,
