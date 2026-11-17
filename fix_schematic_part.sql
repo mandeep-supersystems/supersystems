@@ -2,6 +2,7 @@
 DO $$
 DECLARE
   r RECORD;
+  tname TEXT;
 BEGIN
   FOR r IN 
     SELECT name, series_prefix FROM part.categories 
@@ -12,9 +13,11 @@ BEGIN
     )
     AND is_deleted = false
   LOOP
+    -- Clean name: lowercase, replace spaces and special chars with underscore
+    tname := regexp_replace(lower(r.name), '[^a-z0-9]+', '_', 'g') || '_' || r.series_prefix;
     EXECUTE format(
       'ALTER TABLE part.%I ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255)',
-      lower(replace(r.name,' ','_')) || '_' || r.series_prefix
+      tname
     );
   END LOOP;
 END $$;
