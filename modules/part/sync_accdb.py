@@ -104,9 +104,12 @@ def _extract_data(db, cats):
             for c in cols_cfg
         ]
         seen = {'part_number', 'description'}
+        custom_cols = [c for c in custom if c in pg_cols and c not in SYSTEM_COLS and c not in seen and not seen.add(c)]
+        schematic = ['schematic_part'] if 'schematic_part' in pg_cols and 'schematic_part' not in seen else []
         include = (
             ['part_number', 'description']
-            + [c for c in custom if c in pg_cols and c not in SYSTEM_COLS and c not in seen and not seen.add(c)]
+            + custom_cols
+            + schematic
             + ['pcb_footprint', 'step_3d_file']
         )
         include_display = [COLUMN_RENAMES.get(c, c) for c in include]
