@@ -2045,17 +2045,27 @@ def get_part_detail(part_number):
                 part_data['category_id'] = sub_info.get('cat_id', cat[0])
                 part_data['subcategory'] = sub_info.get('sub_name', '')
                 part_data['subcategory_id'] = sid
-                # Use columns_config from subcategory record (properly set)
-                sub_cols_cfg = sub_info.get('columns_config')
-                if sub_cols_cfg:
-                    part_data['columns_config'] = sub_cols_cfg if isinstance(sub_cols_cfg, list) else (json.loads(sub_cols_cfg) if sub_cols_cfg else [])
+                # Use category columns_config as authoritative source
+                cat_id_for_cfg = sub_info.get('cat_id', cat[0])
+                cat_cfg_row = db.session.execute(db.text(
+                    "SELECT columns_config FROM part.categories WHERE id = :id AND is_deleted = false"
+                ), {"id": cat_id_for_cfg}).first()
+                cat_cols_cfg = None
+                if cat_cfg_row and cat_cfg_row[0]:
+                    cat_cols_cfg = cat_cfg_row[0] if isinstance(cat_cfg_row[0], list) else (json.loads(cat_cfg_row[0]) if cat_cfg_row[0] else None)
+                if cat_cols_cfg:
+                    part_data['columns_config'] = cat_cols_cfg
                 else:
-                    part_data['columns_config'] = [
-                        {"name": k, "label": k.replace('_', ' ').title(), "type": "varchar"}
-                        for k in part_data.keys()
-                        if k not in SYSTEM_COLS
-                        and k not in ('category','category_id','subcategory','subcategory_id','columns_config')
-                    ]
+                    sub_cols_cfg = sub_info.get('columns_config')
+                    if sub_cols_cfg:
+                        part_data['columns_config'] = sub_cols_cfg if isinstance(sub_cols_cfg, list) else (json.loads(sub_cols_cfg) if sub_cols_cfg else [])
+                    else:
+                        part_data['columns_config'] = [
+                            {"name": k, "label": k.replace('_', ' ').title(), "type": "varchar"}
+                            for k in part_data.keys()
+                            if k not in SYSTEM_COLS
+                            and k not in ('category','category_id','subcategory','subcategory_id','columns_config')
+                        ]
                 break
         except Exception:
             db.session.rollback()
