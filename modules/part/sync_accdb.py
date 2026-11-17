@@ -346,34 +346,66 @@ def _build_linux(tables, accdb_path):
 
 # ── CIS Manufacturer Parts table ─────────────────────────────────────────────
 
-def _extract_cis_manufacturer_parts(db):
+def _sync_cis_table(db):
     """
-    Builds the cis_manufacturer_parts table — all parts with MPN/make data.
-    Columns: Part Number, Manufacturer, Manufacturer PN, Manufacturer PN Status, Datasheet
+    Ensure part.cis_manufacturer_parts exists and is up-to-date from part.manufacturers.
+    Creates the table if missing, then does a full refresh.
     """
     try:
+        db.session.execute(db.text("""
+            CREATE TABLE IF NOT EXISTS part.cis_manufacturer_parts (
+                id                     SERIAL PRIMARY KEY,
+                part_number            VARCHAR(100) NOT NULL,
+                manufacturer           VARCHAR(255) DEFAULT '',
+                manufacturer_pn        VARCHAR(255) DEFAULT '',
+                manufacturer_pn_status VARCHAR(100) DEFAULT '',
+                datasheet              TEXT DEFAULT '',
+                created_at             TIMESTAMP DEFAULT NOW(),
+                updated_at             TIMESTAMP DEFAULT NOW()
+            )
+        """))
+        db.session.execute(db.text(
+            "CREATE INDEX IF NOT EXISTS idx_cis_mfr_parts_pn "
+            "ON part.cis_manufacturer_parts(part_number)"
+        ))
+        # Full refresh: truncate and re-insert from part.manufacturers
+        db.session.execute(db.text("TRUNCATE part.cis_manufacturer_parts RESTART IDENTITY"))
+        db.session.execute(db.text("""
+            INSERT INTO part.cis_manufacturer_parts
+                (part_number, manufacturer, manufacturer_pn, manufacturer_pn_status, datasheet)
+            SELECT
+                m.part_number,
+                COALESCE(m.make, ''),
+                COALESCE(m.mpn, ''),
+                COALESCE(m.mpn_status, ''),
+                COALESCE(m.datasheet, '')
+            FROM part.manufacturers m
+            WHERE (m.mpn IS NOT NULL AND m.mpn != '')
+               OR (m.make IS NOT NULL AND m.make != '')
+            ORDER BY m.part_number, m.mpn
+        """))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+
+def _extract_cis_manufacturer_parts(db):
+    """
+    Syncs part.cis_manufacturer_parts then reads from it for the accdb export.
+    Columns: Part Number, Manufacturer, Manufacturer PN, Manufacturer PN Status, Datasheet
+    """
+    _sync_cis_table(db)
+
+    try:
         rows = db.session.execute(db.text(
-            "SELECT m.part_number, m.make, m.mpn, "
-            "COALESCE(m.mpn_status, '') as mpn_status, "
-            "COALESCE(m.datasheet, '') as datasheet "
-            "FROM part.manufacturers m "
-            "WHERE (m.mpn IS NOT NULL AND m.mpn != '') "
-            "   OR (m.make IS NOT NULL AND m.make != '') "
-            "ORDER BY m.part_number, m.mpn"
+            "SELECT part_number, manufacturer, manufacturer_pn, "
+            "manufacturer_pn_status, datasheet "
+            "FROM part.cis_manufacturer_parts "
+            "ORDER BY part_number, manufacturer_pn"
         )).fetchall()
     except Exception:
         db.session.rollback()
-        # Fallback if mpn_status/datasheet columns don't exist yet
-        try:
-            rows = db.session.execute(db.text(
-                "SELECT part_number, make, mpn, '' as mpn_status, '' as datasheet "
-                "FROM part.manufacturers "
-                "WHERE (mpn IS NOT NULL AND mpn != '') OR (make IS NOT NULL AND make != '') "
-                "ORDER BY part_number, mpn"
-            )).fetchall()
-        except Exception:
-            db.session.rollback()
-            return None
+        return None
 
     if not rows:
         return None
