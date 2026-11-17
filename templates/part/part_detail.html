@@ -762,13 +762,16 @@
             if (!_partData) return;
             const part = _partData.part;
             const colsConfig = part.columns_config || [];
+            const configHasSch = colsConfig.some(c => c.name.toLowerCase().replace(/[^a-z0-9]/g,'_') === 'schematic_part');
             const rows = colsConfig.map(c => {
                 const key = c.name.toLowerCase().replace(/[^a-z0-9]/g, '_');
-                const val = part[key];
+                const val = key === 'schematic_part' ? (part.schematic_part || '') : part[key];
                 return `<div class="pd-attr-row"><div class="pd-attr-label">${esc(c.label || c.name)}</div><div class="pd-attr-val">${esc(val != null && val !== '' ? String(val) : '\u2014')}</div></div>`;
             });
-            const schVal = part.schematic_part || '';
-            rows.push(`<div class="pd-attr-row"><div class="pd-attr-label">Schematic Part</div><div class="pd-attr-val">${esc(schVal || '\u2014')}</div></div>`);
+            if (!configHasSch) {
+                const schVal = part.schematic_part || '';
+                rows.push(`<div class="pd-attr-row"><div class="pd-attr-label">Schematic Part</div><div class="pd-attr-val">${esc(schVal || '\u2014')}</div></div>`);
+            }
             document.getElementById('pdAttributes').innerHTML = rows.join('') || '<div class="empty">No attributes defined.</div>';
         }
 
@@ -776,19 +779,24 @@
             if (!_partData) return;
             const part = _partData.part;
             const colsConfig = part.columns_config || [];
+            const configHasSch = colsConfig.some(c => c.name.toLowerCase().replace(/[^a-z0-9]/g,'_') === 'schematic_part');
             const inputs = colsConfig.map(c => {
                 const key = c.name.toLowerCase().replace(/[^a-z0-9]/g, '_');
-                const val = part[key] != null ? part[key] : '';
+                const val = key === 'schematic_part' ? (part.schematic_part || '') : (part[key] != null ? part[key] : '');
+                const inputId = key === 'schematic_part' ? ' id="attrSchematicPart"' : '';
                 return `<div class="pd-attr-row">
             <div class="pd-attr-label">${esc(c.label || c.name)}</div>
-            <div class="pd-attr-val"><input class="pd-inline-input" data-field="${esc(key)}" value="${esc(String(val))}"></div>
+            <div class="pd-attr-val"><input class="pd-inline-input" data-field="${esc(key)}"${inputId} value="${esc(String(val))}"></div>
         </div>`;
             }).join('');
-            const schVal = part.schematic_part || '';
-            const schInput = `<div class="pd-attr-row">
+            let schInput = '';
+            if (!configHasSch) {
+                const schVal = part.schematic_part || '';
+                schInput = `<div class="pd-attr-row">
             <div class="pd-attr-label">Schematic Part</div>
             <div class="pd-attr-val"><input class="pd-inline-input" id="attrSchematicPart" value="${esc(schVal)}"></div>
         </div>`;
+            }
             document.getElementById('pdAttributes').innerHTML = inputs + schInput +
                 `<div style="padding:12px 18px;display:flex;gap:8px;border-top:1px solid var(--border-color)">
             <button class="pd-save-btn" onclick="saveAttrEdit()"><span class="material-icons-outlined">save</span> Save Changes</button>
@@ -802,7 +810,7 @@
             const inputs = document.querySelectorAll('#pdAttributes .pd-inline-input');
             const headers = getHeaders();
             const fields = {};
-            inputs.forEach(inp => { if (inp.dataset.field) fields[inp.dataset.field] = inp.value.trim(); });
+            inputs.forEach(inp => { if (inp.dataset.field && inp.dataset.field !== 'schematic_part') fields[inp.dataset.field] = inp.value.trim(); });
             const newSch = (document.getElementById('attrSchematicPart')?.value || '').trim();
             try {
                 const res = await fetch(`${API}/part-attributes-update`, {
@@ -817,7 +825,7 @@
                     document.getElementById('pdPartDesc').textContent = d.data.description || 'No description';
                     document.getElementById('sbPartDesc').textContent = d.data.description || '';
                 }
-                // Save schematic_part to parts_footprints
+                // Save schematic_part to parts_footprints (never to category table)
                 const fps = _partData.footprints || [];
                 if (fps.length > 0) {
                     await fetch(`${API}/part-footprints/${fps[0].id}`, {
