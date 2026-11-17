@@ -369,7 +369,7 @@ def _extract_cis_manufacturer_parts(db):
         return None
 
     return {
-        'acc_table': 'cis_manufacturer_parts',
+        'acc_table': 'Cis Manufacturer Parts',
         'columns':   ['Part Number', 'Manufacturer', 'Manufacturer PN',
                       'Manufacturer PN Status', 'Datasheet'],
         'rows': [
