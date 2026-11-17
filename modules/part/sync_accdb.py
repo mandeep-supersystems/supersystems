@@ -321,10 +321,6 @@ def _build_linux(tables, accdb_path):
                 "Java is not installed on this server. "
                 "Install it with: sudo apt-get install -y default-jre"
             )
-        # Debug: print table names being sent to Java
-        import sys
-        for _t in tables:
-            print(f"[accdb] table: {_t['acc_table']!r}", file=sys.stderr)
         result = subprocess.run(
             [java_bin, '-jar', jar_path, tmp_json.name, accdb_path],
             capture_output=True, text=True, timeout=120
@@ -344,13 +340,32 @@ def _build_linux(tables, accdb_path):
     return ''
 
 
-# ── CIS Manufacturer Parts table ─────────────────────────────────────────────
+# ── CIS Manufacturer Parts — fixed schema ────────────────────────────────────
 
-def _sync_cis_table(db):
+_CIS_ACC_TABLE = 'Cis Manufacturer Parts'
+_CIS_ACCDB_COLS = [
+    'Part Number', 'Manufacturer', 'Manufacturer PN',
+    'Manufacturer PN Status', 'Datasheet',
+]
+
+
+def _extract_cis_manufacturer_parts(db):
     """
-    Ensure part.cis_manufacturer_parts exists and is up-to-date from part.manufacturers.
-    Creates the table if missing, then does a full refresh.
+    Reads directly from part.cis_manufacturer_parts (fixed table, duplicate part_number allowed).
+    Returns a table dict with acc_table = 'Cis Manufacturer Parts'.
     """
+    # Ensure mpn_status / datasheet columns exist on part.manufacturers
+    try:
+        db.session.execute(db.text(
+            "ALTER TABLE part.manufacturers "
+            "ADD COLUMN IF NOT EXISTS mpn_status TEXT DEFAULT 'Active', "
+            "ADD COLUMN IF NOT EXISTS datasheet TEXT DEFAULT ''"
+        ))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    # Ensure the table exists
     try:
         db.session.execute(db.text("""
             CREATE TABLE IF NOT EXISTS part.cis_manufacturer_parts (
@@ -368,7 +383,12 @@ def _sync_cis_table(db):
             "CREATE INDEX IF NOT EXISTS idx_cis_mfr_parts_pn "
             "ON part.cis_manufacturer_parts(part_number)"
         ))
-        # Full refresh: truncate and re-insert from part.manufacturers
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    # Full refresh from part.manufacturers
+    try:
         db.session.execute(db.text("TRUNCATE part.cis_manufacturer_parts RESTART IDENTITY"))
         db.session.execute(db.text("""
             INSERT INTO part.cis_manufacturer_parts
@@ -388,14 +408,7 @@ def _sync_cis_table(db):
     except Exception:
         db.session.rollback()
 
-
-def _extract_cis_manufacturer_parts(db):
-    """
-    Syncs part.cis_manufacturer_parts then reads from it for the accdb export.
-    Columns: Part Number, Manufacturer, Manufacturer PN, Manufacturer PN Status, Datasheet
-    """
-    _sync_cis_table(db)
-
+    # Read from the table
     try:
         rows = db.session.execute(db.text(
             "SELECT part_number, manufacturer, manufacturer_pn, "
@@ -411,13 +424,12 @@ def _extract_cis_manufacturer_parts(db):
         return None
 
     return {
-        'acc_table': 'Cis Manufacturer Parts',
-        'columns':   ['Part Number', 'Manufacturer', 'Manufacturer PN',
-                      'Manufacturer PN Status', 'Datasheet'],
+        'acc_table': _CIS_ACC_TABLE,
+        'columns':   _CIS_ACCDB_COLS,
         'rows': [
             [_clean(r[0]), _clean(r[1]), _clean(r[2]), _clean(r[3]), _clean(r[4])]
             for r in rows
-        ]
+        ],
     }
 
 
