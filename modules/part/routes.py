@@ -1107,7 +1107,7 @@ def generate_part():
     # Auto-insert footprint from part.footprint_defaults if a match exists
     try:
         fp_default = db.session.execute(db.text(
-            "SELECT pcb_footprint, step_3d_file, schematic_part FROM part.footprint_defaults "
+            "SELECT pcb_footprint, step_3d_file FROM part.footprint_defaults "
             "WHERE LOWER(category_name) = LOWER(:cat) AND LOWER(subcategory_name) = LOWER(:sub) LIMIT 1"
         ), {"cat": cat_name.strip(), "sub": sub_name.strip()}).first()
         if fp_default:
@@ -1116,9 +1116,9 @@ def generate_part():
             ), {"pn": part_number}).first()
             if not existing_fp:
                 db.session.execute(db.text(
-                    "INSERT INTO part.parts_footprints (part_number, pcb_footprint, step_3d_file, schematic_part) "
-                    "VALUES (:pn, :pcb, :step, :sch)"
-                ), {"pn": part_number, "pcb": fp_default[0] or "", "step": fp_default[1] or "", "sch": fp_default[2] or ""})
+                    "INSERT INTO part.parts_footprints (part_number, pcb_footprint, step_3d_file) "
+                    "VALUES (:pn, :pcb, :step)"
+                ), {"pn": part_number, "pcb": fp_default[0] or "", "step": fp_default[1] or ""})
     except Exception:
         db.session.rollback()
     db.session.commit()
@@ -2387,16 +2387,16 @@ def get_part_detail(part_number):
 
     # Footprints
     fp_rows = db.session.execute(db.text(
-        "SELECT id, pcb_footprint, step_3d_file, schematic_part, created_at FROM part.parts_footprints "
+        "SELECT id, pcb_footprint, step_3d_file, created_at FROM part.parts_footprints "
         "WHERE part_number = :pn ORDER BY created_at ASC"
     ), {"pn": part_number}).fetchall()
     footprints = [{"id": str(r[0]), "pcb_footprint": r[1] or "", "step_3d_file": r[2] or "",
-                   "schematic_part": r[3] or "", "created_at": str(r[4]) if r[4] else None} for r in fp_rows]
+                   "created_at": str(r[3]) if r[3] else None} for r in fp_rows]
 
-    # Attach schematic_part: prefer category table column if non-empty, fall back to parts_footprints
+    # Attach schematic_part: prefer category table column if non-empty, fall back to empty
     cat_sch = part_data.get("schematic_part")
     if not cat_sch or str(cat_sch).strip() == "":
-        part_data["schematic_part"] = (fp_rows[0][3] or "") if fp_rows else ""
+        part_data["schematic_part"] = ""
 
     return {"success": True, "data": {
         "part": part_data,
@@ -2930,12 +2930,12 @@ def caddb_download():
 @part_bp.route("/part-footprints/<path:part_number>", methods=["GET"])
 def get_part_footprints(part_number):
     rows = db.session.execute(db.text(
-        "SELECT id, pcb_footprint, step_3d_file, schematic_part, created_at FROM part.parts_footprints "
+        "SELECT id, pcb_footprint, step_3d_file, created_at FROM part.parts_footprints "
         "WHERE part_number = :pn ORDER BY created_at ASC"
     ), {"pn": part_number}).fetchall()
     return {"success": True, "data": [
         {"id": str(r[0]), "pcb_footprint": r[1] or "", "step_3d_file": r[2] or "",
-         "schematic_part": r[3] or "", "created_at": str(r[4]) if r[4] else None} for r in rows
+         "created_at": str(r[3]) if r[3] else None} for r in rows
     ]}
 
 
@@ -2947,14 +2947,13 @@ def add_part_footprint():
     step = data.get("step_3d_file", "").strip()
     if not pn:
         return {"success": False, "message": "part_number required"}, 400
-    if not pcb and not step and not data.get("schematic_part", "").strip():
+    if not pcb and not step:
         return {"success": False, "message": "At least one field is required"}, 400
-    sch = data.get("schematic_part", "").strip()
     new_id = db.session.execute(db.text(
-        "INSERT INTO part.parts_footprints (part_number, pcb_footprint, step_3d_file, schematic_part) "
-        "VALUES (:pn, :pcb, :step, :sch) RETURNING id"
-    ), {"pn": pn, "pcb": pcb, "step": step, "sch": sch}).scalar()
-    _log_audit("CREATE", "Footprint", pn, details=f"Footprint added: PCB={pcb}, 3D={step}, Schematic={sch}")
+        "INSERT INTO part.parts_footprints (part_number, pcb_footprint, step_3d_file) "
+        "VALUES (:pn, :pcb, :step) RETURNING id"
+    ), {"pn": pn, "pcb": pcb, "step": step}).scalar()
+    _log_audit("CREATE", "Footprint", pn, details=f"Footprint added: PCB={pcb}, 3D={step}")
     db.session.commit()
     return {"success": True, "data": {"id": str(new_id)}, "message": "Footprint added"}, 201
 
@@ -2969,11 +2968,10 @@ def update_part_footprint(fp_id):
     ), {"id": fp_id}).first()
     if not row:
         return {"success": False, "message": "Not found"}, 404
-    sch = data.get("schematic_part", "").strip()
     db.session.execute(db.text(
-        "UPDATE part.parts_footprints SET pcb_footprint=:pcb, step_3d_file=:step, schematic_part=:sch, updated_at=NOW() WHERE id=:id"
-    ), {"pcb": pcb, "step": step, "sch": sch, "id": fp_id})
-    _log_audit("UPDATE", "Footprint", row[0], details=f"Footprint updated: PCB={pcb}, 3D={step}, Schematic={sch}")
+        "UPDATE part.parts_footprints SET pcb_footprint=:pcb, step_3d_file=:step, updated_at=NOW() WHERE id=:id"
+    ), {"pcb": pcb, "step": step, "id": fp_id})
+    _log_audit("UPDATE", "Footprint", row[0], details=f"Footprint updated: PCB={pcb}, 3D={step}")
     db.session.commit()
     return {"success": True, "message": "Footprint updated"}
 

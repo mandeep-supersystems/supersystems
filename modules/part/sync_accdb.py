@@ -105,36 +105,36 @@ def _extract_data(db, cats):
         ]
         seen = {'part_number', 'description'}
         custom_cols = [c for c in custom if c in pg_cols and c not in SYSTEM_COLS and c not in seen and not seen.add(c)]
-        include = (
-            ['part_number', 'description']
-            + custom_cols
-            + ['schematic_part', 'pcb_footprint', 'step_3d_file']
-        )
-        include_display = [COLUMN_RENAMES.get(c, c) for c in include]
 
-        # Footprint lookup — fetch schematic_part, pcb_footprint, step_3d_file from parts_footprints
+        # schematic_part: read from category table if column exists, else skip
+        has_sch = 'schematic_part' in pg_cols
+        fp_cols = (['schematic_part'] if has_sch else []) + ['pcb_footprint', 'step_3d_file']
+
+        # pcb_footprint and step_3d_file still come from parts_footprints
         pns = [str(r[pg_cols.index('part_number')]) for r in pg_rows]
         fp_lookup = {}
         if pns:
             try:
                 ph = ','.join([f':pn{i}' for i in range(len(pns))])
                 fp_rows = db.session.execute(db.text(
-                    f"SELECT part_number, schematic_part, pcb_footprint, step_3d_file "
+                    f"SELECT part_number, pcb_footprint, step_3d_file "
                     f"FROM part.parts_footprints WHERE part_number IN ({ph})"
                 ), {f'pn{i}': p for i, p in enumerate(pns)}).fetchall()
                 for fp in fp_rows:
-                    fp_lookup[fp[0]] = (fp[1] or '', fp[2] or '', fp[3] or '')
+                    fp_lookup[fp[0]] = (fp[1] or '', fp[2] or '')
             except Exception:
                 db.session.rollback()
+
+        include = ['part_number', 'description'] + custom_cols + fp_cols
+        include_display = [COLUMN_RENAMES.get(c, c) for c in include]
 
         rows_out = []
         for row in pg_rows:
             rd = dict(zip(pg_cols, row))
             pn = str(rd.get('part_number', '') or '')
-            sch, pcb, step = fp_lookup.get(pn, ('', '', ''))
-            rd['schematic_part'] = sch
-            rd['pcb_footprint']  = pcb
-            rd['step_3d_file']   = step
+            pcb, step = fp_lookup.get(pn, ('', ''))
+            rd['pcb_footprint'] = pcb
+            rd['step_3d_file']  = step
             rows_out.append([_clean(rd.get(c)) for c in include])
 
         acc_table = _acc_table_name(cat_name)
