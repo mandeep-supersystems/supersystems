@@ -106,7 +106,7 @@ def _extract_data(db, cats):
         seen = {'part_number', 'description'}
         custom_cols = [c for c in custom if c in pg_cols and c not in SYSTEM_COLS and c not in seen and not seen.add(c)]
 
-        # schematic_part: read from category table if column exists, else skip
+        # schematic_part comes from category table; add it after custom_cols if not already included
         has_sch = 'schematic_part' in pg_cols
         fp_cols = (['schematic_part'] if has_sch else []) + ['pcb_footprint', 'step_3d_file']
 
@@ -125,7 +125,13 @@ def _extract_data(db, cats):
             except Exception:
                 db.session.rollback()
 
-        include = ['part_number', 'description'] + custom_cols + fp_cols
+        # Build include list, deduplicating while preserving order
+        _seen_inc = set()
+        include = []
+        for c in ['part_number', 'description'] + custom_cols + fp_cols:
+            if c not in _seen_inc:
+                _seen_inc.add(c)
+                include.append(c)
         include_display = [COLUMN_RENAMES.get(c, c) for c in include]
 
         rows_out = []
