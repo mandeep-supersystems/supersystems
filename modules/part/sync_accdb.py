@@ -74,7 +74,9 @@ def _extract_data(db, cats):
     from modules.part.routes import _safe_table_name
 
     tables = []
+    # Pre-reserve the CIS table name (case-insensitive) so no category can collide
     seen_tables = set()
+    seen_tables_lower = {_CIS_ACC_TABLE.lower()}
 
     for cat in cats:
         cat_name   = cat[1]
@@ -178,9 +180,10 @@ def _extract_data(db, cats):
             rows_out.append([_clean(rd.get(c)) for c in include])
 
         acc_table = _acc_table_name(cat_name)
-        if acc_table in seen_tables:
+        if acc_table in seen_tables or acc_table.lower() in seen_tables_lower:
             continue
         seen_tables.add(acc_table)
+        seen_tables_lower.add(acc_table.lower())
 
         tables.append({
             'acc_table': acc_table,
