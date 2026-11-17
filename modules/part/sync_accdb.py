@@ -60,6 +60,12 @@ def _acc_table_name(cat_name):
     return ' '.join(w.capitalize() for w in name.split())[:60]
 
 
+def _is_cis_acc_table_name(name):
+    """Recognize the fixed CIS table name and its legacy misspelling."""
+    normalized = re.sub(r'[^a-z0-9]', '', name.lower())
+    return normalized in {'cismanufacturerparts', 'cismanufactureerparts'}
+
+
 # ── data extraction from PostgreSQL ──────────────────────────────────────────
 
 def _extract_data(db, cats):
@@ -81,6 +87,8 @@ def _extract_data(db, cats):
 
     for cat in cats:
         cat_name   = cat[1]
+        if _is_cis_acc_table_name(cat_name):
+            continue
         cat_series = cat[2]
         cols_cfg   = cat[4]
 
