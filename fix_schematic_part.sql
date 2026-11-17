@@ -13,8 +13,8 @@ BEGIN
     )
     AND is_deleted = false
   LOOP
-    -- Clean name: lowercase, replace spaces and special chars with underscore
-    tname := regexp_replace(lower(r.name), '[^a-z0-9]+', '_', 'g') || '_' || r.series_prefix;
+    -- Clean name: lowercase, replace each non-alphanumeric char with underscore (no collapsing)
+    tname := lower(regexp_replace(r.name, '[^a-z0-9]', '_', 'g')) || '_' || r.series_prefix;
     EXECUTE format(
       'ALTER TABLE part.%I ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255)',
       tname
