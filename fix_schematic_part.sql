@@ -1,23 +1,37 @@
--- Add schematic_part column to all category tables missing it
-DO $$
-DECLARE
-  r RECORD;
-  tname TEXT;
-BEGIN
-  FOR r IN 
-    SELECT name, series_prefix FROM part.categories 
-    WHERE series_prefix IN (
-      '124','901','902','903','156','187','197','157','196','154','126','151',
-      '109','119','142','141','143','180','112','163','160','201','161','152',
-      '121','155','162','118','159','158','153','122'
-    )
-    AND is_deleted = false
-  LOOP
-    -- Clean name: lowercase, replace each non-alphanumeric char with underscore (no collapsing)
-    tname := lower(regexp_replace(r.name, '[^a-z0-9]', '_', 'g')) || '_' || r.series_prefix;
-    EXECUTE format(
-      'ALTER TABLE part.%I ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255)',
-      tname
-    );
-  END LOOP;
-END $$;
+-- Add schematic_part column to all category tables missing it (exact table names)
+ALTER TABLE part."antenna_124" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
+ALTER TABLE part."assembly_901" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
+ALTER TABLE part."assembly_902" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
+ALTER TABLE part."assembly_903" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
+ALTER TABLE part."bolt_156" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
+ALTER TABLE part."cable_187" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
+ALTER TABLE part."chemicals_113" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
+ALTER TABLE part."connector_114" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
+ALTER TABLE part."crimping_pin_197" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
+ALTER TABLE part."din_rail_mount_hardware_157" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
+ALTER TABLE part."fan_196" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
+ALTER TABLE part."grommet_154" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
+ALTER TABLE part."header_115" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
+ALTER TABLE part."heat_shrink_sleeve_126" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
+ALTER TABLE part."heatsink_151" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
+ALTER TABLE part."insulator_109" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
+ALTER TABLE part."lcd_module_119" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
+ALTER TABLE part."magnetics___bobbin_142" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
+ALTER TABLE part."magnetics___cores_141" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
+ALTER TABLE part."magnetics_tape_143" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
+ALTER TABLE part."magnetic_insulations_144" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
+ALTER TABLE part."mechanical_180" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
+ALTER TABLE part."module_112" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
+ALTER TABLE part."motor_163" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
+ALTER TABLE part."nut_160" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
+ALTER TABLE part."pcb_201" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
+ALTER TABLE part."revit_161" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
+ALTER TABLE part."screw_152" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
+ALTER TABLE part."sensor_121" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
+ALTER TABLE part."spacer_155" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
+ALTER TABLE part."stickers_162" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
+ALTER TABLE part."switch_118" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
+ALTER TABLE part."thermal_159" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
+ALTER TABLE part."thimble_158" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
+ALTER TABLE part."washer_153" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
+ALTER TABLE part."wire_122" ADD COLUMN IF NOT EXISTS schematic_part VARCHAR(255);
