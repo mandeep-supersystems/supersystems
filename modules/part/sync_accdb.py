@@ -55,8 +55,9 @@ def _clean(v):
 
 
 def _acc_table_name(cat_name):
-    """Safe Access table name — alphanumeric + space + underscore, max 60 chars."""
-    return re.sub(r'[^A-Za-z0-9_ ]', '_', cat_name).strip()[:60]
+    """Safe Access table name — title-cased words, no underscores, max 60 chars."""
+    name = re.sub(r'[^A-Za-z0-9 ]', ' ', cat_name.replace('_', ' '))
+    return ' '.join(w.capitalize() for w in name.split())[:60]
 
 
 # ── data extraction from PostgreSQL ──────────────────────────────────────────
