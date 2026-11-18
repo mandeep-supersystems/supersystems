@@ -56,7 +56,7 @@ public class AccdbBuilder {
             for (int c = 0; c < cols.length(); c++) {
                 String colName = cols.getString(c);
                 if (seenCols.add(colName.toLowerCase())) {
-                    tb.addColumn(new ColumnBuilder(colName, DataType.TEXT).setLength((short) 255).toColumn());
+                    tb.addColumn(new ColumnBuilder(colName, DataType.MEMO).toColumn());
                     colNames.add(colName);
                 }
             }
@@ -74,10 +74,10 @@ public class AccdbBuilder {
 
         // ── Fixed table: tmpprts (always added, empty, for CAD tool use) ──
         TableBuilder tmpTb = new TableBuilder("tmpprts");
-        tmpTb.addColumn(new ColumnBuilder("Tmpprtno",   DataType.TEXT).setLength((short) 255).toColumn());
-        tmpTb.addColumn(new ColumnBuilder("Relprtno",   DataType.TEXT).setLength((short) 255).toColumn());
-        tmpTb.addColumn(new ColumnBuilder("Username",   DataType.TEXT).setLength((short) 255).toColumn());
-        tmpTb.addColumn(new ColumnBuilder("Createtime", DataType.TEXT).setLength((short) 255).toColumn());
+        tmpTb.addColumn(new ColumnBuilder("Tmpprtno",   DataType.MEMO).toColumn());
+        tmpTb.addColumn(new ColumnBuilder("Relprtno",   DataType.MEMO).toColumn());
+        tmpTb.addColumn(new ColumnBuilder("Username",   DataType.MEMO).toColumn());
+        tmpTb.addColumn(new ColumnBuilder("Createtime", DataType.MEMO).toColumn());
         tmpTb.toTable(db);
 
         db.close();
