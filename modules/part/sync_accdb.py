@@ -250,7 +250,7 @@ def _extract_data(db, cats):
 
 
 def _extract_cis_manufacturer_parts(db):
-    # Ensure columns exist
+    rows = []
     try:
         db.session.execute(db.text(
             "ALTER TABLE part.manufacturers "
@@ -261,7 +261,6 @@ def _extract_cis_manufacturer_parts(db):
     except Exception:
         db.session.rollback()
 
-    # Ensure table exists
     try:
         db.session.execute(db.text("""
             CREATE TABLE IF NOT EXISTS part.cis_manufacturer_parts (
@@ -283,7 +282,6 @@ def _extract_cis_manufacturer_parts(db):
     except Exception:
         db.session.rollback()
 
-    # Full refresh
     try:
         db.session.execute(db.text("TRUNCATE part.cis_manufacturer_parts RESTART IDENTITY"))
         db.session.execute(db.text("""
@@ -301,10 +299,6 @@ def _extract_cis_manufacturer_parts(db):
             ORDER BY m.part_number, m.mpn
         """))
         db.session.commit()
-    except Exception:
-        db.session.rollback()
-
-    try:
         rows = db.session.execute(db.text(
             "SELECT part_number, manufacturer, manufacturer_pn, "
             "manufacturer_pn_status, datasheet "
@@ -313,18 +307,11 @@ def _extract_cis_manufacturer_parts(db):
         )).fetchall()
     except Exception:
         db.session.rollback()
-        return None
-
-    if not rows:
-        return None
 
     return {
-        'acc_table': 'Cis Manufacturer Parts',  # hardcoded — never use variable
+        'acc_table': 'Cis Manufacturer Parts',
         'columns':   _CIS_ACCDB_COLS,
-        'rows': [
-            [_clean(r[0]), _clean(r[1]), _clean(r[2]), _clean(r[3]), _clean(r[4])]
-            for r in rows
-        ],
+        'rows': [[_clean(r[0]), _clean(r[1]), _clean(r[2]), _clean(r[3]), _clean(r[4])] for r in rows],
     }
 
 
@@ -462,8 +449,7 @@ def sync_accdb(db):
     tables = _extract_data(db, cats)
 
     cis_table = _extract_cis_manufacturer_parts(db)
-    if cis_table:
-        tables.append(cis_table)
+    tables.append(cis_table)
 
     if not tables:
         return None, "No part data found to export"
