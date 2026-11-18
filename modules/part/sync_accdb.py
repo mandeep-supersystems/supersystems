@@ -77,8 +77,8 @@ CATEGORY_TABLES = {
 _CIS_ACC_TABLE = 'Cis Manufacturer Parts'
 assert ' ' in _CIS_ACC_TABLE, "CIS table name must use spaces not underscores"
 _CIS_ACCDB_COLS = [
-    'Part Number', 'Manufacturer', 'Manufacturer Part No',
-    'Manufacturer Part No Status', 'Datasheet',
+    'Part Number', 'Manufacturer', 'Manufacturer PN',
+    'Manufacturer PN Status', 'Datasheet',
 ]
 
 # ── system columns to skip ────────────────────────────────────────────────────
