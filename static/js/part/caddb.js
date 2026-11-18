@@ -16,21 +16,6 @@ async function syncAndDownloadCadDB() {
     await downloadCadDB();
 }
 
-
-    showToast('Rebuilding CadDB.accdb — please wait...', 'info');
-    try {
-        const res = await fetch(API + '/caddb-sync', { method: 'POST', headers: HEADERS });
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok || !json.success) {
-            showToast(json.message || 'CadDB sync failed', 'error');
-            return;
-        }
-        showToast('CadDB.accdb rebuilt successfully', 'success');
-    } catch (e) {
-        showToast('CadDB sync failed: ' + e.message, 'error');
-    }
-}
-
 async function downloadCadDB() {
     showToast('Downloading CadDB.accdb...', 'info');
     try {
