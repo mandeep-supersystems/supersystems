@@ -1,4 +1,5 @@
 import com.healthmarketscience.jackcess.*;
+import com.healthmarketscience.jackcess.impl.*;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -14,7 +15,7 @@ import java.util.*;
  * [
  *   {
  *     "acc_table": "Resistor",
- *     "columns":   ["part_number", "description", "value", ...],
+ *     "columns":   ["Part Number", "Description", "Value", ...],
  *     "rows":      [["101.0.0001", "Res, 10K ...", "10K", ...], ...]
  *   },
  *   ...
@@ -61,6 +62,21 @@ public class AccdbBuilder {
                 }
             }
             Table table = tb.toTable(db);
+
+            // Set display column order via PropertyMap so Access shows columns in insertion order
+            try {
+                PropertyMap props = table.getPropertyMap();
+                // "ColumnOrder" property: comma-separated column names in desired display order
+                StringBuilder order = new StringBuilder();
+                for (int c = 0; c < colNames.size(); c++) {
+                    if (c > 0) order.append(", ");
+                    order.append(colNames.get(c));
+                }
+                props.put("ColumnOrder", DataType.TEXT, order.toString());
+                props.save();
+            } catch (Exception ignored) {
+                // Non-fatal — data still correct, just display order may be alphabetical
+            }
 
             for (int r = 0; r < rows.length(); r++) {
                 JSONArray row = rows.getJSONArray(r);

@@ -25,22 +25,24 @@ for url in "${JARS[@]}"; do
   fi
 done
 
-echo "==> Compiling AccdbBuilder.java..."
 CP="jackcess-4.0.7.jar:commons-lang3-3.14.0.jar:commons-logging-1.3.0.jar:json-20240303.jar"
+
+echo "==> Compiling AccdbBuilder.java..."
 javac -cp "$CP" AccdbBuilder.java
+if [ $? -ne 0 ]; then
+  echo "ERROR: Compilation failed. Make sure you run this script from accdb_builder/ directory."
+  exit 1
+fi
 
 echo "==> Packaging AccdbBuilder.jar..."
-# Extract dependency classes into a staging dir
 mkdir -p _stage
 for jar in jackcess-4.0.7.jar commons-lang3-3.14.0.jar commons-logging-1.3.0.jar json-20240303.jar; do
   (cd _stage && jar xf "../$jar")
 done
 cp AccdbBuilder*.class _stage/
 
-# Create manifest
 echo "Main-Class: AccdbBuilder" > _stage/MANIFEST.MF
 
-# Build fat JAR
 jar cfm AccdbBuilder.jar _stage/MANIFEST.MF -C _stage .
 rm -rf _stage AccdbBuilder*.class
 
