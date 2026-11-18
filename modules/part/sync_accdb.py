@@ -96,6 +96,9 @@ COLUMN_RENAMES = {
     'core_type':      'Part Type',
     'adhesive_type':  'Part Type',
     'type':           'Part Type',
+    'schematic_part': 'Schematic Part',
+    'pcb_footprint':  'PCB Footprint',
+    'step_3d_file':   '3D Step File',
 }
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -123,6 +126,7 @@ def _extract_data(db, cats):
     tables = []
     seen_acc = set()  # acc display names already used (lowercase)
     seen_acc.add(_CIS_ACC_TABLE.lower())  # reserve CIS table name
+    seen_acc.add('cis_manufacturer_parts')  # reserve raw DB table name
 
     # Build lookup: lowercase cat name → accdb display name
     cat_map_lower = {k.lower(): v for k, v in CATEGORY_TABLES.items()}
@@ -133,6 +137,8 @@ def _extract_data(db, cats):
         cols_cfg   = cat[4]
 
         # Only export categories in the hardcoded list
+        if cat_name.lower().replace(' ', '_') == 'cis_manufacturer_parts':
+            continue
         acc_table = cat_map_lower.get(cat_name.lower())
         if not acc_table:
             continue
@@ -312,7 +318,7 @@ def _extract_cis_manufacturer_parts(db):
         return None
 
     return {
-        'acc_table': _CIS_ACC_TABLE,
+        'acc_table': 'Cis Manufacturer Parts',  # hardcoded — never use variable
         'columns':   _CIS_ACCDB_COLS,
         'rows': [
             [_clean(r[0]), _clean(r[1]), _clean(r[2]), _clean(r[3]), _clean(r[4])]
