@@ -77,8 +77,8 @@ CATEGORY_TABLES = {
 _CIS_ACC_TABLE = 'Cis Manufacturer Parts'
 assert ' ' in _CIS_ACC_TABLE, "CIS table name must use spaces not underscores"
 _CIS_ACCDB_COLS = [
-    'Part Number', 'Manufacturer', 'Manufacturer PN',
-    'Manufacturer PN Status', 'Datasheet',
+    'Part Number', 'Manufacturer', 'Manufacturer Part No',
+    'Manufacturer Part No Status', 'Datasheet',
 ]
 
 # ── system columns to skip ────────────────────────────────────────────────────
@@ -190,8 +190,13 @@ def _extract_data(db, cats):
 
         # Build column list
         custom = [re.sub(r'[^a-z0-9_]', '_', c['name'].lower().strip()) for c in cols_cfg]
-        seen = {'part_number', 'description'}
-        custom_cols = [c for c in custom if c in pg_cols and c not in SYSTEM_COLS and c not in seen and not seen.add(c)]
+        _excl = {'part_number', 'description'} | SYSTEM_COLS
+        _seen_custom = set()
+        custom_cols = []
+        for c in custom:
+            if c and c not in _excl and c in pg_cols and c not in _seen_custom:
+                _seen_custom.add(c)
+                custom_cols.append(c)
 
         has_sch = 'schematic_part' in pg_cols
         fp_cols = (['schematic_part'] if has_sch else []) + ['pcb_footprint', 'step_3d_file']
