@@ -56,7 +56,7 @@ public class AccdbBuilder {
             for (int c = 0; c < cols.length(); c++) {
                 String colName = cols.getString(c);
                 if (seenCols.add(colName.toLowerCase())) {
-                    tb.addColumn(new ColumnBuilder(colName, DataType.MEMO).toColumn());
+                    tb.addColumn(new ColumnBuilder(colName, DataType.TEXT).setLength((short) 510).toColumn());
                     colNames.add(colName);
                 }
             }
@@ -66,7 +66,8 @@ public class AccdbBuilder {
                 JSONArray row = rows.getJSONArray(r);
                 Object[]  vals = new Object[colNames.size()];
                 for (int c = 0; c < colNames.size(); c++) {
-                    vals[c] = row.isNull(c) ? "" : row.getString(c);
+                    String v = row.isNull(c) ? "" : row.getString(c);
+                    vals[c] = v.length() > 255 ? v.substring(0, 255) : v;
                 }
                 table.addRow(vals);
             }
@@ -74,10 +75,10 @@ public class AccdbBuilder {
 
         // ── Fixed table: tmpprts (always added, empty, for CAD tool use) ──
         TableBuilder tmpTb = new TableBuilder("tmpprts");
-        tmpTb.addColumn(new ColumnBuilder("Tmpprtno",   DataType.MEMO).toColumn());
-        tmpTb.addColumn(new ColumnBuilder("Relprtno",   DataType.MEMO).toColumn());
-        tmpTb.addColumn(new ColumnBuilder("Username",   DataType.MEMO).toColumn());
-        tmpTb.addColumn(new ColumnBuilder("Createtime", DataType.MEMO).toColumn());
+        tmpTb.addColumn(new ColumnBuilder("Tmpprtno",   DataType.TEXT).setLength((short) 510).toColumn());
+        tmpTb.addColumn(new ColumnBuilder("Relprtno",   DataType.TEXT).setLength((short) 510).toColumn());
+        tmpTb.addColumn(new ColumnBuilder("Username",   DataType.TEXT).setLength((short) 510).toColumn());
+        tmpTb.addColumn(new ColumnBuilder("Createtime", DataType.TEXT).setLength((short) 510).toColumn());
         tmpTb.toTable(db);
 
         db.close();
