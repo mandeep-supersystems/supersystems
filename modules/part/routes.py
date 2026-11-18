@@ -2916,16 +2916,26 @@ def get_part_suppliers(part_number):
 
 # ─── CADDB DOWNLOAD (.accdb) ─────────────────────────────────────────────────
 
-@part_bp.route("/caddb-download", methods=["GET"])
-def caddb_download():
-    """Build and stream CadDB.accdb via sync_accdb (Windows: ADOX+pyodbc / Linux: Java+Jackcess)."""
-    import io
-    from flask import send_file
-    from modules.part.sync_accdb import sync_accdb
-
-    data, err = sync_accdb(db)
+@part_bp.route("/caddb-sync", methods=["POST"])
+def caddb_sync():
+    """Rebuild CadDB.accdb and save to disk."""
+    from modules.part.sync_accdb import sync_accdb as _sync
+    _, err = _sync(db)
     if err:
         return {"success": False, "message": err}, 500
+    return {"success": True, "message": "CadDB.accdb rebuilt successfully"}
+
+
+@part_bp.route("/caddb-download", methods=["GET"])
+def caddb_download():
+    """Stream the existing CadDB.accdb from disk."""
+    import io
+    from flask import send_file
+    from modules.part.sync_accdb import get_accdb_bytes
+
+    data, err = get_accdb_bytes()
+    if err:
+        return {"success": False, "message": err}, 404
 
     return send_file(
         io.BytesIO(data),

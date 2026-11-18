@@ -1,7 +1,22 @@
 // ─── PART MODULE: CADDB ───────────────────────────────────────────────────────
 
+async function syncCadDB() {
+    showToast('Rebuilding CadDB.accdb — please wait...', 'info');
+    try {
+        const res = await fetch(API + '/caddb-sync', { method: 'POST', headers: HEADERS });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !json.success) {
+            showToast(json.message || 'CadDB sync failed', 'error');
+            return;
+        }
+        showToast('CadDB.accdb rebuilt successfully', 'success');
+    } catch (e) {
+        showToast('CadDB sync failed: ' + e.message, 'error');
+    }
+}
+
 async function downloadCadDB() {
-    showToast('Building CadDB.accdb — please wait...', 'info');
+    showToast('Downloading CadDB.accdb...', 'info');
     try {
         const res = await fetch(API + '/caddb-download', { headers: HEADERS });
         if (!res.ok) {

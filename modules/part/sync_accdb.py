@@ -1,31 +1,86 @@
 """
 sync_accdb.py
 ─────────────
-Builds CadDB.accdb from PostgreSQL part data.
+Builds CadDB.accdb from PostgreSQL part data and saves it as a persistent file.
 
-Windows path:
-    1. ADOX (win32com.client) — creates blank .accdb and defines table schema
-    2. pyodbc                 — inserts all rows via ODBC
+- sync_accdb(db)      → rebuilds the file from scratch, returns (bytes, error_str)
+- get_accdb_bytes()   → returns (bytes, error_str) from the existing file without rebuilding
 
 Linux path:
     1. Dump all data to a JSON file
     2. Invoke Java + Jackcess (accdb_builder/AccdbBuilder.jar) to write the .accdb
 
-Returns: (bytes, error_string)
-    bytes       — raw .accdb file content on success
-    error_string — non-empty string on failure
+Windows path:
+    1. ADOX (win32com.client) — creates blank .accdb and defines table schema
+    2. pyodbc                 — inserts all rows via ODBC
 """
 
 import os
-import sys
 import re
 import json
 import tempfile
 import subprocess
 import platform
 
+# ── persistent file path ──────────────────────────────────────────────────────
 
-# ── helpers ──────────────────────────────────────────────────────────────────
+_ACCDB_PATH = os.path.normpath(os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    '..', '..', 'CadDB.accdb'
+))
+
+# ── hardcoded category tables ─────────────────────────────────────────────────
+# Maps PostgreSQL table suffix (part."<name>_<series>") → Access table display name
+# Key = category name as stored in part.categories.name (exact match, case-insensitive)
+# Value = display name shown in the .accdb file
+
+CATEGORY_TABLES = {
+    'Resistor':           'Resistor',
+    'Capacitor':          'Capacitor',
+    'Diode':              'Diode',
+    'Transistor':         'Transistor',
+    'Mosfet':             'Mosfet',
+    'IC':                 'Ic',
+    'Inductor':           'Inductor',
+    'Transformer':        'Transformer',
+    'Connector':          'Connector',
+    'Header':             'Header',
+    'Terminal':           'Terminal',
+    'Relay':              'Relay',
+    'Switch':             'Switch',
+    'LED':                'Led',
+    'Sensor':             'Sensor',
+    'Buzzer':             'Buzzer',
+    'Heat Sink':          'Heat Sink',
+    'Screw':              'Screw',
+    'Washers':            'Washers',
+    'Thermals':           'Thermals',
+    'Stickers':           'Stickers',
+    'Bare PCB':           'Bare Pcb',
+    'Non BOM':            'Non Bom',
+    'Protection':         'Protection',
+    'LCD Module':         'Lcd Module',
+    'Mechanical':         'Mechanical',
+    'Thermal Pad':        'Thermal Pad',
+    'Fan':                'Fan',
+    'Crimping Pin':       'Crimping Pin',
+    'Cable':              'Cable',
+    'MCB':                'Mcb',
+    'SPD':                'Spd',
+    'Chemicals':          'Chemicals',
+    'Power IC':           'Power Ic',
+    'Assembly':           'Assembly',
+}
+
+# ── CIS Manufacturer Parts — fixed schema ─────────────────────────────────────
+
+_CIS_ACC_TABLE = 'Cis Manufacturer Parts'
+_CIS_ACCDB_COLS = [
+    'Part Number', 'Manufacturer', 'Manufacturer PN',
+    'Manufacturer PN Status', 'Datasheet',
+]
+
+# ── system columns to skip ────────────────────────────────────────────────────
 
 SYSTEM_COLS = {
     'id', 'subcategory_id', 'status', 'created_at', 'updated_at',
@@ -43,54 +98,47 @@ COLUMN_RENAMES = {
     'type':           'Part Type',
 }
 
+# ── helpers ───────────────────────────────────────────────────────────────────
 
 def _clean(v):
-    """Coerce any value to a clean string for Access (max 255 chars)."""
     if v is None:
         return ''
     s = str(v).strip()
     if s.lower() in ('none', 'null', 'nan'):
         return ''
-    return s[:127]
+    return s[:255]
 
 
-def _acc_table_name(cat_name):
-    """Safe Access table name — title-cased words, no underscores, max 60 chars."""
-    name = re.sub(r'[^A-Za-z0-9 ]', ' ', cat_name.replace('_', ' '))
-    return ' '.join(w.capitalize() for w in name.split())[:60]
+def _col_label(col):
+    if col == 'part_number':
+        return 'Part Number'
+    return COLUMN_RENAMES.get(col, col.replace('_', ' ').title())
 
 
-def _is_cis_acc_table_name(name):
-    """Recognize the fixed CIS table name and its legacy misspelling."""
-    normalized = re.sub(r'[^a-z0-9]', '', name.lower())
-    return normalized in {'cismanufacturerparts', 'cismanufactureerparts'}
-
-
-# ── data extraction from PostgreSQL ──────────────────────────────────────────
+# ── data extraction ───────────────────────────────────────────────────────────
 
 def _extract_data(db, cats):
-    """
-    For each category, query its dynamic PG table and the footprints table.
-    Returns a list of dicts:
-        {
-            'acc_table': str,
-            'columns':   [str, ...],   # ordered column names for Access
-            'rows':      [[str, ...]]  # one list per part row
-        }
-    """
     from modules.part.routes import _safe_table_name
 
     tables = []
-    # Pre-reserve the CIS table name (case-insensitive) so no category can collide
-    seen_tables = set()
-    seen_tables_lower = {_CIS_ACC_TABLE.lower()}
+    seen_acc = set()  # acc display names already used (lowercase)
+    seen_acc.add(_CIS_ACC_TABLE.lower())  # reserve CIS table name
+
+    # Build lookup: lowercase cat name → accdb display name
+    cat_map_lower = {k.lower(): v for k, v in CATEGORY_TABLES.items()}
 
     for cat in cats:
         cat_name   = cat[1]
-        if _is_cis_acc_table_name(cat_name):
-            continue
         cat_series = cat[2]
         cols_cfg   = cat[4]
+
+        # Only export categories in the hardcoded list
+        acc_table = cat_map_lower.get(cat_name.lower())
+        if not acc_table:
+            continue
+        if acc_table.lower() in seen_acc:
+            continue
+        seen_acc.add(acc_table.lower())
 
         if not isinstance(cols_cfg, list):
             try:
@@ -100,7 +148,7 @@ def _extract_data(db, cats):
 
         pg_table = _safe_table_name(cat_name, cat_series)
 
-        # Ensure all configured columns physically exist in the table
+        # Ensure configured columns exist physically
         type_map = {
             'varchar': 'VARCHAR(255)', 'numeric': 'NUMERIC(14,4)',
             'boolean': 'BOOLEAN', 'date': 'DATE', 'text': 'TEXT',
@@ -119,7 +167,7 @@ def _extract_data(db, cats):
                 db.session.rollback()
 
         try:
-            result  = db.session.execute(db.text(
+            result = db.session.execute(db.text(
                 f"SELECT * FROM {pg_table} "
                 f"WHERE (status IS NULL OR status != 'obsolete') "
                 f"ORDER BY part_number"
@@ -133,46 +181,43 @@ def _extract_data(db, cats):
         if not pg_rows:
             continue
 
-        # Columns: part_number + description + configured custom cols + footprint cols
-        custom = [
-            re.sub(r'[^a-z0-9_]', '_', c['name'].lower().strip())
-            for c in cols_cfg
-        ]
+        # Build column list
+        custom = [re.sub(r'[^a-z0-9_]', '_', c['name'].lower().strip()) for c in cols_cfg]
         seen = {'part_number', 'description'}
         custom_cols = [c for c in custom if c in pg_cols and c not in SYSTEM_COLS and c not in seen and not seen.add(c)]
 
-        # schematic_part comes from category table; add it after custom_cols if not already included
         has_sch = 'schematic_part' in pg_cols
         fp_cols = (['schematic_part'] if has_sch else []) + ['pcb_footprint', 'step_3d_file']
 
-        # pcb_footprint and step_3d_file still come from parts_footprints
+        # Footprint lookup
         pns = [str(r[pg_cols.index('part_number')]) for r in pg_rows]
         fp_lookup = {}
         if pns:
             try:
                 ph = ','.join([f':pn{i}' for i in range(len(pns))])
-                fp_rows = db.session.execute(db.text(
+                fp_rows_db = db.session.execute(db.text(
                     f"SELECT part_number, pcb_footprint, step_3d_file "
                     f"FROM part.parts_footprints WHERE part_number IN ({ph})"
                 ), {f'pn{i}': p for i, p in enumerate(pns)}).fetchall()
-                for fp in fp_rows:
+                for fp in fp_rows_db:
                     fp_lookup[fp[0]] = (fp[1] or '', fp[2] or '')
             except Exception:
                 db.session.rollback()
 
-        # Build include list, deduplicating while preserving order
+        # Deduplicate include list
         _seen_inc = set()
         include = []
         for c in ['part_number', 'description'] + custom_cols + fp_cols:
             if c not in _seen_inc:
                 _seen_inc.add(c)
                 include.append(c)
-        # Deduplicate display names (what Java sees) — final safety net
+
+        # Deduplicate display names
         _seen_disp = set()
         include_final = []
         include_display = []
         for c in include:
-            d = COLUMN_RENAMES.get(c, c)
+            d = _col_label(c)
             if d not in _seen_disp:
                 _seen_disp.add(d)
                 include_final.append(c)
@@ -188,12 +233,6 @@ def _extract_data(db, cats):
             rd['step_3d_file']  = step
             rows_out.append([_clean(rd.get(c)) for c in include])
 
-        acc_table = _acc_table_name(cat_name)
-        if acc_table in seen_tables or acc_table.lower() in seen_tables_lower:
-            continue
-        seen_tables.add(acc_table)
-        seen_tables_lower.add(acc_table.lower())
-
         tables.append({
             'acc_table': acc_table,
             'columns':   include_display,
@@ -203,170 +242,8 @@ def _extract_data(db, cats):
     return tables
 
 
-# ── Windows builder (ADOX + pyodbc) ──────────────────────────────────────────
-
-def _build_windows(tables, accdb_path):
-    """
-    Step 1 — ADOX: create blank .accdb and define all table schemas.
-    Step 2 — pyodbc: insert all rows.
-    Returns error string or '' on success.
-    """
-    try:
-        import win32com.client as win32
-    except ImportError:
-        return "pywin32 not installed. Run: pip install pywin32"
-
-    try:
-        import pyodbc
-    except ImportError:
-        return "pyodbc not installed. Run: pip install pyodbc"
-
-    # ── Step 1: ADOX schema creation ─────────────────────────────────────────
-    try:
-        cat = win32.Dispatch('ADOX.Catalog')
-        cat.Create(f'Provider=Microsoft.ACE.OLEDB.12.0;Data Source={accdb_path};')
-
-        for tbl in tables:
-            adox_table = win32.Dispatch('ADOX.Table')
-            adox_table.Name = tbl['acc_table']
-
-            for col_name in tbl['columns']:
-                col = win32.Dispatch('ADOX.Column')
-                col.Name            = col_name
-                col.Type            = 202   # adVarWChar (Text)
-                col.DefinedSize     = 255
-                col.Attributes      = 0x0002  # adColNullable
-                adox_table.Columns.Append(col)
-
-            cat.Tables.Append(adox_table)
-
-        # Release COM object
-        cat.ActiveConnection = None
-        del cat
-    except Exception as e:
-        return f"ADOX schema creation failed: {e}"
-
-    # ── Step 2: pyodbc row insertion ──────────────────────────────────────────
-    try:
-        conn_str = (
-            r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};'
-            f'DBQ={accdb_path};'
-        )
-        conn = pyodbc.connect(conn_str, autocommit=True)
-        cur  = conn.cursor()
-
-        for tbl in tables:
-            cols_sql = ', '.join(f'[{c}]' for c in tbl['columns'])
-            ph_sql   = ', '.join('?' for _ in tbl['columns'])
-            sql      = f"INSERT INTO [{tbl['acc_table']}] ({cols_sql}) VALUES ({ph_sql})"
-            for row in tbl['rows']:
-                try:
-                    cur.execute(sql, row)
-                except Exception:
-                    pass  # skip individual bad rows
-
-        conn.commit()
-        conn.close()
-    except Exception as e:
-        return f"pyodbc insert failed: {e}"
-
-    return ''
-
-
-# ── Linux builder (JSON → Java + Jackcess) ───────────────────────────────────
-
-def _build_linux(tables, accdb_path):
-    """
-    Dump data to a temp JSON file, then call:
-        java -jar accdb_builder/AccdbBuilder.jar <json_path> <accdb_path>
-    Returns error string or '' on success.
-    """
-    jar_path = os.path.join(
-        os.path.dirname(__file__), '..', '..', 'accdb_builder', 'AccdbBuilder.jar'
-    )
-    jar_path = os.path.abspath(jar_path)
-
-    if not os.path.exists(jar_path):
-        return (
-            f"AccdbBuilder.jar not found at {jar_path}. "
-            "Run: cd accdb_builder && bash setup.sh"
-        )
-
-    tmp_json = tempfile.NamedTemporaryFile(suffix='.json', delete=False, mode='w', encoding='utf-8')
-    try:
-        json.dump(tables, tmp_json, ensure_ascii=False)
-        tmp_json.close()
-
-        import shutil
-
-        def _find_java():
-            # Check PATH first, but validate it actually works
-            candidate = shutil.which('java')
-            if candidate:
-                try:
-                    r = subprocess.run([candidate, '-version'], capture_output=True, timeout=10)
-                    if r.returncode == 0:
-                        return candidate
-                except Exception:
-                    pass
-            # Fall back to known real JVM locations
-            for path in [
-                '/usr/lib/jvm/java-21-openjdk-amd64/bin/java',
-                '/usr/lib/jvm/openjdk-21/bin/java',
-                '/usr/lib/jvm/default-java/bin/java',
-                '/usr/lib/jvm/java-17-openjdk-amd64/bin/java',
-                '/usr/lib/jvm/java-11-openjdk-amd64/bin/java',
-                '/usr/bin/java',
-            ]:
-                if os.path.isfile(path):
-                    try:
-                        r = subprocess.run([path, '-version'], capture_output=True, timeout=10)
-                        if r.returncode == 0:
-                            return path
-                    except Exception:
-                        continue
-            return None
-
-        java_bin = _find_java()
-        if not java_bin:
-            return (
-                "Java is not installed on this server. "
-                "Install it with: sudo apt-get install -y default-jre"
-            )
-        result = subprocess.run(
-            [java_bin, '-jar', jar_path, tmp_json.name, accdb_path],
-            capture_output=True, text=True, timeout=120
-        )
-        if result.returncode != 0:
-            return f"Java builder failed:\n{result.stderr or result.stdout}"
-    except subprocess.TimeoutExpired:
-        return "Java builder timed out (>120s)"
-    except Exception as e:
-        return f"Java builder error: {e}"
-    finally:
-        try:
-            os.unlink(tmp_json.name)
-        except Exception:
-            pass
-
-    return ''
-
-
-# ── CIS Manufacturer Parts — fixed schema ────────────────────────────────────
-
-_CIS_ACC_TABLE = 'Cis Manufacturer Parts'
-_CIS_ACCDB_COLS = [
-    'Part Number', 'Manufacturer', 'Manufacturer PN',
-    'Manufacturer PN Status', 'Datasheet',
-]
-
-
 def _extract_cis_manufacturer_parts(db):
-    """
-    Reads directly from part.cis_manufacturer_parts (fixed table, duplicate part_number allowed).
-    Returns a table dict with acc_table = 'Cis Manufacturer Parts'.
-    """
-    # Ensure mpn_status / datasheet columns exist on part.manufacturers
+    # Ensure columns exist
     try:
         db.session.execute(db.text(
             "ALTER TABLE part.manufacturers "
@@ -377,7 +254,7 @@ def _extract_cis_manufacturer_parts(db):
     except Exception:
         db.session.rollback()
 
-    # Ensure the table exists
+    # Ensure table exists
     try:
         db.session.execute(db.text("""
             CREATE TABLE IF NOT EXISTS part.cis_manufacturer_parts (
@@ -399,7 +276,7 @@ def _extract_cis_manufacturer_parts(db):
     except Exception:
         db.session.rollback()
 
-    # Full refresh from part.manufacturers
+    # Full refresh
     try:
         db.session.execute(db.text("TRUNCATE part.cis_manufacturer_parts RESTART IDENTITY"))
         db.session.execute(db.text("""
@@ -420,7 +297,6 @@ def _extract_cis_manufacturer_parts(db):
     except Exception:
         db.session.rollback()
 
-    # Read from the table
     try:
         rows = db.session.execute(db.text(
             "SELECT part_number, manufacturer, manufacturer_pn, "
@@ -445,21 +321,133 @@ def _extract_cis_manufacturer_parts(db):
     }
 
 
-# ── public entry point ────────────────────────────────────────────────────────
+# ── builders ──────────────────────────────────────────────────────────────────
+
+def _build_windows(tables, accdb_path):
+    try:
+        import win32com.client as win32
+    except ImportError:
+        return "pywin32 not installed. Run: pip install pywin32"
+    try:
+        import pyodbc
+    except ImportError:
+        return "pyodbc not installed. Run: pip install pyodbc"
+
+    if os.path.exists(accdb_path):
+        os.remove(accdb_path)
+
+    try:
+        cat = win32.Dispatch('ADOX.Catalog')
+        cat.Create(f'Provider=Microsoft.ACE.OLEDB.12.0;Data Source={accdb_path};')
+
+        for tbl in tables:
+            adox_table = win32.Dispatch('ADOX.Table')
+            adox_table.Name = tbl['acc_table']
+            for col_name in tbl['columns']:
+                col = win32.Dispatch('ADOX.Column')
+                col.Name        = col_name
+                col.Type        = 202   # adVarWChar
+                col.DefinedSize = 255
+                col.Attributes  = 0x0002  # adColNullable
+                adox_table.Columns.Append(col)
+            cat.Tables.Append(adox_table)
+
+        cat.ActiveConnection = None
+        del cat
+    except Exception as e:
+        return f"ADOX schema creation failed: {e}"
+
+    try:
+        conn = pyodbc.connect(
+            r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};' + f'DBQ={accdb_path};',
+            autocommit=True
+        )
+        cur = conn.cursor()
+        for tbl in tables:
+            cols_sql = ', '.join(f'[{c}]' for c in tbl['columns'])
+            ph_sql   = ', '.join('?' for _ in tbl['columns'])
+            sql      = f"INSERT INTO [{tbl['acc_table']}] ({cols_sql}) VALUES ({ph_sql})"
+            for row in tbl['rows']:
+                try:
+                    cur.execute(sql, row)
+                except Exception:
+                    pass
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        return f"pyodbc insert failed: {e}"
+
+    return ''
+
+
+def _build_linux(tables, accdb_path):
+    jar_path = os.path.abspath(os.path.join(
+        os.path.dirname(__file__), '..', '..', 'accdb_builder', 'AccdbBuilder.jar'
+    ))
+    if not os.path.exists(jar_path):
+        return f"AccdbBuilder.jar not found at {jar_path}. Run: cd accdb_builder && bash setup.sh"
+
+    tmp_json = tempfile.NamedTemporaryFile(suffix='.json', delete=False, mode='w', encoding='utf-8')
+    try:
+        json.dump(tables, tmp_json, ensure_ascii=False)
+        tmp_json.close()
+
+        import shutil
+
+        def _find_java():
+            candidate = shutil.which('java')
+            if candidate:
+                try:
+                    if subprocess.run([candidate, '-version'], capture_output=True, timeout=10).returncode == 0:
+                        return candidate
+                except Exception:
+                    pass
+            for path in [
+                '/usr/lib/jvm/java-21-openjdk-amd64/bin/java',
+                '/usr/lib/jvm/openjdk-21/bin/java',
+                '/usr/lib/jvm/default-java/bin/java',
+                '/usr/lib/jvm/java-17-openjdk-amd64/bin/java',
+                '/usr/lib/jvm/java-11-openjdk-amd64/bin/java',
+                '/usr/bin/java',
+            ]:
+                if os.path.isfile(path):
+                    try:
+                        if subprocess.run([path, '-version'], capture_output=True, timeout=10).returncode == 0:
+                            return path
+                    except Exception:
+                        continue
+            return None
+
+        java_bin = _find_java()
+        if not java_bin:
+            return "Java is not installed. Run: sudo apt-get install -y default-jre"
+
+        result = subprocess.run(
+            [java_bin, '-jar', jar_path, tmp_json.name, accdb_path],
+            capture_output=True, text=True, timeout=120
+        )
+        if result.returncode != 0:
+            return f"Java builder failed:\n{result.stderr or result.stdout}"
+    except subprocess.TimeoutExpired:
+        return "Java builder timed out (>120s)"
+    except Exception as e:
+        return f"Java builder error: {e}"
+    finally:
+        try:
+            os.unlink(tmp_json.name)
+        except Exception:
+            pass
+
+    return ''
+
+
+# ── public API ────────────────────────────────────────────────────────────────
 
 def sync_accdb(db):
     """
-    Build CadDB.accdb from PostgreSQL.
-
-    Args:
-        db: Flask-SQLAlchemy db instance
-
-    Returns:
-        (bytes, error_str)
-        On success: (file_bytes, '')
-        On failure: (None, 'error message')
+    Rebuild CadDB.accdb from PostgreSQL and save to disk.
+    Returns (bytes, error_str).
     """
-    # Fetch all categories
     cats = db.session.execute(db.text(
         "SELECT id, name, series_prefix, COALESCE(code, name), columns_config "
         "FROM part.categories WHERE is_deleted = false ORDER BY name"
@@ -467,7 +455,6 @@ def sync_accdb(db):
 
     tables = _extract_data(db, cats)
 
-    # Append fixed CIS manufacturer parts table
     cis_table = _extract_cis_manufacturer_parts(db)
     if cis_table:
         tables.append(cis_table)
@@ -475,28 +462,26 @@ def sync_accdb(db):
     if not tables:
         return None, "No part data found to export"
 
-    tmp = tempfile.NamedTemporaryFile(suffix='.accdb', delete=False)
-    tmp.close()
-    accdb_path = tmp.name
+    accdb_path = _ACCDB_PATH
 
-    try:
-        is_windows = platform.system() == 'Windows'
+    if platform.system() == 'Windows':
+        err = _build_windows(tables, accdb_path)
+    else:
+        err = _build_linux(tables, accdb_path)
 
-        if is_windows:
-            err = _build_windows(tables, accdb_path)
-        else:
-            err = _build_linux(tables, accdb_path)
+    if err:
+        return None, err
 
-        if err:
-            return None, err
+    with open(accdb_path, 'rb') as f:
+        return f.read(), ''
 
-        with open(accdb_path, 'rb') as f:
-            data = f.read()
 
-        return data, ''
-
-    finally:
-        try:
-            os.unlink(accdb_path)
-        except Exception:
-            pass
+def get_accdb_bytes():
+    """
+    Return the existing CadDB.accdb from disk without rebuilding.
+    Returns (bytes, error_str).
+    """
+    if not os.path.exists(_ACCDB_PATH):
+        return None, "CadDB.accdb not found. Please sync first."
+    with open(_ACCDB_PATH, 'rb') as f:
+        return f.read(), ''
