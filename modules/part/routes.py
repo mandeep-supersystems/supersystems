@@ -2676,6 +2676,30 @@ def rebuild_descriptions():
 
 # ─── MANUFACTURERS (AML) ───
 
+def _sync_cis_for_part(part_number):
+    """Refresh part.cis_manufacturer_parts rows for a single part_number."""
+    try:
+        db.session.execute(db.text(
+            "DELETE FROM part.cis_manufacturer_parts WHERE part_number = :pn"
+        ), {"pn": part_number})
+        db.session.execute(db.text("""
+            INSERT INTO part.cis_manufacturer_parts
+                (part_number, manufacturer, manufacturer_pn, manufacturer_pn_status, datasheet)
+            SELECT
+                m.part_number,
+                COALESCE(m.make, ''),
+                COALESCE(m.mpn, ''),
+                COALESCE(m.mpn_status, ''),
+                COALESCE(m.datasheet, '')
+            FROM part.manufacturers m
+            WHERE m.part_number = :pn
+              AND ((m.mpn IS NOT NULL AND m.mpn != '') OR (m.make IS NOT NULL AND m.make != ''))
+            ORDER BY m.mpn
+        """), {"pn": part_number})
+    except Exception:
+        db.session.rollback()
+
+
 @part_bp.route("/manufacturers/<part_number>", methods=["GET"])
 def get_part_manufacturers(part_number):
     try:
@@ -2704,6 +2728,7 @@ def add_manufacturer():
     ), {"pn": part_number, "mpn": mpn, "make": make}).scalar()
     
     _log_audit('CREATE', 'Manufacturer', part_number, details=f"Added MPN: {mpn}, Make: {make}")
+    _sync_cis_for_part(part_number)
     db.session.commit()
     return {"success": True, "data": {"id": str(new_id)}, "message": "Manufacturer combination added"}
 
@@ -2721,6 +2746,7 @@ def update_manufacturer(mid):
         "UPDATE part.manufacturers SET mpn = :mpn, make = :make WHERE id = :id"
     ), {"mpn": mpn, "make": make, "id": mid})
     _log_audit('UPDATE', 'Manufacturer', row[0], details=f"Updated MPN: {mpn}, Make: {make}")
+    _sync_cis_for_part(row[0])
     db.session.commit()
     return {"success": True, "message": "Manufacturer updated"}
 
@@ -2732,6 +2758,7 @@ def delete_manufacturer(mid):
         
     db.session.execute(db.text("DELETE FROM part.manufacturers WHERE id = :id"), {"id": mid})
     _log_audit('DELETE', 'Manufacturer', row[0], details=f"Deleted manufacturer record {mid}")
+    _sync_cis_for_part(row[0])
     db.session.commit()
     return {"success": True, "message": "Manufacturer combination deleted"}
 

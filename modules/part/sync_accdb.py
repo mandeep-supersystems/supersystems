@@ -352,8 +352,7 @@ def _build_windows(tables, accdb_path):
                 adox_table.Columns.Append(col)
             cat.Tables.Append(adox_table)
 
-        cat.ActiveConnection = None
-        del cat
+        cat = None
     except Exception as e:
         return f"ADOX schema creation failed: {e}"
 
