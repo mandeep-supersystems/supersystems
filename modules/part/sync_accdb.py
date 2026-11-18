@@ -75,6 +75,7 @@ CATEGORY_TABLES = {
 # ── CIS Manufacturer Parts — fixed schema ─────────────────────────────────────
 
 _CIS_ACC_TABLE = 'Cis Manufacturer Parts'
+assert ' ' in _CIS_ACC_TABLE, "CIS table name must use spaces not underscores"
 _CIS_ACCDB_COLS = [
     'Part Number', 'Manufacturer', 'Manufacturer PN',
     'Manufacturer PN Status', 'Datasheet',
@@ -472,6 +473,7 @@ def sync_accdb(db):
     if platform.system() == 'Windows':
         err = _build_windows(tables, accdb_path)
     else:
+        print(f"[sync_accdb] tables to write: {[t['acc_table'] for t in tables]}", flush=True)
         err = _build_linux(tables, accdb_path)
 
     if err:
