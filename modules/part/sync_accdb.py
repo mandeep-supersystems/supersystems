@@ -465,6 +465,7 @@ def sync_accdb(db):
         err = _build_windows(tables, accdb_path)
     else:
         print(f"[sync_accdb] tables to write: {[t['acc_table'] for t in tables]}", flush=True)
+        print(f"[sync_accdb] CIS table name: {tables[-1]['acc_table']!r}", flush=True)
         err = _build_linux(tables, accdb_path)
 
     if err:
